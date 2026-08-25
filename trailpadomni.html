@@ -1,0 +1,1372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trailpad Omni</title>
+<style>
+  :root { color-scheme: dark; --bg:#080a0f; --panel:#11151d; --line:#293241; --text:#e8edf5; --muted:#8e9aad; --accent:#62d8ff; --good:#61e294; }
+  * { box-sizing:border-box; }
+  body { margin:0; overflow:hidden; font:12px/1.3 system-ui,Segoe UI,sans-serif; background:transparent; color:var(--text); }
+  #app { position:fixed; inset:0; }
+  canvas { display:block; }
+  #hud { position:absolute; inset:14px; pointer-events:none; display:flex; gap:12px; }
+  .panel { pointer-events:auto; background:color-mix(in srgb,var(--panel) 94%,transparent); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 40px #0008; backdrop-filter:blur(10px); }
+  #left { width:360px; max-height:calc(100vh - 220px); overflow-y:auto; padding:14px; }
+  #right { margin-left:auto; width:360px; max-height:calc(100vh - 220px); overflow-y:auto; padding:14px; }
+
+  h1 { font-size:15px; margin:0 0 4px; font-weight:600; } 
+  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin:14px 0 6px; font-weight:600; }
+  .sub { font-size:11px; color:var(--muted); margin-bottom:10px; }
+  
+  select, button, input[type="file"], input[type="number"] { 
+    background:#0c1017; 
+    color:var(--text); 
+    border:1px solid var(--line); 
+    border-radius:6px; 
+    padding:3px 6px; 
+    font-size:11px;
+    line-height:1.2;
+    height:24px;
+    vertical-align:middle;
+  }
+  select, input[type="file"] { width:100%; }
+  button { cursor:pointer; } button:hover { border-color:#53657e; }
+  
+  .row { display:flex; align-items:center; gap:8px; margin:5px 0; font-size:11px; }
+  .row > span:first-child { width:82px; color:var(--muted); }
+  .bar { flex:1; height:8px; background:#080b10; border-radius:5px; overflow:hidden; border:1px solid #202733; }
+  .fill { height:100%; width:0; background:var(--accent); transition:width .03s linear; }
+  .value { width:58px; text-align:right; font-variant-numeric:tabular-nums; font-size:11px; }
+  
+  .buttons { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; }
+  .btn { padding:6px 8px; border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:11px; position:relative; overflow:hidden; background:#0c1017; }
+  .btn-header { display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1; }
+  .btn .b-name { font-weight:600; color:var(--text); font-size:11px; }
+  .btn .b-val { font-variant-numeric:tabular-nums; font-size:10px; color:var(--muted); }
+  .btn .pressure-bar { position:absolute; left:0; bottom:0; top:0; width:0%; background:color-mix(in srgb, var(--accent) 25%, transparent); transition:width .03s linear; z-index:0; }
+  .btn.on { border-color:var(--good); box-shadow:0 0 10px #61e29444; }
+  .btn.on .b-name { color:var(--good); }
+  .btn.on .pressure-bar { background:color-mix(in srgb, var(--good) 35%, transparent); }
+
+  #events { max-height:220px; overflow:auto; font-family:ui-monospace,monospace; font-size:11px; color:#aeb9ca; }
+  .event { padding:3px 0; border-bottom:1px solid #1a202a; }
+  .status { display:inline-block; padding:2px 6px; border-radius:4px; background:#242a34; color:var(--muted); font-size:10px; text-transform:uppercase; font-weight:600; }
+  .status.connected { background:#173622; color:var(--good); }
+  .meter { height:80px; position:relative; border:1px solid var(--line); border-radius:8px; background:#0a0d13; margin-bottom:6px; }
+  .cross { position:absolute; background:#252d39; } .cross.x { left:50%; top:0; width:1px; height:100%; } .cross.y { top:50%; left:0; width:100%; height:1px; }
+  .dot { position:absolute; width:12px; height:12px; margin:-6px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px var(--accent); }
+
+  /* --- BOTTOM DOCK --- */
+  #bottom-dock {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(1050px, calc(100vw - 28px));
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    transition: all 0.25s ease-in-out;
+    overflow: hidden;
+  }
+
+  .dock-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    border-bottom: 1px solid var(--line);
+    background: #0b0e14;
+    padding-right: 10px;
+  }
+
+  .dock-tabs { display: flex; }
+  .dock-tab-btn {
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .dock-tab-btn:hover { color: var(--text); }
+  .dock-tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
+  }
+
+  .dock-toggle-btn { padding: 3px 8px; font-size: 10px; border-radius: 4px; height: auto; }
+
+  .dock-tab-content {
+    display: none;
+    padding: 12px;
+  }
+  .dock-tab-content.active { display: block; }
+  #bottom-dock.collapsed .dock-tab-content { display: none !important; }
+
+  .lighting-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .light-card {
+    background: #0b0e14;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .light-card.active-light-target {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+
+  .light-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1a202a;
+    padding-bottom: 4px;
+    margin-bottom: 2px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .light-card-header label { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
+  .control-row { display: flex; align-items: center; gap: 6px; font-size: 11px; margin: 2px 0; }
+  .control-row label { color: var(--muted); width: 78px; flex-shrink: 0; font-size: 11px; }
+  .control-row .val { width: 32px; text-align: right; font-variant-numeric: tabular-nums; font-size: 11px; }
+
+  .pos-inputs { display: flex; gap: 4px; flex: 1; }
+  .pos-inputs input[type="number"] { width: 100%; padding: 2px 4px; font-size: 11px; border-radius: 4px; height: 24px; text-align: center; cursor: ew-resize; }
+
+  select.light-type-select { padding: 1px 4px; font-size: 11px; border-radius: 4px; height: 24px; }
+  input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; height: 4px; }
+  input[type="color"] { width: 100%; height: 20px; border: 1px solid var(--line); background: #0c1017; border-radius: 4px; cursor: pointer; padding: 0; }
+
+  .postproc-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .postproc-card {
+    background: #0b0e14;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .camera-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  @media(max-width:900px){ 
+    #right { display:none; } 
+    #left { width:min(100%, 390px); } 
+    .lighting-grid { grid-template-columns: repeat(2, 1fr); } 
+    .postproc-grid { grid-template-columns: 1fr; }
+    .camera-container { grid-template-columns: 1fr; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="hud">
+  <!-- LEFT PANEL -->
+  <section id="left" class="panel">
+    <h1>Gamepad Diagnostics</h1>
+    <div class="sub">Streamer Overlay & Diagnostics</div>
+    
+    <select id="padSelect"><option>No controller detected</option></select>
+    <div class="row"><span>Status</span><span id="status" class="status">Waiting</span></div>
+    <div class="row"><span>Mapping</span><span id="mapping" class="value">—</span></div>
+    <div class="row"><span>Axes</span><span id="axisCount" class="value">—</span></div>
+    <div class="row"><span>Buttons</span><span id="buttonCount" class="value">—</span></div>
+
+    <h2>Analog Sticks</h2>
+    <div class="meter"><div class="cross x"></div><div class="cross y"></div><div id="leftDot" class="dot"></div></div>
+    <div class="row"><span>LX / LY</span><div class="bar"><div id="lxBar" class="fill"></div></div><span id="lx" class="value">0.000</span></div>
+    
+    <div class="meter" style="margin-top:10px;"><div class="cross x"></div><div class="cross y"></div><div id="rightDot" class="dot"></div></div>
+    <div class="row"><span>RX / RY</span><div class="bar"><div id="rxBar" class="fill"></div></div><span id="rx" class="value">0.000</span></div>
+
+    <h2>Buttons & Pressure</h2>
+    <div id="buttons" class="buttons"></div>
+
+    <h2>Connection</h2>
+    <div style="display:flex; gap:8px;">
+      <button id="scan" style="flex:1;">Rescan</button>
+      <button id="rumble" style="flex:1;">Rumble</button>
+    </div>
+  </section>
+
+  <!-- RIGHT PANEL -->
+  <section id="right" class="panel">
+    <h1>Raw Input Stream</h1>
+    <div class="sub">Logs real-time gamepad state changes.</div>
+    <h2>Axes</h2><div id="axes"></div>
+    <h2>Events</h2><div id="events"></div>
+  </section>
+
+  <!-- BOTTOM DOCK -->
+  <section id="bottom-dock" class="panel">
+    <div class="dock-header">
+      <div class="dock-tabs">
+        <button class="dock-tab-btn active" data-tab="tab-model">Model</button>
+        <button class="dock-tab-btn" data-tab="tab-camera">Camera</button>
+        <button class="dock-tab-btn" data-tab="tab-lighting">Lighting</button>
+        <button class="dock-tab-btn" data-tab="tab-postproc">Post-Processing</button>
+      </div>
+      <button id="toggleDock" class="dock-toggle-btn">Collapse</button>
+    </div>
+    
+    <!-- TAB 1: MODEL -->
+    <div id="tab-model" class="dock-tab-content active">
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start;">
+        <div>
+          <h2 style="margin-top:0;">Presets</h2>
+          <button id="loadDefaultBtn" style="width:100%;">Procedural Gamepad (Default)</button>
+        </div>
+        <div>
+          <h2 style="margin-top:0;">Upload Custom Model</h2>
+          <input type="file" id="glbFile" accept=".glb,.gltf">
+          <div class="sub" style="margin-top:4px; font-size:10px;">
+            Target nodes: <code>Btn_A</code>, <code>Stick_Left</code>, etc.
+          </div>
+        </div>
+        <div>
+          <h2 style="margin-top:0;">Transform & Material</h2>
+          <div class="control-row">
+            <label style="width:75px;">Model Scale</label>
+            <input type="range" id="modelScale" min="0.1" max="3" step="0.05" value="1">
+            <input type="number" id="modelScaleInput" min="0.01" max="10" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
+          </div>
+          <div class="control-row" style="margin-top:6px;">
+            <label style="width:75px;">Emission</label>
+            <input type="range" id="emissionIntensity" min="0" max="3" step="0.05" value="1.0">
+            <span id="emissionVal" class="val">1.00</span>
+          </div>
+          <div class="control-row" style="margin-top:4px;">
+            <label style="width:75px;">Emission Color</label>
+            <input type="color" id="emissionColor" value="#ffffff" style="flex:1;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: CAMERA -->
+    <div id="tab-camera" class="dock-tab-content">
+      <div class="camera-container">
+        <div>
+          <div class="control-row">
+            <label style="width:70px;">Lens FOV</label>
+            <input type="range" id="camFov" min="15" max="100" step="1" value="50">
+            <input type="number" id="camFovInput" min="1" max="170" step="1" value="50" style="width:55px; text-align:right; cursor:ew-resize;">
+          </div>
+          <div class="control-row">
+            <label style="width:70px;">Zoom</label>
+            <input type="range" id="camRadius" min="2" max="15" step="0.1" value="6.5">
+            <input type="number" id="camRadiusInput" min="0.5" max="50" step="0.1" value="6.5" style="width:55px; text-align:right; cursor:ew-resize;">
+          </div>
+        </div>
+
+        <div>
+          <div class="control-row"><label style="width:100%;">Camera Rotations (deg Pitch, Yaw, Roll)</label></div>
+          <div class="pos-inputs">
+            <input type="number" id="camRotX" value="0" step="1" title="Pitch (X)">
+            <input type="number" id="camRotY" value="0" step="1" title="Yaw (Y)">
+            <input type="number" id="camRotZ" value="0" step="1" title="Roll (Z)">
+          </div>
+          <div class="control-row" style="margin-top:6px;"><label style="width:100%;">Target Point (X, Y, Z)</label></div>
+          <div class="pos-inputs">
+            <input type="number" id="camTargetX" value="0" step="0.1">
+            <input type="number" id="camTargetY" value="-0.2" step="0.1">
+            <input type="number" id="camTargetZ" value="0" step="0.1">
+          </div>
+        </div>
+
+        <div>
+          <button id="resetCamBtn" style="width:100%; margin-top:18px;">Reset Viewport</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: LIGHTING -->
+    <div id="tab-lighting" class="dock-tab-content">
+      <div id="dockContent" class="lighting-grid"></div>
+    </div>
+
+    <!-- TAB 4: POST-PROCESSING -->
+    <div id="tab-postproc" class="dock-tab-content">
+      <div class="postproc-grid">
+        <!-- Anti-Aliasing & Shadows -->
+        <div class="postproc-card">
+          <h2 style="margin-top:0;">Quality & Shadows</h2>
+          <div class="control-row">
+            <label>Enable AA</label>
+            <input type="checkbox" id="aaToggle" checked>
+          </div>
+          <div class="control-row">
+            <label>AA Mode</label>
+            <select id="aaQualitySelect" style="flex:1;">
+              <option value="fxaa+2msaa">FXAA + 2x MSAA</option>
+              <option value="fxaa+4msaa" selected>FXAA + 4x MSAA</option>
+              <option value="fxaa+8msaa">FXAA + 8x MSAA</option>
+              <option value="fxaa">FXAA Only</option>
+            </select>
+          </div>
+          <div class="control-row" style="margin-top:6px;">
+            <label>Shadow Res</label>
+            <select id="shadowQualitySelect" style="flex:1;">
+              <option value="512">Low (512px)</option>
+              <option value="1024">Medium (1024px)</option>
+              <option value="2048" selected>High (2048px)</option>
+              <option value="4096">Ultra (4096px)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Bloom -->
+        <div class="postproc-card">
+          <h2 style="margin-top:0;">Bloom</h2>
+          <div class="control-row">
+            <label>Enable Bloom</label>
+            <input type="checkbox" id="bloomToggle" checked>
+          </div>
+          <div class="control-row">
+            <label>Strength</label>
+            <input type="range" id="bloomStrength" min="0" max="3" step="0.05" value="1.0">
+            <span id="bloomStrengthVal" class="val">1.00</span>
+          </div>
+          <div class="control-row">
+            <label>Radius</label>
+            <input type="range" id="bloomRadius" min="0" max="2" step="0.05" value="0.75">
+            <span id="bloomRadiusVal" class="val">0.75</span>
+          </div>
+          <div class="control-row">
+            <label>Threshold</label>
+            <input type="range" id="bloomThreshold" min="0" max="1" step="0.05" value="0.9">
+            <span id="bloomThresholdVal" class="val">0.90</span>
+          </div>
+        </div>
+
+        <!-- Color Space & Tone Mapping -->
+        <div class="postproc-card">
+          <h2 style="margin-top:0;">Color & Exposure</h2>
+          <div class="control-row">
+            <label>Tone Mapping</label>
+            <select id="toneMappingSelect" style="flex:1;">
+              <option value="ACESFilmic" selected>ACES Filmic</option>
+              <option value="Linear">Linear</option>
+              <option value="Reinhard">Reinhard</option>
+              <option value="Cineon">Cineon</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <label>Exposure</label>
+            <input type="range" id="exposureRange" min="0.1" max="3" step="0.05" value="1.1">
+            <span id="exposureVal" class="val">1.10</span>
+          </div>
+          <div class="control-row">
+            <label>Contrast</label>
+            <input type="range" id="contrastRange" min="0.5" max="2" step="0.05" value="1.0">
+            <span id="contrastVal" class="val">1.00</span>
+          </div>
+          <div class="control-row">
+            <label>Saturation</label>
+            <input type="range" id="saturationRange" min="0" max="2" step="0.05" value="1.0">
+            <span id="saturationVal" class="val">1.00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+
+// Click-and-Drag Scrubbing with drag threshold so standard typing works on click
+let isPotentialScrub = false;
+let isScrubbing = false;
+let scrubInput = null;
+let scrubStartX = 0;
+let scrubStartY = 0;
+let scrubStartVal = 0;
+let scrubStep = 1;
+
+document.addEventListener('mousedown', (e) => {
+  if (e.target.tagName === 'INPUT' && e.target.type === 'number') {
+    isPotentialScrub = true;
+    scrubInput = e.target;
+    scrubStartX = e.clientX;
+    scrubStartY = e.clientY;
+    scrubStartVal = parseFloat(scrubInput.value) || 0;
+    scrubStep = parseFloat(scrubInput.step) || 1;
+  }
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!isPotentialScrub || !scrubInput) return;
+  
+  const deltaX = e.clientX - scrubStartX;
+  const deltaY = e.clientY - scrubStartY;
+  
+  // Require moving at least 4 pixels horizontally before treating as a scrub action
+  if (!isScrubbing && Math.abs(deltaX) > 4) {
+    isScrubbing = true;
+    scrubInput.blur(); // Unfocus so cursor doesn't interfere during drag
+  }
+
+  if (isScrubbing) {
+    let modMultiplier = 1.0;
+    if (e.ctrlKey) modMultiplier = 0.2;
+    else if (e.shiftKey) modMultiplier = 5.0;
+
+    const sensitivity = scrubStep < 0.1 ? 0.005 : (scrubStep < 1 ? 0.02 : 0.1);
+    let newVal = scrubStartVal + (deltaX * scrubStep * sensitivity * 5 * modMultiplier);
+    
+    const min = scrubInput.min !== '' ? parseFloat(scrubInput.min) : -Infinity;
+    const max = scrubInput.max !== '' ? parseFloat(scrubInput.max) : Infinity;
+    newVal = Math.max(min, Math.min(max, newVal));
+
+    const decimals = (scrubStep.toString().split('.')[1] || '').length;
+    scrubInput.value = newVal.toFixed(decimals);
+    scrubInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  isPotentialScrub = false;
+  isScrubbing = false;
+  scrubInput = null;
+});
+
+// Dock Tab Handling
+document.querySelectorAll('.dock-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.dock-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.dock-tab-content').forEach(c => c.classList.remove('active'));
+    
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    
+    document.querySelector('#bottom-dock').classList.remove('collapsed');
+    document.querySelector('#toggleDock').textContent = 'Collapse';
+  });
+});
+
+const STANDARD_BUTTONS = [
+  { id: 0,  label: 'A / Cross' }, { id: 1,  label: 'B / Circle' },
+  { id: 2,  label: 'X / Square' }, { id: 3,  label: 'Y / Triangle' },
+  { id: 4,  label: 'L1 / LB' },     { id: 5,  label: 'R1 / RB' },
+  { id: 6,  label: 'L2 / LT' },     { id: 7,  label: 'R2 / RT' },
+  { id: 8,  label: 'Select' },      { id: 9,  label: 'Start' },
+  { id: 10, label: 'L3' },          { id: 11, label: 'R3' },
+  { id: 12, label: 'D-Up' },        { id: 13, label: 'D-Down' },
+  { id: 14, label: 'D-Left' },      { id: 15, label: 'D-Right' },
+  { id: 16, label: 'Home' }
+];
+
+const MESH_MAPPINGS = {
+  'Btn_South': 0, 'Btn_A': 0, 'Btn_East':  1, 'Btn_B': 1,
+  'Btn_West':  2, 'Btn_X': 2, 'Btn_North': 3, 'Btn_Y': 3,
+  'Bumper_Left': 4,  'Bumper_Right': 5, 'Trigger_Left': 6, 'Trigger_Right': 7,
+  'Btn_Select': 8,   'Btn_Start': 9, 'Btn_L3': 10, 'Btn_R3': 11,
+  'DPad_Up': 12,     'DPad_Down': 13, 'DPad_Left': 14, 'DPad_Right': 15, 'Btn_Home': 16
+};
+
+function getButtonLabel(i) { return STANDARD_BUTTONS[i]?.label || `Button ${i}`; }
+
+const app = document.querySelector('#app');
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, .1, 100);
+const cameraTarget = new THREE.Vector3(0, -0.2, 0);
+let radius = 6.5;
+let theta = 0; 
+let phi = 0.85;  
+let isUpdatingRotUI = false;
+
+function syncTargetInputs() {
+  document.querySelector('#camTargetX').value = cameraTarget.x.toFixed(2);
+  document.querySelector('#camTargetY').value = cameraTarget.y.toFixed(2);
+  document.querySelector('#camTargetZ').value = cameraTarget.z.toFixed(2);
+}
+
+function updateCameraPosition(skipRotationUpdate = false) {
+  phi = Math.max(0.01, Math.min(Math.PI - 0.01, phi));
+  camera.position.x = cameraTarget.x + radius * Math.sin(phi) * Math.sin(theta);
+  camera.position.y = cameraTarget.y + radius * Math.cos(phi);
+  camera.position.z = cameraTarget.z + radius * Math.sin(phi) * Math.cos(theta);
+  camera.lookAt(cameraTarget);
+  
+  document.querySelector('#camRadius').value = radius;
+  document.querySelector('#camRadiusInput').value = radius.toFixed(1);
+
+  if (!skipRotationUpdate) {
+    isUpdatingRotUI = true;
+    document.querySelector('#camRotX').value = (camera.rotation.x * (180 / Math.PI)).toFixed(1);
+    document.querySelector('#camRotY').value = (camera.rotation.y * (180 / Math.PI)).toFixed(1);
+    document.querySelector('#camRotZ').value = (camera.rotation.z * (180 / Math.PI)).toFixed(1);
+    isUpdatingRotUI = false;
+  }
+}
+
+// Camera Input Synchronizers
+const syncFov = (val) => {
+  const fovVal = Math.max(1, Math.min(170, parseFloat(val) || 50));
+  camera.fov = fovVal;
+  camera.updateProjectionMatrix();
+  document.querySelector('#camFov').value = fovVal;
+  document.querySelector('#camFovInput').value = fovVal;
+};
+
+document.querySelector('#camFov').addEventListener('input', (e) => syncFov(e.target.value));
+document.querySelector('#camFovInput').addEventListener('input', (e) => syncFov(e.target.value));
+
+const syncZoom = (val) => {
+  radius = Math.max(0.5, Math.min(50, parseFloat(val) || 6.5));
+  updateCameraPosition();
+};
+
+document.querySelector('#camRadius').addEventListener('input', (e) => syncZoom(e.target.value));
+document.querySelector('#camRadiusInput').addEventListener('input', (e) => syncZoom(e.target.value));
+
+const updateRotFromInputs = () => {
+  if (isUpdatingRotUI) return;
+  const rotX = (parseFloat(document.querySelector('#camRotX').value) || 0) * (Math.PI / 180);
+  const rotY = (parseFloat(document.querySelector('#camRotY').value) || 0) * (Math.PI / 180);
+  const rotZ = (parseFloat(document.querySelector('#camRotZ').value) || 0) * (Math.PI / 180);
+
+  camera.rotation.set(rotX, rotY, rotZ);
+};
+
+['X', 'Y', 'Z'].forEach(axis => {
+  document.querySelector(`#camRot${axis}`).addEventListener('input', updateRotFromInputs);
+});
+
+const updateCamTarget = () => {
+  cameraTarget.x = parseFloat(document.querySelector('#camTargetX').value) || 0;
+  cameraTarget.y = parseFloat(document.querySelector('#camTargetY').value) || 0;
+  cameraTarget.z = parseFloat(document.querySelector('#camTargetZ').value) || 0;
+  updateCameraPosition();
+};
+['X', 'Y', 'Z'].forEach(axis => {
+  document.querySelector(`#camTarget${axis}`).addEventListener('input', updateCamTarget);
+});
+
+document.querySelector('#resetCamBtn').addEventListener('click', () => {
+  radius = 6.5; theta = 0; phi = 0.85;
+  cameraTarget.set(0, -0.2, 0);
+  syncFov(50);
+  syncTargetInputs();
+  updateCameraPosition();
+});
+
+// Renderer setup with Soft Shadows enabled
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+// Global Escape key shortcut to release active light control back to camera
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    setActiveLight(null);
+    logEvent('Restored rotation controls back to camera via Escape.');
+  }
+});
+
+// Unified Post-Processing Pipeline Setup (Alpha Preserving Bloom Fix)
+function createMainRenderTarget(samples = 4) {
+  return new THREE.WebGLRenderTarget(innerWidth, innerHeight, {
+    type: THREE.HalfFloatType,
+    format: THREE.RGBAFormat,
+    samples: samples
+  });
+}
+
+let composer = new EffectComposer(renderer, createMainRenderTarget(4));
+
+const renderPass = new RenderPass(scene, camera);
+renderPass.clear = true;
+renderPass.clearColor = new THREE.Color(0, 0, 0);
+renderPass.clearAlpha = 0;
+composer.addPass(renderPass);
+
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.0, 0.75, 0.9);
+composer.addPass(bloomPass);
+
+// Combined Contrast & Saturation adjustment shader preserving native background alpha
+const ContrastSaturationShader = {
+  uniforms: { 
+    tDiffuse: { value: null }, 
+    contrast: { value: 1.0 },
+    saturation: { value: 1.0 }
+  },
+  vertexShader: `
+    varying vec2 vUv; 
+    void main() { 
+      vUv = uv; 
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); 
+    }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; 
+    uniform float contrast;
+    uniform float saturation;
+    varying vec2 vUv; 
+    void main() { 
+      vec4 col = texture2D(tDiffuse, vUv); 
+      
+      // Contrast adjustment
+      vec3 color = (col.rgb - 0.5) * contrast + 0.5;
+      
+      // Saturation adjustment
+      float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+      vec3 grayscale = vec3(luminance);
+      color = mix(grayscale, color, saturation);
+
+      gl_FragColor = vec4(color, col.a); 
+    }`
+};
+
+const postShaderPass = new ShaderPass(ContrastSaturationShader);
+composer.addPass(postShaderPass);
+
+const fxaaPass = new ShaderPass(FXAAShader);
+const pixelRatio = renderer.getPixelRatio();
+fxaaPass.material.uniforms['resolution'].value.x = 1 / (innerWidth * pixelRatio);
+fxaaPass.material.uniforms['resolution'].value.y = 1 / (innerHeight * pixelRatio);
+composer.addPass(fxaaPass);
+
+const outputPass = new OutputPass();
+composer.addPass(outputPass);
+
+// Post-Processing Tab Controls Logic
+function updateAntiAliasing() {
+  const enabled = document.querySelector('#aaToggle').checked;
+  const mode = document.querySelector('#aaQualitySelect').value;
+  
+  fxaaPass.enabled = enabled;
+  
+  let samples = 0;
+  if (enabled) {
+    if (mode.includes('2msaa')) samples = 2;
+    else if (mode.includes('4msaa')) samples = 4;
+    else if (mode.includes('8msaa')) samples = 8;
+  }
+  
+  const oldTarget = composer.renderTarget1;
+  composer.reset(createMainRenderTarget(samples));
+  oldTarget.dispose();
+}
+
+document.querySelector('#aaToggle').addEventListener('change', updateAntiAliasing);
+document.querySelector('#aaQualitySelect').addEventListener('change', updateAntiAliasing);
+
+document.querySelector('#shadowQualitySelect').addEventListener('change', (e) => {
+  const res = parseInt(e.target.value, 10);
+  lightsMap.forEach(entry => {
+    if (entry.instance.shadow) {
+      entry.instance.shadow.mapSize.width = res;
+      entry.instance.shadow.mapSize.height = res;
+      if (entry.instance.shadow.map) {
+        entry.instance.shadow.map.dispose();
+        entry.instance.shadow.map = null;
+      }
+    }
+  });
+});
+
+document.querySelector('#bloomToggle').addEventListener('change', (e) => {
+  bloomPass.enabled = e.target.checked;
+});
+document.querySelector('#bloomStrength').addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  bloomPass.strength = val;
+  document.querySelector('#bloomStrengthVal').textContent = val.toFixed(2);
+});
+document.querySelector('#bloomRadius').addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  bloomPass.radius = val;
+  document.querySelector('#bloomRadiusVal').textContent = val.toFixed(2);
+});
+document.querySelector('#bloomThreshold').addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  bloomPass.threshold = val;
+  document.querySelector('#bloomThresholdVal').textContent = val.toFixed(2);
+});
+
+document.querySelector('#toneMappingSelect').addEventListener('change', (e) => {
+  switch (e.target.value) {
+    case 'Linear': renderer.toneMapping = THREE.LinearToneMapping; break;
+    case 'Reinhard': renderer.toneMapping = THREE.ReinhardToneMapping; break;
+    case 'Cineon': renderer.toneMapping = THREE.CineonToneMapping; break;
+    default: renderer.toneMapping = THREE.ACESFilmicToneMapping; break;
+  }
+});
+
+document.querySelector('#exposureRange').addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  renderer.toneMappingExposure = val;
+  document.querySelector('#exposureVal').textContent = val.toFixed(2);
+});
+
+document.querySelector('#contrastRange').addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  postShaderPass.uniforms.contrast.value = val;
+  document.querySelector('#contrastVal').textContent = val.toFixed(2);
+});
+
+document.querySelector('#saturationRange').addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  postShaderPass.uniforms.saturation.value = val;
+  document.querySelector('#saturationVal').textContent = val.toFixed(2);
+});
+
+updateCameraPosition();
+
+let isMouseDown = false;
+let activeMouseButton = -1;
+let previousMousePosition = { x: 0, y: 0 };
+let activeLightId = null;
+
+window.addEventListener('contextmenu', (e) => e.preventDefault());
+renderer.domElement.addEventListener('mousedown', (e) => {
+  setActiveLight(null);
+  
+  isMouseDown = true;
+  activeMouseButton = e.button;
+  previousMousePosition = { x: e.clientX, y: e.clientY };
+});
+
+window.addEventListener('mouseup', () => { isMouseDown = false; activeMouseButton = -1; });
+window.addEventListener('mousemove', (e) => {
+  if (!isMouseDown) return;
+  const deltaX = e.clientX - previousMousePosition.x;
+  const deltaY = e.clientY - previousMousePosition.y;
+
+  if (activeMouseButton === 0) {
+    if (activeLightId && lightsMap.has(activeLightId)) {
+      const entry = lightsMap.get(activeLightId);
+      const light = entry.instance;
+      const rotSpeed = 0.01;
+      
+      const spherical = new THREE.Spherical().setFromVector3(light.position);
+      spherical.theta -= deltaX * rotSpeed;
+      spherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, spherical.phi + deltaY * rotSpeed));
+      light.position.setFromSpherical(spherical);
+
+      entry.config.pos = [light.position.x, light.position.y, light.position.z];
+      const card = document.querySelector(`#light-card-${activeLightId}`);
+      if (card) {
+        card.querySelector(`#${activeLightId}-pos-x`).value = light.position.x.toFixed(1);
+        card.querySelector(`#${activeLightId}-pos-y`).value = light.position.y.toFixed(1);
+        card.querySelector(`#${activeLightId}-pos-z`).value = light.position.z.toFixed(1);
+      }
+    } else {
+      theta -= deltaX * 0.008;
+      phi -= deltaY * 0.008;
+      updateCameraPosition();
+    }
+  } else if (activeMouseButton === 1) {
+    const panSpeed = radius * 0.0015;
+    const right = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    
+    camera.matrix.extractBasis(right, up, new THREE.Vector3());
+    
+    right.multiplyScalar(-deltaX * panSpeed);
+    up.multiplyScalar(deltaY * panSpeed);
+    
+    cameraTarget.add(right).add(up);
+    syncTargetInputs();
+    updateCameraPosition();
+  } else if (activeMouseButton === 2) {
+    syncFov(camera.fov + deltaY * 0.1);
+  }
+  previousMousePosition = { x: e.clientX, y: e.clientY };
+});
+
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  syncZoom(radius + e.deltaY * 0.005);
+}, { passive: false });
+
+// Lighting Dock Configuration
+const lightConfigs = [
+  { id: 'hemi', name: 'Hemi Light', type: 'HemisphereLight', color: '#8ab4f8', groundColor: '#080b12', intensity: 1.2, pos: [0, 5, 0], rot: [0, 0, 0], castShadow: false, softShadow: true },
+  { id: 'main', name: 'Main Light', type: 'DirectionalLight', color: '#fff5ea', intensity: 2.8, pos: [5, 10, 5], rot: [0, 0, 0], castShadow: true, softShadow: true },
+  { id: 'rim', name: 'Rim Light', type: 'DirectionalLight', color: '#62d8ff', intensity: 1.8, pos: [-4, 3, -3], rot: [0, 0, 0], castShadow: false, softShadow: true },
+  { id: 'fill', name: 'Fill Light', type: 'PointLight', color: '#a3b8cc', intensity: 1.2, pos: [0, -1, 3], rot: [0, 0, 0], castShadow: false, softShadow: true }
+];
+
+const lightsMap = new Map();
+
+function createLightInstance(config) {
+  let light;
+  const col = new THREE.Color(config.color);
+  const currentRes = parseInt(document.querySelector('#shadowQualitySelect')?.value || 2048, 10);
+  
+  switch(config.type) {
+    case 'DirectionalLight': light = new THREE.DirectionalLight(col, config.intensity); break;
+    case 'PointLight': light = new THREE.PointLight(col, config.intensity, 10); break;
+    case 'SpotLight': light = new THREE.SpotLight(col, config.intensity); break;
+    default: light = new THREE.HemisphereLight(col, new THREE.Color(config.groundColor || 0x080b12), config.intensity); break;
+  }
+
+  light.position.set(...config.pos);
+  if (config.rot) {
+    light.rotation.set(...config.rot);
+  }
+
+  if (light.shadow) {
+    light.castShadow = !!config.castShadow;
+    light.shadow.mapSize.width = currentRes;
+    light.shadow.mapSize.height = currentRes;
+    light.shadow.bias = config.softShadow ? -0.0005 : -0.001;
+    light.shadow.radius = config.softShadow ? 3 : 1;
+  }
+  return light;
+}
+
+lightConfigs.forEach(cfg => {
+  const light = createLightInstance(cfg);
+  scene.add(light);
+  lightsMap.set(cfg.id, { instance: light, config: cfg });
+});
+
+function setActiveLight(id) {
+  if (activeLightId === id && id !== null) {
+    activeLightId = null;
+    logEvent(`Released controls from light back to camera.`);
+  } else {
+    activeLightId = id;
+    if (id) {
+      logEvent(`Acquired rotation controls for light: ${id}`);
+    }
+  }
+
+  document.querySelectorAll('.light-card').forEach(c => c.classList.remove('active-light-target'));
+  if (activeLightId) {
+    const card = document.querySelector(`#light-card-${activeLightId}`);
+    if (card) card.classList.add('active-light-target');
+  }
+}
+
+function renderLightingDock() {
+  const container = document.querySelector('#dockContent');
+  container.innerHTML = '';
+
+  lightConfigs.forEach(cfg => {
+    const entry = lightsMap.get(cfg.id);
+    const card = document.createElement('div');
+    card.className = 'light-card';
+    card.id = `light-card-${cfg.id}`;
+
+    card.addEventListener('mousedown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'LABEL') return;
+      e.stopPropagation();
+      setActiveLight(cfg.id);
+    });
+
+    const supportsShadow = cfg.type !== 'HemisphereLight';
+
+    card.innerHTML = `
+      <div class="light-card-header" style="cursor:pointer;">
+        <label><input type="checkbox" id="${cfg.id}-toggle" checked> ${cfg.name}</label>
+      </div>
+      <div class="control-row">
+        <label>Type</label>
+        <select id="${cfg.id}-type" class="light-type-select">
+          <option value="DirectionalLight" ${cfg.type === 'DirectionalLight' ? 'selected' : ''}>Directional</option>
+          <option value="PointLight" ${cfg.type === 'PointLight' ? 'selected' : ''}>Point</option>
+          <option value="SpotLight" ${cfg.type === 'SpotLight' ? 'selected' : ''}>Spot</option>
+          <option value="HemisphereLight" ${cfg.type === 'HemisphereLight' ? 'selected' : ''}>Hemisphere</option>
+        </select>
+      </div>
+      <div class="control-row">
+        <label>Intensity</label>
+        <input type="range" id="${cfg.id}-intensity" min="0" max="5" step="0.1" value="${cfg.intensity}">
+        <span id="${cfg.id}-val" class="val">${cfg.intensity.toFixed(1)}</span>
+      </div>
+      <div class="control-row"><label>Color</label><input type="color" id="${cfg.id}-color" value="${cfg.color}"></div>
+      <div class="control-row">
+        <label>Pos (X,Y,Z)</label>
+        <div class="pos-inputs">
+          <input type="number" id="${cfg.id}-pos-x" value="${cfg.pos[0]}" step="0.5">
+          <input type="number" id="${cfg.id}-pos-y" value="${cfg.pos[1]}" step="0.5">
+          <input type="number" id="${cfg.id}-pos-z" value="${cfg.pos[2]}" step="0.5">
+        </div>
+      </div>
+      <div class="control-row">
+        <label>Rot (X,Y,Z)</label>
+        <div class="pos-inputs">
+          <input type="number" id="${cfg.id}-rot-x" value="${Math.round((cfg.rot?.[0]||0)*180/Math.PI)}" step="5">
+          <input type="number" id="${cfg.id}-rot-y" value="${Math.round((cfg.rot?.[1]||0)*180/Math.PI)}" step="5">
+          <input type="number" id="${cfg.id}-rot-z" value="${Math.round((cfg.rot?.[2]||0)*180/Math.PI)}" step="5">
+        </div>
+      </div>
+      ${supportsShadow ? `
+      <div class="control-row" style="margin-top:4px; border-top: 1px solid #1a202a; padding-top:4px;">
+        <label>Shadows</label>
+        <input type="checkbox" id="${cfg.id}-shadow" ${cfg.castShadow ? 'checked' : ''}>
+      </div>
+      <div class="control-row">
+        <label>Soft Shadows</label>
+        <input type="checkbox" id="${cfg.id}-soft-shadow" ${cfg.softShadow ? 'checked' : ''} ${!cfg.castShadow ? 'disabled' : ''}>
+      </div>
+      ` : ''}
+    `;
+
+    container.appendChild(card);
+
+    card.querySelector('.light-card-header').addEventListener('click', () => {
+      setActiveLight(cfg.id);
+    });
+
+    card.querySelector(`#${cfg.id}-toggle`).addEventListener('change', (e) => { entry.instance.visible = e.target.checked; });
+    card.querySelector(`#${cfg.id}-intensity`).addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value); entry.instance.intensity = val; cfg.intensity = val; card.querySelector(`#${cfg.id}-val`).textContent = val.toFixed(1);
+    });
+    card.querySelector(`#${cfg.id}-color`).addEventListener('input', (e) => { cfg.color = e.target.value; entry.instance.color.set(e.target.value); });
+    card.querySelector(`#${cfg.id}-type`).addEventListener('change', (e) => {
+      cfg.type = e.target.value; scene.remove(entry.instance); if (entry.instance.dispose) entry.instance.dispose();
+      const newLight = createLightInstance(cfg); scene.add(newLight); entry.instance = newLight; renderLightingDock();
+    });
+
+    const updatePos = () => {
+      const x = parseFloat(card.querySelector(`#${cfg.id}-pos-x`).value) || 0;
+      const y = parseFloat(card.querySelector(`#${cfg.id}-pos-y`).value) || 0;
+      const z = parseFloat(card.querySelector(`#${cfg.id}-pos-z`).value) || 0;
+      cfg.pos = [x, y, z]; entry.instance.position.set(x, y, z);
+    };
+    ['x', 'y', 'z'].forEach(axis => { card.querySelector(`#${cfg.id}-pos-${axis}`).addEventListener('input', updatePos); });
+
+    const updateRot = () => {
+      const rx = (parseFloat(card.querySelector(`#${cfg.id}-rot-x`).value) || 0) * Math.PI / 180;
+      const ry = (parseFloat(card.querySelector(`#${cfg.id}-rot-y`).value) || 0) * Math.PI / 180;
+      const rz = (parseFloat(card.querySelector(`#${cfg.id}-rot-z`).value) || 0) * Math.PI / 180;
+      cfg.rot = [rx, ry, rz];
+      entry.instance.rotation.set(rx, ry, rz);
+    };
+    ['x', 'y', 'z'].forEach(axis => { card.querySelector(`#${cfg.id}-rot-${axis}`).addEventListener('input', updateRot); });
+
+    if (supportsShadow) {
+      const shadowCb = card.querySelector(`#${cfg.id}-shadow`);
+      const softCb = card.querySelector(`#${cfg.id}-soft-shadow`);
+
+      shadowCb.addEventListener('change', (e) => {
+        cfg.castShadow = e.target.checked;
+        entry.instance.castShadow = cfg.castShadow;
+        softCb.disabled = !cfg.castShadow;
+      });
+
+      softCb.addEventListener('change', (e) => {
+        cfg.softShadow = e.target.checked;
+        if (entry.instance.shadow) {
+          entry.instance.shadow.radius = cfg.softShadow ? 3 : 1;
+          entry.instance.shadow.bias = cfg.softShadow ? -0.0005 : -0.001;
+        }
+      });
+    }
+  });
+}
+renderLightingDock();
+
+const bottomDock = document.querySelector('#bottom-dock');
+const toggleDockBtn = document.querySelector('#toggleDock');
+toggleDockBtn.addEventListener('click', () => {
+  const isCollapsed = bottomDock.classList.toggle('collapsed');
+  toggleDockBtn.textContent = isCollapsed ? 'Expand' : 'Collapse';
+});
+
+// Controller Rigging & Logic
+const controllerGroup = new THREE.Group();
+controllerGroup.rotation.x = 0.55; 
+scene.add(controllerGroup);
+
+const syncModelScale = (val) => {
+  const s = Math.max(0.01, parseFloat(val) || 1);
+  controllerGroup.scale.set(s, s, s);
+  document.querySelector('#modelScale').value = s;
+  document.querySelector('#modelScaleInput').value = s.toFixed(2);
+};
+
+document.querySelector('#modelScale').addEventListener('input', (e) => syncModelScale(e.target.value));
+document.querySelector('#modelScaleInput').addEventListener('input', (e) => syncModelScale(e.target.value));
+
+let buttonEmissionMultiplier = 1.0;
+document.querySelector('#emissionIntensity').addEventListener('input', (e) => {
+  buttonEmissionMultiplier = parseFloat(e.target.value) || 1.0;
+  document.querySelector('#emissionVal').textContent = buttonEmissionMultiplier.toFixed(2);
+});
+
+let buttonEmissionColor = new THREE.Color(0xffffff);
+document.querySelector('#emissionColor').addEventListener('input', (e) => {
+  buttonEmissionColor.set(e.target.value);
+});
+
+const baseBtnMat = new THREE.MeshStandardMaterial({color:0x3a4454, roughness:0.25, metalness:0.5});
+let buttons3D = [], basePositions = [], currentModel = null, leftStick3DGroup = null, rightStick3DGroup = null, dpadRockerPivot = null;
+
+function register3DButton(index, mesh, parent = controllerGroup, isStick = false) {
+  if (mesh.material) mesh.material = mesh.material.clone();
+  buttons3D[index] = { mesh, isStick, originalMaterial: mesh.material };
+  basePositions[index] = mesh.position.clone();
+}
+
+function clearController3D() {
+  if (currentModel) controllerGroup.remove(currentModel);
+  buttons3D = []; basePositions = []; leftStick3DGroup = null; rightStick3DGroup = null; dpadRockerPivot = null;
+}
+
+function buildProceduralController() {
+  clearController3D();
+  const proceduralGroup = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({color:0x1b202a, roughness:0.35, metalness:0.4});
+  const rockerMat = new THREE.MeshStandardMaterial({color:0x222a36, roughness:0.2, metalness:0.6});
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.6, 2.2), bodyMat);
+  body.castShadow = true; body.receiveShadow = true;
+  proceduralGroup.add(body);
+
+  const leftHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 1.8), bodyMat);
+  leftHandle.position.set(-1.7, -0.4, 0.6); leftHandle.rotation.z = 0.4; leftHandle.rotation.x = 0.2;
+  leftHandle.castShadow = true; leftHandle.receiveShadow = true;
+  proceduralGroup.add(leftHandle);
+
+  const rightHandle = leftHandle.clone(); rightHandle.position.set(1.7, -0.4, 0.6); rightHandle.rotation.z = -0.4;
+  proceduralGroup.add(rightHandle);
+
+  function makeMesh(geo, pos, mat = baseBtnMat) {
+    const mesh = new THREE.Mesh(geo, mat.clone());
+    mesh.position.copy(pos); mesh.castShadow = true; mesh.receiveShadow = true;
+    proceduralGroup.add(mesh);
+    return mesh;
+  }
+
+  const faceCenter = new THREE.Vector3(1.1, 0.35, 0.2);
+  register3DButton(0, makeMesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 24), new THREE.Vector3(faceCenter.x, faceCenter.y, faceCenter.z + 0.28)));
+  register3DButton(1, makeMesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 24), new THREE.Vector3(faceCenter.x + 0.28, faceCenter.y, faceCenter.z)));
+  register3DButton(2, makeMesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 24), new THREE.Vector3(faceCenter.x - 0.28, faceCenter.y, faceCenter.z)));
+  register3DButton(3, makeMesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 24), new THREE.Vector3(faceCenter.x, faceCenter.y, faceCenter.z - 0.28)));
+
+  register3DButton(4, makeMesh(new THREE.BoxGeometry(0.7, 0.18, 0.35), new THREE.Vector3(-1.1, 0.3, -0.95)));
+  register3DButton(5, makeMesh(new THREE.BoxGeometry(0.7, 0.18, 0.35), new THREE.Vector3(1.1, 0.3, -0.95)));
+  register3DButton(6, makeMesh(new THREE.BoxGeometry(0.65, 0.3, 0.45), new THREE.Vector3(-1.1, 0.1, -1.3)));
+  register3DButton(7, makeMesh(new THREE.BoxGeometry(0.65, 0.3, 0.45), new THREE.Vector3(1.1, 0.1, -1.3)));
+
+  register3DButton(8, makeMesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 16), new THREE.Vector3(-0.45, 0.33, -0.2)));
+  register3DButton(9, makeMesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 16), new THREE.Vector3(0.45, 0.33, -0.2)));
+  register3DButton(16, makeMesh(new THREE.CylinderGeometry(0.16, 0.16, 0.08, 24), new THREE.Vector3(0, 0.33, -0.2)));
+
+  function createStick(x, z) {
+    const group = new THREE.Group(); group.position.set(x, 0.25, z);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35, 16), new THREE.MeshStandardMaterial({color:0x505b6d, roughness:0.5}));
+    stem.position.y = 0.15; stem.castShadow = true; group.add(stem);
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.32, 0.1, 32), new THREE.MeshStandardMaterial({color:0x62d8ff, roughness:0.3, metalness:0.6}));
+    cap.position.y = 0.32; cap.castShadow = true; group.add(cap);
+    proceduralGroup.add(group);
+    return { group, cap };
+  }
+
+  const lStick = createStick(-0.5, 0.45); const rStick = createStick(0.5, 0.45);
+  leftStick3DGroup = lStick.group; rightStick3DGroup = rStick.group;
+  register3DButton(10, lStick.cap, lStick.group, true);
+  register3DButton(11, rStick.cap, rStick.group, true);
+
+  const dpadBasePos = new THREE.Vector3(-1.1, 0.32, 0.2);
+  dpadRockerPivot = new THREE.Group(); dpadRockerPivot.position.copy(dpadBasePos); dpadRockerPivot.position.y += 0.08;
+  proceduralGroup.add(dpadRockerPivot);
+
+  const dpadCrossV = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.62), rockerMat);
+  const dpadCrossH = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.06, 0.22), rockerMat);
+  dpadCrossV.castShadow = true; dpadCrossH.castShadow = true;
+  dpadRockerPivot.add(dpadCrossV); dpadRockerPivot.add(dpadCrossH);
+
+  const btnDist = 0.22;
+  register3DButton(12, makeMesh(new THREE.BoxGeometry(0.18, 0.08, 0.18), new THREE.Vector3(dpadBasePos.x, dpadBasePos.y, dpadBasePos.z - btnDist)));
+  register3DButton(13, makeMesh(new THREE.BoxGeometry(0.18, 0.08, 0.18), new THREE.Vector3(dpadBasePos.x, dpadBasePos.y, dpadBasePos.z + btnDist)));
+  register3DButton(14, makeMesh(new THREE.BoxGeometry(0.18, 0.08, 0.18), new THREE.Vector3(dpadBasePos.x - btnDist, dpadBasePos.y, dpadBasePos.z)));
+  register3DButton(15, makeMesh(new THREE.BoxGeometry(0.18, 0.08, 0.18), new THREE.Vector3(dpadBasePos.x + btnDist, dpadBasePos.y, dpadBasePos.z)));
+
+  currentModel = proceduralGroup;
+  controllerGroup.add(currentModel);
+}
+
+document.querySelector('#loadDefaultBtn').addEventListener('click', () => {
+  buildProceduralController();
+  logEvent('Loaded Default Controller');
+});
+
+const fileInput = document.querySelector('#glbFile');
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+  const loader = new GLTFLoader();
+
+  loader.load(url, (gltf) => {
+    clearController3D();
+    currentModel = gltf.scene;
+    controllerGroup.add(currentModel);
+
+    currentModel.traverse((node) => {
+      if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }
+      if (!node.isMesh && !node.isGroup) return;
+
+      const buttonIndex = MESH_MAPPINGS[node.name];
+      if (buttonIndex !== undefined) {
+        const isStick = (buttonIndex === 10 || buttonIndex === 11);
+        if (node.isMesh && node.material) node.material = node.material.clone();
+        register3DButton(buttonIndex, node, node.parent, isStick);
+      }
+
+      if (node.name === 'Stick_Left')  leftStick3DGroup = node;
+      if (node.name === 'Stick_Right') rightStick3DGroup = node;
+      if (node.name === 'DPad_Rocker') dpadRockerPivot = node;
+    });
+
+    logEvent('Loaded GLB: ' + file.name);
+    URL.revokeObjectURL(url);
+  }, undefined, (err) => { logEvent('Error loading GLB: ' + err.message); });
+});
+
+buildProceduralController();
+
+const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.015, 8, 96), new THREE.MeshBasicMaterial({color:0x62d8ff, transparent:true, opacity:0.25}));
+ring.rotation.x = Math.PI / 2; ring.position.y = -0.8;
+
+let pads = [], selectedIndex = null, lastSnapshot = null, lastLog = 0;
+
+function refreshPads(){
+  pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+  const sel = document.querySelector('#padSelect');
+  const old = selectedIndex;
+  sel.innerHTML = '';
+  if(!pads.length){
+    sel.innerHTML = '<option>No controller detected</option>';
+    selectedIndex = null; setStatus(false); return;
+  }
+  pads.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.index; o.textContent = `#${p.index} — ${p.id}`;
+    sel.appendChild(o);
+  });
+  selectedIndex = pads.some(p => p.index === old) ? old : pads[0].index;
+  sel.value = selectedIndex;
+  setStatus(true);
+}
+
+function selectedPad(){ return navigator.getGamepads?.()[selectedIndex] || null; }
+function setStatus(ok){
+  const el = document.querySelector('#status');
+  el.textContent = ok ? 'Connected' : 'Waiting';
+  el.className = 'status ' + (ok ? 'connected' : '');
+}
+function fmt(v){ return Number(v || 0).toFixed(3); }
+
+function setDot(id, x, y){
+  const d = document.querySelector('#' + id);
+  d.style.left = `${50 + Math.max(-1, Math.min(1, x)) * 45}%`;
+  d.style.top = `${50 + Math.max(-1, Math.min(1, y)) * 45}%`;
+}
+
+function buildUI(pad){
+  const axes = document.querySelector('#axes'); axes.innerHTML = '';
+  pad.axes.forEach((v, i) => {
+    const r = document.createElement('div'); r.className = 'row';
+    const axisLabel = i === 0 ? 'LX' : i === 1 ? 'LY' : i === 2 ? 'RX' : i === 3 ? 'RY' : `Axis ${i}`;
+    r.innerHTML = `<span>${axisLabel}</span><div class="bar"><div class="fill"></div></div><span class="value">${fmt(v)}</span>`;
+    r.querySelector('.fill').style.width = `${Math.abs(v) * 100}%`;
+    axes.appendChild(r);
+  });
+
+  const bs = document.querySelector('#buttons'); bs.innerHTML = '';
+  pad.buttons.forEach((b, i) => {
+    const el = document.createElement('div'); el.className = 'btn' + (b.pressed ? ' on' : ''); el.dataset.button = i;
+    el.innerHTML = `
+      <div class="btn-header"><span class="b-name">B${i} • ${getButtonLabel(i)}</span><span class="b-val">${fmt(b.value)}</span></div>
+      <div class="pressure-bar" style="width:${(b.value||0)*100}%"></div>
+    `;
+    bs.appendChild(el);
+  });
+}
+
+function logEvent(text){
+  const box = document.querySelector('#events');
+  const d = document.createElement('div'); d.className = 'event';
+  d.textContent = `${new Date().toLocaleTimeString()}  ${text}`;
+  box.prepend(d);
+  while(box.children.length > 80) box.lastChild.remove();
+}
+
+function processPad(pad){
+  document.querySelector('#mapping').textContent = pad.mapping || 'non-standard';
+  document.querySelector('#axisCount').textContent = pad.axes.length;
+  document.querySelector('#buttonCount').textContent = pad.buttons.length;
+
+  const ax = pad.axes;
+  const lx = ax[0] || 0, ly = ax[1] || 0, rx = ax[2] || 0, ry = ax[3] || 0;
+  
+  document.querySelector('#lx').textContent = `${fmt(lx)}, ${fmt(ly)}`;
+  document.querySelector('#rx').textContent = `${fmt(rx)}, ${fmt(ry)}`;
+  document.querySelector('#lxBar').style.width = `${Math.min(100, Math.hypot(lx, ly) * 100)}%`;
+  document.querySelector('#rxBar').style.width = `${Math.min(100, Math.hypot(rx, ry) * 100)}%`;
+  
+  setDot('leftDot', lx, ly); setDot('rightDot', rx, ry);
+
+  const maxTilt = 0.35;
+  if (leftStick3DGroup) { leftStick3DGroup.rotation.z = -lx * maxTilt; leftStick3DGroup.rotation.x = ly * maxTilt; }
+  if (rightStick3DGroup) { rightStick3DGroup.rotation.z = -rx * maxTilt; rightStick3DGroup.rotation.x = ry * maxTilt; }
+
+  if (dpadRockerPivot) {
+    const dpadUp = pad.buttons[12]?.value || 0;
+    const dpadDown = pad.buttons[13]?.value || 0;
+    const dpadLeft = pad.buttons[14]?.value || 0;
+    const dpadRight = pad.buttons[15]?.value || 0;
+
+    const rockerTiltMax = 0.22;
+    dpadRockerPivot.rotation.x = (dpadDown - dpadUp) * rockerTiltMax;
+    dpadRockerPivot.rotation.z = (dpadLeft - dpadRight) * rockerTiltMax;
+  }
+
+  if(!lastSnapshot || lastSnapshot.id !== pad.id || lastSnapshot.buttons.length !== pad.buttons.length){
+    buildUI(pad);
+    lastSnapshot = { id: pad.id, axes: [], buttons: pad.buttons.map(b => b.value) };
+  }
+
+  const changed = [];
+  pad.axes.forEach((v, i) => { 
+    if(Math.abs(v - (lastSnapshot.axes[i] ?? 0)) > 0.08) {
+      const axisLabel = i === 0 ? 'LX' : i === 1 ? 'LY' : i === 2 ? 'RX' : i === 3 ? 'RY' : `A${i}`;
+      changed.push(`${axisLabel}=${fmt(v)}`); 
+    }
+  });
+
+  pad.buttons.forEach((b, i) => {
+    const val = b.value;
+    const isPressed = b.pressed || val > 0.1;
+
+    const visual = document.querySelector(`.btn[data-button="${i}"]`);
+    if(visual) {
+      visual.classList.toggle('on', isPressed);
+      const valText = visual.querySelector('.b-val'); if(valText) valText.textContent = fmt(val);
+      const pressureBar = visual.querySelector('.pressure-bar'); if(pressureBar) pressureBar.style.width = `${(val||0)*100}%`;
+    }
+
+    if(Math.abs(val - (lastSnapshot.buttons[i] ?? 0)) > 0.05) {
+      changed.push(`B${i} (${getButtonLabel(i)})=${fmt(val)}${b.pressed ? ' DOWN' : ''}`);
+    }
+
+    if (buttons3D[i]) {
+      const { mesh, isStick } = buttons3D[i];
+      const basePos = basePositions[i];
+      const maxTravel = isStick ? 0.04 : 0.03;
+      const pressDepth = isStick ? (isPressed ? maxTravel : 0) : val * maxTravel;
+
+      mesh.position.y = basePos.y - pressDepth;
+
+      if (mesh.material && mesh.material.emissive) {
+        if (isPressed) { 
+          mesh.material.emissive.copy(buttonEmissionColor); 
+          mesh.material.emissiveIntensity = 0.5 * val * buttonEmissionMultiplier; 
+        } else { 
+          mesh.material.emissive.setHex(0x000000); 
+          mesh.material.emissiveIntensity = 0; 
+        }
+      }
+    }
+  });
+
+  if(changed.length && performance.now() - lastLog > 40){ 
+    logEvent(changed.join('  ')); 
+    lastLog = performance.now(); 
+  }
+  
+  lastSnapshot.axes = pad.axes.slice(); 
+  lastSnapshot.buttons = pad.buttons.map(b => b.value);
+}
+
+function loop(t){
+  requestAnimationFrame(loop);
+  const p = selectedPad();
+  if(p){ setStatus(true); processPad(p); }
+  else if(selectedIndex !== null){ setStatus(false); }
+  
+  ring.rotation.z = t * 0.00015;
+
+  composer.render();
+}
+
+document.querySelector('#padSelect').addEventListener('change', e => { selectedIndex = Number(e.target.value); lastSnapshot = null; });
+document.querySelector('#scan').onclick = refreshPads;
+document.querySelector('#rumble').onclick = async () => {
+  const p = selectedPad();
+  if(!p?.vibrationActuator){ logEvent('No vibration actuator exposed.'); return; }
+  try {
+    await p.vibrationActuator.playEffect('dual-rumble', {duration:180, strongMagnitude:.65, weakMagnitude:.35});
+    logEvent('Rumble test sent.');
+  } catch(e){ logEvent('Rumble failed: ' + e.message); }
+};
+
+window.addEventListener('gamepadconnected', e => { logEvent('Connected: ' + e.gamepad.id); refreshPads(); });
+window.addEventListener('gamepaddisconnected', e => { logEvent('Disconnected: ' + e.gamepad.id); refreshPads(); });
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; 
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+  
+  const pr = renderer.getPixelRatio();
+  fxaaPass.material.uniforms['resolution'].value.x = 1 / (innerWidth * pr);
+  fxaaPass.material.uniforms['resolution'].value.y = 1 / (innerHeight * pr);
+});
+
+refreshPads();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
