@@ -12,7 +12,7 @@
   canvas { display:block; }
   #hud { position:absolute; inset:14px; pointer-events:none; display:flex; gap:12px; }
   .panel { pointer-events:auto; background:color-mix(in srgb,var(--panel) 94%,transparent); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 40px #0008; backdrop-filter:blur(10px); }
-  #left { width:360px; max-height:calc(100vh - 220px); overflow-y:auto; padding:14px; }
+  #left { width:360px; max-height:none; overflow-y:visible; padding:14px; }
   #right { margin-left:auto; width:360px; max-height:calc(100vh - 220px); overflow-y:auto; padding:14px; }
 
   h1 { font-size:15px; margin:0 0 4px; font-weight:600; } 
@@ -74,14 +74,14 @@
 
   .dock-header { 
     display: flex; 
-    justify-content: space-between; 
+    justify-content: flex-end; 
     align-items: center; 
     border-bottom: 1px solid var(--line);
     background: #0b0e14;
     padding-right: 10px;
   }
 
-  .dock-tabs { display: flex; }
+  .dock-tabs { display: flex; margin-right: auto; }
   .dock-tab-btn {
     padding: 8px 14px;
     background: transparent;
@@ -102,11 +102,13 @@
     background: color-mix(in srgb, var(--accent) 5%, transparent);
   }
 
-  .dock-toggle-btn { padding: 3px 8px; font-size: 10px; border-radius: 4px; height: auto; }
+  .dock-toggle-btn { display: none; }
 
   .dock-tab-content {
     display: none;
     padding: 12px;
+    max-height: 220px;
+    overflow-y: auto;
   }
   .dock-tab-content.active { display: block; }
   #bottom-dock.collapsed .dock-tab-content { display: none !important; }
@@ -234,7 +236,6 @@
         <button class="dock-tab-btn" data-tab="tab-lighting">Lighting</button>
         <button class="dock-tab-btn" data-tab="tab-postproc">Post-Processing</button>
       </div>
-      <button id="toggleDock" class="dock-toggle-btn">Collapse</button>
     </div>
     
     <!-- TAB 1: MODEL -->
@@ -348,7 +349,7 @@
           <h2 style="margin-top:0;">Bloom</h2>
           <div class="control-row">
             <label>Enable Bloom</label>
-            <input type="checkbox" id="bloomToggle" checked>
+            <input type="checkbox" id="bloomToggle">
           </div>
           <div class="control-row">
             <label>Strength</label>
@@ -484,7 +485,6 @@ document.querySelectorAll('.dock-tab-btn').forEach(btn => {
     document.getElementById(btn.dataset.tab).classList.add('active');
     
     document.querySelector('#bottom-dock').classList.remove('collapsed');
-    document.querySelector('#toggleDock').textContent = 'Collapse';
   });
 });
 
@@ -616,6 +616,22 @@ document.querySelector('#resetCamBtn').addEventListener('click', () => {
   updateCameraPosition();
 });
 
+// UI Visibility Toggle & Diagnostics shortcut via Keyboard
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    setActiveLight(null);
+    logEvent('Restored rotation controls back to camera via Escape.');
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    const hud = document.querySelector('#hud');
+    hud.style.display = (hud.style.display === 'none') ? 'flex' : 'none';
+  } else if (e.ctrlKey && e.key.toLowerCase() === 'tab') {
+    e.preventDefault();
+    const rightPanel = document.querySelector('#right');
+    rightPanel.style.display = (rightPanel.style.display === 'none') ? 'block' : 'none';
+  }
+});
+
 // Renderer setup with Soft Shadows enabled
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -627,14 +643,6 @@ renderer.toneMappingExposure = 1.1;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 app.appendChild(renderer.domElement);
-
-// Global Escape key shortcut to release active light control back to camera
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    setActiveLight(null);
-    logEvent('Restored rotation controls back to camera via Escape.');
-  }
-});
 
 // Unified Post-Processing Pipeline Setup (Alpha Preserving Bloom Fix)
 function createMainRenderTarget(samples = 4) {
@@ -654,6 +662,7 @@ renderPass.clearAlpha = 0;
 composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.0, 0.75, 0.9);
+bloomPass.enabled = false; // Disabled by default
 composer.addPass(bloomPass);
 
 // Combined Contrast & Saturation adjustment shader preserving native background alpha
@@ -779,9 +788,6 @@ bindSliderAndInput('#exposureRange', '#exposureInput', (val) => { renderer.toneM
 bindSliderAndInput('#contrastRange', '#contrastInput', (val) => { postShaderPass.uniforms.contrast.value = val; }, 2);
 bindSliderAndInput('#saturationRange', '#saturationInput', (val) => { postShaderPass.uniforms.saturation.value = val; }, 2);
 
-// Model emission intensity dual-binding
-bindSliderAndInput('#emissionIntensity', '#emissionIntensityInput', (val) => { buttonEmissionMultiplier = val; }, 2);
-
 updateCameraPosition();
 
 let isMouseDown = false;
@@ -853,7 +859,7 @@ renderer.domElement.addEventListener('wheel', (e) => {
 
 // Lighting Dock Configuration
 const lightConfigs = [
-  { id: 'hemi', name: 'Hemi Light', type: 'HemisphereLight', color: '#8ab4f8', groundColor: '#080b12', intensity: 1.2, pos: [0, 5, 0], rot: [0, 0, 0], castShadow: false, softShadow: true },
+  { id: 'hemi', name: 'Hemisphere Light', type: 'HemisphereLight', color: '#8ab4f8', groundColor: '#080b12', intensity: 1.2, pos: [0, 5, 0], rot: [0, 0, 0], castShadow: false, softShadow: true },
   { id: 'main', name: 'Main Light', type: 'DirectionalLight', color: '#fff5ea', intensity: 2.8, pos: [5, 10, 5], rot: [0, 0, 0], castShadow: true, softShadow: true },
   { id: 'rim', name: 'Rim Light', type: 'DirectionalLight', color: '#62d8ff', intensity: 1.8, pos: [-4, 3, -3], rot: [0, 0, 0], castShadow: false, softShadow: true },
   { id: 'fill', name: 'Fill Light', type: 'PointLight', color: '#a3b8cc', intensity: 1.2, pos: [0, -1, 3], rot: [0, 0, 0], castShadow: false, softShadow: true }
@@ -1047,13 +1053,6 @@ function renderLightingDock() {
   });
 }
 renderLightingDock();
-
-const bottomDock = document.querySelector('#bottom-dock');
-const toggleDockBtn = document.querySelector('#toggleDock');
-toggleDockBtn.addEventListener('click', () => {
-  const isCollapsed = bottomDock.classList.toggle('collapsed');
-  toggleDockBtn.textContent = isCollapsed ? 'Expand' : 'Collapse';
-});
 
 // Controller Rigging & Logic
 const controllerGroup = new THREE.Group();
