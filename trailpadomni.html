@@ -545,13 +545,33 @@ function updateCameraPosition(skipRotationUpdate = false) {
   }
 }
 
-// Camera Input Synchronizers
-const syncFov = (val) => {
+// Camera Input Synchronizers with Zoom Compensation
+const syncFov = (val, compensate = true) => {
+  const oldFov = camera.fov;
   const fovVal = Math.max(1, Math.min(170, parseFloat(val) || 50));
+  
+  if (compensate && oldFov !== fovVal) {
+    const toRad = Math.PI / 180;
+    const oldHalfFovRad = (oldFov * 0.5) * toRad;
+    const newHalfFovRad = (fovVal * 0.5) * toRad;
+    
+    // Adjust radius proportionally to maintain subject screen size
+    radius = radius * (Math.tan(oldHalfFovRad) / Math.tan(newHalfFovRad));
+    
+    // Clamp radius within safe bounds
+    radius = Math.max(0.5, Math.min(50, radius));
+    
+    // Update camera position/zoom UI elements
+    document.querySelector('#camRadius').value = radius;
+    document.querySelector('#camRadiusInput').value = radius.toFixed(1);
+  }
+
   camera.fov = fovVal;
   camera.updateProjectionMatrix();
   document.querySelector('#camFov').value = fovVal;
   document.querySelector('#camFovInput').value = fovVal;
+  
+  updateCameraPosition(true);
 };
 
 document.querySelector('#camFov').addEventListener('input', (e) => syncFov(e.target.value));
