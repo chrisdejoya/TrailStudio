@@ -146,7 +146,6 @@
   .light-card-header label { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
   .control-row { display: flex; align-items: center; gap: 6px; font-size: 11px; margin: 2px 0; }
   .control-row label { color: var(--muted); width: 78px; flex-shrink: 0; font-size: 11px; }
-  .control-row .val { width: 32px; text-align: right; font-variant-numeric: tabular-nums; font-size: 11px; }
 
   .pos-inputs { display: flex; gap: 4px; flex: 1; }
   .pos-inputs input[type="number"] { width: 100%; padding: 2px 4px; font-size: 11px; border-radius: 4px; height: 24px; text-align: center; cursor: ew-resize; }
@@ -262,7 +261,7 @@
           <div class="control-row" style="margin-top:6px;">
             <label style="width:75px;">Emission</label>
             <input type="range" id="emissionIntensity" min="0" max="3" step="0.05" value="1.0">
-            <span id="emissionVal" class="val">1.00</span>
+            <input type="number" id="emissionIntensityInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
           </div>
           <div class="control-row" style="margin-top:4px;">
             <label style="width:75px;">Emission Color</label>
@@ -354,17 +353,17 @@
           <div class="control-row">
             <label>Strength</label>
             <input type="range" id="bloomStrength" min="0" max="3" step="0.05" value="1.0">
-            <span id="bloomStrengthVal" class="val">1.00</span>
+            <input type="number" id="bloomStrengthInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
           </div>
           <div class="control-row">
             <label>Radius</label>
             <input type="range" id="bloomRadius" min="0" max="2" step="0.05" value="0.75">
-            <span id="bloomRadiusVal" class="val">0.75</span>
+            <input type="number" id="bloomRadiusInput" min="0" max="5" step="0.05" value="0.75" style="width:55px; text-align:right; cursor:ew-resize;">
           </div>
           <div class="control-row">
             <label>Threshold</label>
             <input type="range" id="bloomThreshold" min="0" max="1" step="0.05" value="0.9">
-            <span id="bloomThresholdVal" class="val">0.90</span>
+            <input type="number" id="bloomThresholdInput" min="0" max="1" step="0.05" value="0.90" style="width:55px; text-align:right; cursor:ew-resize;">
           </div>
         </div>
 
@@ -383,17 +382,17 @@
           <div class="control-row">
             <label>Exposure</label>
             <input type="range" id="exposureRange" min="0.1" max="3" step="0.05" value="1.1">
-            <span id="exposureVal" class="val">1.10</span>
+            <input type="number" id="exposureInput" min="0.01" max="10" step="0.05" value="1.10" style="width:55px; text-align:right; cursor:ew-resize;">
           </div>
           <div class="control-row">
             <label>Contrast</label>
             <input type="range" id="contrastRange" min="0.5" max="2" step="0.05" value="1.0">
-            <span id="contrastVal" class="val">1.00</span>
+            <input type="number" id="contrastInput" min="0.1" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
           </div>
           <div class="control-row">
             <label>Saturation</label>
             <input type="range" id="saturationRange" min="0" max="2" step="0.05" value="1.0">
-            <span id="saturationVal" class="val">1.00</span>
+            <input type="number" id="saturationInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
           </div>
         </div>
       </div>
@@ -464,7 +463,7 @@ window.addEventListener('mousemove', (e) => {
     newVal = Math.max(min, Math.min(max, newVal));
 
     const decimals = (scrubStep.toString().split('.')[1] || '').length;
-    scrubInput.value = newVal.toFixed(decimals);
+    scrubInput.value = newVal.toFixed(decimals > 0 ? decimals : 2);
     scrubInput.dispatchEvent(new Event('input', { bubbles: true }));
   }
 });
@@ -682,6 +681,27 @@ composer.addPass(fxaaPass);
 const outputPass = new OutputPass();
 composer.addPass(outputPass);
 
+// Dual-binding helper for Sliders and Number Inputs
+function bindSliderAndInput(sliderSel, inputSel, callback, decimals = 2) {
+  const slider = document.querySelector(sliderSel);
+  const input = document.querySelector(inputSel);
+  if (!slider || !input) return;
+
+  slider.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    input.value = val.toFixed(decimals);
+    callback(val);
+  });
+
+  input.addEventListener('input', (e) => {
+    const min = slider.min !== '' ? parseFloat(slider.min) : -Infinity;
+    const max = slider.max !== '' ? parseFloat(slider.max) : Infinity;
+    const val = Math.max(min, Math.min(max, parseFloat(e.target.value) || 0));
+    slider.value = val;
+    callback(val);
+  });
+}
+
 // Post-Processing Tab Controls Logic
 function updateAntiAliasing() {
   const enabled = document.querySelector('#aaToggle').checked;
@@ -721,21 +741,10 @@ document.querySelector('#shadowQualitySelect').addEventListener('change', (e) =>
 document.querySelector('#bloomToggle').addEventListener('change', (e) => {
   bloomPass.enabled = e.target.checked;
 });
-document.querySelector('#bloomStrength').addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  bloomPass.strength = val;
-  document.querySelector('#bloomStrengthVal').textContent = val.toFixed(2);
-});
-document.querySelector('#bloomRadius').addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  bloomPass.radius = val;
-  document.querySelector('#bloomRadiusVal').textContent = val.toFixed(2);
-});
-document.querySelector('#bloomThreshold').addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  bloomPass.threshold = val;
-  document.querySelector('#bloomThresholdVal').textContent = val.toFixed(2);
-});
+
+bindSliderAndInput('#bloomStrength', '#bloomStrengthInput', (val) => { bloomPass.strength = val; }, 2);
+bindSliderAndInput('#bloomRadius', '#bloomRadiusInput', (val) => { bloomPass.radius = val; }, 2);
+bindSliderAndInput('#bloomThreshold', '#bloomThresholdInput', (val) => { bloomPass.threshold = val; }, 2);
 
 document.querySelector('#toneMappingSelect').addEventListener('change', (e) => {
   switch (e.target.value) {
@@ -746,23 +755,12 @@ document.querySelector('#toneMappingSelect').addEventListener('change', (e) => {
   }
 });
 
-document.querySelector('#exposureRange').addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  renderer.toneMappingExposure = val;
-  document.querySelector('#exposureVal').textContent = val.toFixed(2);
-});
+bindSliderAndInput('#exposureRange', '#exposureInput', (val) => { renderer.toneMappingExposure = val; }, 2);
+bindSliderAndInput('#contrastRange', '#contrastInput', (val) => { postShaderPass.uniforms.contrast.value = val; }, 2);
+bindSliderAndInput('#saturationRange', '#saturationInput', (val) => { postShaderPass.uniforms.saturation.value = val; }, 2);
 
-document.querySelector('#contrastRange').addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  postShaderPass.uniforms.contrast.value = val;
-  document.querySelector('#contrastVal').textContent = val.toFixed(2);
-});
-
-document.querySelector('#saturationRange').addEventListener('input', (e) => {
-  const val = parseFloat(e.target.value);
-  postShaderPass.uniforms.saturation.value = val;
-  document.querySelector('#saturationVal').textContent = val.toFixed(2);
-});
+// Model emission intensity dual-binding
+bindSliderAndInput('#emissionIntensity', '#emissionIntensityInput', (val) => { buttonEmissionMultiplier = val; }, 2);
 
 updateCameraPosition();
 
@@ -928,7 +926,7 @@ function renderLightingDock() {
       <div class="control-row">
         <label>Intensity</label>
         <input type="range" id="${cfg.id}-intensity" min="0" max="5" step="0.1" value="${cfg.intensity}">
-        <span id="${cfg.id}-val" class="val">${cfg.intensity.toFixed(1)}</span>
+        <input type="number" id="${cfg.id}-intensity-input" min="0" max="10" step="0.1" value="${cfg.intensity.toFixed(1)}" style="width:50px; text-align:right; cursor:ew-resize;">
       </div>
       <div class="control-row"><label>Color</label><input type="color" id="${cfg.id}-color" value="${cfg.color}"></div>
       <div class="control-row">
@@ -966,9 +964,25 @@ function renderLightingDock() {
     });
 
     card.querySelector(`#${cfg.id}-toggle`).addEventListener('change', (e) => { entry.instance.visible = e.target.checked; });
-    card.querySelector(`#${cfg.id}-intensity`).addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value); entry.instance.intensity = val; cfg.intensity = val; card.querySelector(`#${cfg.id}-val`).textContent = val.toFixed(1);
+    
+    // Intensity Slider & Number Input Syncing
+    const intRange = card.querySelector(`#${cfg.id}-intensity`);
+    const intInput = card.querySelector(`#${cfg.id}-intensity-input`);
+    
+    intRange.addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value); 
+      entry.instance.intensity = val; 
+      cfg.intensity = val; 
+      intInput.value = val.toFixed(1);
     });
+
+    intInput.addEventListener('input', (e) => {
+      const val = Math.max(0, Math.min(10, parseFloat(e.target.value) || 0));
+      entry.instance.intensity = val;
+      cfg.intensity = val;
+      intRange.value = val;
+    });
+
     card.querySelector(`#${cfg.id}-color`).addEventListener('input', (e) => { cfg.color = e.target.value; entry.instance.color.set(e.target.value); });
     card.querySelector(`#${cfg.id}-type`).addEventListener('change', (e) => {
       cfg.type = e.target.value; scene.remove(entry.instance); if (entry.instance.dispose) entry.instance.dispose();
@@ -1037,10 +1051,6 @@ document.querySelector('#modelScale').addEventListener('input', (e) => syncModel
 document.querySelector('#modelScaleInput').addEventListener('input', (e) => syncModelScale(e.target.value));
 
 let buttonEmissionMultiplier = 1.0;
-document.querySelector('#emissionIntensity').addEventListener('input', (e) => {
-  buttonEmissionMultiplier = parseFloat(e.target.value) || 1.0;
-  document.querySelector('#emissionVal').textContent = buttonEmissionMultiplier.toFixed(2);
-});
 
 let buttonEmissionColor = new THREE.Color(0xffffff);
 document.querySelector('#emissionColor').addEventListener('input', (e) => {
