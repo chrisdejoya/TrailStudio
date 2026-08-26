@@ -10,14 +10,69 @@
   body { margin:0; overflow:hidden; font:12px/1.3 system-ui,Segoe UI,sans-serif; background:transparent; color:var(--text); }
   #app { position:fixed; inset:0; }
   canvas { display:block; }
-  #hud { position:absolute; inset:14px; pointer-events:none; display:flex; gap:12px; }
-  .panel { pointer-events:auto; background:color-mix(in srgb,var(--panel) 94%,transparent); border:1px solid var(--line); border-radius:10px; box-shadow:0 10px 40px #0008; backdrop-filter:blur(10px); }
-  #left { width:360px; max-height:none; overflow-y:visible; padding:14px; }
-  #right { margin-left:auto; width:360px; max-height:calc(100vh - 220px); overflow-y:auto; padding:14px; }
+  
+  /* --- TRANSPARENT TOP HUD --- */
+  #hud { 
+    position:absolute; 
+    top:14px; 
+    left:14px; 
+    right:14px; 
+    pointer-events:none; 
+    display:flex; 
+    gap:12px; 
+    z-index: 10;
+  }
+  
+  .panel { 
+    pointer-events:auto; 
+    background:color-mix(in srgb,var(--panel) 94%,transparent); 
+    border:1px solid var(--line); 
+    border-radius:10px; 
+    box-shadow:0 10px 40px #0008; 
+    backdrop-filter:blur(10px); 
+  }
 
-  h1 { font-size:15px; margin:0 0 4px; font-weight:600; } 
-  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin:14px 0 6px; font-weight:600; }
-  .sub { font-size:11px; color:var(--muted); margin-bottom:10px; }
+  /* Diagnostics rearranged horizontally */
+  #left { 
+    width: 100%; 
+    max-height: none; 
+    overflow-y: visible; 
+    padding: 10px 14px; 
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: color-mix(in srgb, var(--panel) 60%, transparent); /* Semi-transparent HUD */
+  }
+
+  .hud-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .hud-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hud-sticks {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hud-stick-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  h1 { font-size:14px; margin:0; font-weight:600; white-space: nowrap; } 
+  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); margin:0 4px 0 0; font-weight:600; display: inline-block; }
+  .sub { font-size:11px; color:var(--muted); margin:0; }
   
   select, button, input[type="file"], input[type="number"] { 
     background:#0c1017; 
@@ -30,40 +85,43 @@
     height:24px;
     vertical-align:middle;
   }
-  select, input[type="file"] { width:100%; }
+  select, input[type="file"] { width:auto; }
   button { cursor:pointer; } button:hover { border-color:#53657e; }
   
-  .row { display:flex; align-items:center; gap:8px; margin:5px 0; font-size:11px; }
-  .row > span:first-child { width:82px; color:var(--muted); }
-  .bar { flex:1; height:8px; background:#080b10; border-radius:5px; overflow:hidden; border:1px solid #202733; }
+  .row { display:flex; align-items:center; gap:6px; font-size:11px; margin:0; }
+  .row > span:first-child { color:var(--muted); }
+  .bar { width:60px; height:8px; background:#080b10; border-radius:5px; overflow:hidden; border:1px solid #202733; }
   .fill { height:100%; width:0; background:var(--accent); transition:width .03s linear; }
-  .value { width:58px; text-align:right; font-variant-numeric:tabular-nums; font-size:11px; }
+  .value { text-align:right; font-variant-numeric:tabular-nums; font-size:11px; }
   
-  .buttons { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; }
-  .btn { padding:6px 8px; border:1px solid var(--line); border-radius:6px; color:var(--muted); font-size:11px; position:relative; overflow:hidden; background:#0c1017; }
-  .btn-header { display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1; }
-  .btn .b-name { font-weight:600; color:var(--text); font-size:11px; }
-  .btn .b-val { font-variant-numeric:tabular-nums; font-size:10px; color:var(--muted); }
+  .buttons { display:flex; flex-wrap:wrap; gap:4px; flex:1; }
+  .btn { padding:3px 6px; border:1px solid var(--line); border-radius:4px; color:var(--muted); font-size:10px; position:relative; overflow:hidden; background:#0c1017; min-width:65px; }
+  .btn-header { display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1; gap:4px; }
+  .btn .b-name { font-weight:600; color:var(--text); font-size:10px; }
+  .btn .b-val { font-variant-numeric:tabular-nums; font-size:9px; color:var(--muted); }
   .btn .pressure-bar { position:absolute; left:0; bottom:0; top:0; width:0%; background:color-mix(in srgb, var(--accent) 25%, transparent); transition:width .03s linear; z-index:0; }
   .btn.on { border-color:var(--good); box-shadow:0 0 10px #61e29444; }
   .btn.on .b-name { color:var(--good); }
   .btn.on .pressure-bar { background:color-mix(in srgb, var(--good) 35%, transparent); }
 
-  #events { max-height:220px; overflow:auto; font-family:ui-monospace,monospace; font-size:11px; color:#aeb9ca; }
-  .event { padding:3px 0; border-bottom:1px solid #1a202a; }
   .status { display:inline-block; padding:2px 6px; border-radius:4px; background:#242a34; color:var(--muted); font-size:10px; text-transform:uppercase; font-weight:600; }
   .status.connected { background:#173622; color:var(--good); }
-  .meter { height:80px; position:relative; border:1px solid var(--line); border-radius:8px; background:#0a0d13; margin-bottom:6px; }
+  
+  .meter { height:32px; width:32px; position:relative; border:1px solid var(--line); border-radius:6px; background:#0a0d13; flex-shrink:0; }
   .cross { position:absolute; background:#252d39; } .cross.x { left:50%; top:0; width:1px; height:100%; } .cross.y { top:50%; left:0; width:100%; height:1px; }
-  .dot { position:absolute; width:12px; height:12px; margin:-6px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px var(--accent); }
+  .dot { position:absolute; width:6px; height:6px; margin:-3px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px var(--accent); }
 
-  /* --- BOTTOM DOCK --- */
+  /* --- FULL-WIDTH BOTTOM DOCK --- */
   #bottom-dock {
     position: absolute;
     bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(1050px, calc(100vw - 28px));
+    left: 0;
+    right: 0;
+    width: 100vw;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
     padding: 0;
     display: flex;
     flex-direction: column;
@@ -74,14 +132,14 @@
 
   .dock-header { 
     display: flex; 
-    justify-content: flex-end; 
+    justify-content: space-between; 
     align-items: center; 
     border-bottom: 1px solid var(--line);
     background: #0b0e14;
-    padding-right: 10px;
+    padding: 0 10px;
   }
 
-  .dock-tabs { display: flex; margin-right: auto; }
+  .dock-tabs { display: flex; flex: 1; }
   .dock-tab-btn {
     padding: 8px 14px;
     background: transparent;
@@ -101,6 +159,18 @@
     border-bottom-color: var(--accent);
     background: color-mix(in srgb, var(--accent) 5%, transparent);
   }
+
+  .toggle-btn {
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #11151d;
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .toggle-btn:hover { color: var(--text); border-color: var(--accent); }
 
   .dock-tab-content {
     display: none;
@@ -192,8 +262,6 @@
   .file-btn-label:hover { border-color: #53657e; }
 
   @media(max-width:900px){ 
-    #right { display:none; } 
-    #left { width:min(100%, 390px); } 
     .lighting-grid { grid-template-columns: repeat(2, 1fr); } 
     .postproc-grid { grid-template-columns: 1fr; }
     .camera-container { grid-template-columns: 1fr; gap: 8px; }
@@ -202,223 +270,221 @@
 </head>
 <body>
 <div id="app"></div>
-<div id="hud">
-  <!-- LEFT PANEL -->
+<div id="hud" style="display:none;">
+  <!-- TOP DIAGNOSTICS HUD -->
   <section id="left" class="panel">
-    <h1>Gamepad Diagnostics</h1>
-    <div class="sub">Streamer Overlay & Diagnostics</div>
-    
-    <select id="padSelect"><option>No controller detected</option></select>
-    <div class="row"><span>Status</span><span id="status" class="status">Waiting</span></div>
-    <div class="row"><span>Mapping</span><span id="mapping" class="value">—</span></div>
-    <div class="row"><span>Axes</span><span id="axisCount" class="value">—</span></div>
-    <div class="row"><span>Buttons</span><span id="buttonCount" class="value">—</span></div>
-
-    <h2>Analog Sticks</h2>
-    <div class="meter"><div class="cross x"></div><div class="cross y"></div><div id="leftDot" class="dot"></div></div>
-    <div class="row"><span>LX / LY</span><div class="bar"><div id="lxBar" class="fill"></div></div><span id="lx" class="value">0.000</span></div>
-    
-    <div class="meter" style="margin-top:10px;"><div class="cross x"></div><div class="cross y"></div><div id="rightDot" class="dot"></div></div>
-    <div class="row"><span>RX / RY</span><div class="bar"><div id="rxBar" class="fill"></div></div><span id="rx" class="value">0.000</span></div>
-
-    <h2>Buttons & Pressure</h2>
-    <div id="buttons" class="buttons"></div>
-
-    <h2>Connection</h2>
-    <div style="display:flex; gap:8px;">
-      <button id="scan" style="flex:1;">Rescan</button>
-      <button id="rumble" style="flex:1;">Rumble</button>
-    </div>
-  </section>
-
-  <!-- RIGHT PANEL -->
-  <section id="right" class="panel">
-    <h1>Raw Input Stream</h1>
-    <div class="sub">Logs real-time gamepad state changes.</div>
-    <h2>Axes</h2><div id="axes"></div>
-    <h2>Events</h2><div id="events"></div>
-  </section>
-
-  <!-- BOTTOM DOCK -->
-  <section id="bottom-dock" class="panel">
-    <div class="dock-header">
-      <div class="dock-tabs">
-        <button class="dock-tab-btn active" data-tab="tab-model">Model</button>
-        <button class="dock-tab-btn" data-tab="tab-camera">Camera</button>
-        <button class="dock-tab-btn" data-tab="tab-lighting">Lighting</button>
-        <button class="dock-tab-btn" data-tab="tab-postproc">Post-Processing</button>
-      </div>
-    </div>
-    
-    <!-- TAB 1: MODEL -->
-    <div id="tab-model" class="dock-tab-content active">
-      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start;">
-        <div>
-          <h2 style="margin-top:0;">Presets & Storage</h2>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            <button id="loadDefaultBtn" style="width:100%;">Reset Scene</button>
-            <button id="exportSettingsBtn" style="width:100%;">Save Scene</button>
-            <label class="file-btn-label">
-              Load Scene
-              <input type="file" id="importSettingsInput" accept=".json" style="display:none;">
-            </label>
-          </div>
-        </div>
-        <div>
-          <h2 style="margin-top:0;">Load Model</h2>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            <input type="file" id="glbFile" accept=".glb,.gltf">
-            <button id="openPickerBtn" style="width:100%;">Pick Persistent File</button>
-          </div>
-          <div class="sub" style="margin-top:4px; font-size:10px;">
-            Select a .glb model or store persistent handle
-          </div>
-        </div>
-        <div>
-          <h2 style="margin-top:0;">Transform & Material</h2>
-          <div class="control-row">
-            <label style="width:75px;">Model Scale</label>
-            <input type="range" id="modelScale" min="0.1" max="3" step="0.05" value="1">
-            <input type="number" id="modelScaleInput" min="0.01" max="10" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
-          </div>
-          <div class="control-row" style="margin-top:6px;">
-            <label style="width:75px;">Glow Intensity</label>
-            <input type="range" id="emissionIntensity" min="0" max="3" step="0.05" value="1.0">
-            <input type="number" id="emissionIntensityInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
-          </div>
-          <div class="control-row" style="margin-top:4px;">
-            <label style="width:75px;">Glow Color</label>
-            <input type="color" id="emissionColor" value="#ffffff" style="flex:1;">
-          </div>
-        </div>
+    <div class="hud-row">
+      <h1>Gamepad Diagnostics</h1>
+      <select id="padSelect" style="max-width: 180px;"><option>No controller detected</option></select>
+      <div class="row"><span>Status</span><span id="status" class="status">Waiting</span></div>
+      <div class="row"><span>Mapping</span><span id="mapping" class="value">—</span></div>
+      <div class="row"><span>Axes</span><span id="axisCount" class="value">—</span></div>
+      <div class="row"><span>Buttons</span><span id="buttonCount" class="value">—</span></div>
+      <div style="display:flex; gap:4px; margin-left:auto;">
+        <button id="scan">Rescan</button>
+        <button id="rumble">Rumble</button>
       </div>
     </div>
 
-    <!-- TAB 2: CAMERA -->
-    <div id="tab-camera" class="dock-tab-content">
-      <div class="camera-container">
-        <div>
-          <div class="control-row">
-            <label style="width:70px;">FOV</label>
-            <input type="range" id="camFov" min="15" max="100" step="1" value="50">
-            <input type="number" id="camFovInput" min="1" max="170" step="1" value="50" style="width:55px; text-align:right; cursor:ew-resize;">
-          </div>
-          <div class="control-row">
-            <label style="width:70px;">Zoom</label>
-            <input type="range" id="camRadius" min="2" max="15" step="0.1" value="6.5">
-            <input type="number" id="camRadiusInput" min="0.5" max="50" step="0.1" value="6.5" style="width:55px; text-align:right; cursor:ew-resize;">
-          </div>
+    <div class="hud-row">
+      <div class="hud-sticks">
+        <div class="hud-stick-item">
+          <h2>L</h2>
+          <div class="meter"><div class="cross x"></div><div class="cross y"></div><div id="leftDot" class="dot"></div></div>
+          <div class="row"><div class="bar"><div id="lxBar" class="fill"></div></div><span id="lx" class="value">0.000</span></div>
         </div>
-
-        <div>
-          <div class="control-row"><label style="width:100%;">Camera Rotation</label></div>
-          <div class="pos-inputs">
-            <input type="number" id="camRotX" value="0" step="1" title="Pitch (X)">
-            <input type="number" id="camRotY" value="0" step="1" title="Yaw (Y)">
-            <input type="number" id="camRotZ" value="0" step="1" title="Roll (Z)">
-          </div>
-          <div class="control-row" style="margin-top:6px;"><label style="width:100%;">Camera Target</label></div>
-          <div class="pos-inputs">
-            <input type="number" id="camTargetX" value="0" step="0.1">
-            <input type="number" id="camTargetY" value="-0.2" step="0.1">
-            <input type="number" id="camTargetZ" value="0" step="0.1">
-          </div>
-        </div>
-
-        <div>
-          <button id="resetCamBtn" style="width:100%; margin-top:18px;">Reset Camera</button>
+        <div class="hud-stick-item">
+          <h2>R</h2>
+          <div class="meter"><div class="cross x"></div><div class="cross y"></div><div id="rightDot" class="dot"></div></div>
+          <div class="row"><div class="bar"><div id="rxBar" class="fill"></div></div><span id="rx" class="value">0.000</span></div>
         </div>
       </div>
-    </div>
-
-    <!-- TAB 3: LIGHTING -->
-    <div id="tab-lighting" class="dock-tab-content">
-      <div id="dockContent" class="lighting-grid"></div>
-    </div>
-
-    <!-- TAB 4: POST-PROCESSING -->
-    <div id="tab-postproc" class="dock-tab-content">
-      <div class="postproc-grid">
-        <div class="postproc-card">
-          <h2 style="margin-top:0;">Quality & Shadows</h2>
-          <div class="control-row">
-            <label>Enable AA</label>
-            <input type="checkbox" id="aaToggle" checked>
-          </div>
-          <div class="control-row">
-            <label>AA Mode</label>
-            <select id="aaQualitySelect" style="flex:1;">
-              <option value="fxaa+2msaa">FXAA + 2x MSAA</option>
-              <option value="fxaa+4msaa" selected>FXAA + 4x MSAA</option>
-              <option value="fxaa+8msaa">FXAA + 8x MSAA</option>
-              <option value="fxaa">FXAA Only</option>
-            </select>
-          </div>
-          <div class="control-row" style="margin-top:6px;">
-            <label>Shadow Res</label>
-            <select id="shadowQualitySelect" style="flex:1;">
-              <option value="512">Low (512px)</option>
-              <option value="1024">Medium (1024px)</option>
-              <option value="2048" selected>High (2048px)</option>
-              <option value="4096">Ultra (4096px)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="postproc-card">
-          <h2 style="margin-top:0;">Bloom</h2>
-          <div class="control-row">
-            <label>Enable Bloom</label>
-            <input type="checkbox" id="bloomToggle">
-          </div>
-          <div class="control-row">
-            <label>Strength</label>
-            <input type="range" id="bloomStrength" min="0" max="3" step="0.05" value="1.0">
-            <input type="number" id="bloomStrengthInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
-          </div>
-          <div class="control-row">
-            <label>Radius</label>
-            <input type="range" id="bloomRadius" min="0" max="2" step="0.05" value="0.75">
-            <input type="number" id="bloomRadiusInput" min="0" max="5" step="0.05" value="0.75" style="width:55px; text-align:right; cursor:ew-resize;">
-          </div>
-          <div class="control-row">
-            <label>Threshold</label>
-            <input type="range" id="bloomThreshold" min="0" max="1" step="0.05" value="0.9">
-            <input type="number" id="bloomThresholdInput" min="0" max="1" step="0.05" value="0.90" style="width:55px; text-align:right; cursor:ew-resize;">
-          </div>
-        </div>
-
-        <div class="postproc-card">
-          <h2 style="margin-top:0;">Color & Exposure</h2>
-          <div class="control-row">
-            <label>Tone Mapping</label>
-            <select id="toneMappingSelect" style="flex:1;">
-              <option value="ACESFilmic" selected>ACES Filmic</option>
-              <option value="Linear">Linear</option>
-              <option value="Reinhard">Reinhard</option>
-              <option value="Cineon">Cineon</option>
-            </select>
-          </div>
-          <div class="control-row">
-            <label>Exposure</label>
-            <input type="range" id="exposureRange" min="0.1" max="3" step="0.05" value="1.1">
-            <input type="number" id="exposureInput" min="0.01" max="10" step="0.05" value="1.10" style="width:55px; text-align:right; cursor:ew-resize;">
-          </div>
-          <div class="control-row">
-            <label>Contrast</label>
-            <input type="range" id="contrastRange" min="0.5" max="2" step="0.05" value="1.0">
-            <input type="number" id="contrastInput" min="0.1" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
-          </div>
-          <div class="control-row">
-            <label>Saturation</label>
-            <input type="range" id="saturationRange" min="0" max="2" step="0.05" value="1.0">
-            <input type="number" id="saturationInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
-          </div>
-        </div>
-      </div>
+      
+      <div id="buttons" class="buttons"></div>
     </div>
   </section>
 </div>
+
+<!-- BOTTOM DOCK -->
+<section id="bottom-dock" class="panel" style="display:none;">
+  <div class="dock-header">
+    <div class="dock-tabs">
+      <button class="dock-tab-btn active" data-tab="tab-model">Model</button>
+      <button class="dock-tab-btn" data-tab="tab-camera">Camera</button>
+      <button class="dock-tab-btn" data-tab="tab-lighting">Lighting</button>
+      <button class="dock-tab-btn" data-tab="tab-postproc">Post-Processing</button>
+    </div>
+    <button id="toggleDockBtn" class="toggle-btn">Collapse Dock</button>
+  </div>
+  
+  <!-- TAB 1: MODEL -->
+  <div id="tab-model" class="dock-tab-content active">
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start;">
+      <div>
+        <h2 style="margin-top:0;">Presets & Storage</h2>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <button id="loadDefaultBtn" style="width:100%;">Reset Scene</button>
+          <button id="exportSettingsBtn" style="width:100%;">Save Scene</button>
+          <label class="file-btn-label">
+            Load Scene
+            <input type="file" id="importSettingsInput" accept=".json" style="display:none;">
+          </label>
+        </div>
+      </div>
+      <div>
+        <h2 style="margin-top:0;">Load Model</h2>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          <input type="file" id="glbFile" accept=".glb,.gltf">
+          <button id="openPickerBtn" style="width:100%;">Pick Persistent File</button>
+        </div>
+        <div class="sub" style="margin-top:4px; font-size:10px;">
+          Select a .glb model or store persistent handle
+        </div>
+      </div>
+      <div>
+        <h2 style="margin-top:0;">Transform & Material</h2>
+        <div class="control-row">
+          <label style="width:75px;">Model Scale</label>
+          <input type="range" id="modelScale" min="0.1" max="3" step="0.05" value="1">
+          <input type="number" id="modelScaleInput" min="0.01" max="10" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
+        <div class="control-row" style="margin-top:6px;">
+          <label style="width:75px;">Glow Intensity</label>
+          <input type="range" id="emissionIntensity" min="0" max="3" step="0.05" value="1.0">
+          <input type="number" id="emissionIntensityInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
+        <div class="control-row" style="margin-top:4px;">
+          <label style="width:75px;">Glow Color</label>
+          <input type="color" id="emissionColor" value="#ffffff" style="flex:1;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: CAMERA -->
+  <div id="tab-camera" class="dock-tab-content">
+    <div class="camera-container">
+      <div>
+        <div class="control-row">
+          <label style="width:70px;">FOV</label>
+          <input type="range" id="camFov" min="15" max="100" step="1" value="50">
+          <input type="number" id="camFovInput" min="1" max="170" step="1" value="50" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
+        <div class="control-row">
+          <label style="width:70px;">Zoom</label>
+          <input type="range" id="camRadius" min="2" max="15" step="0.1" value="6.5">
+          <input type="number" id="camRadiusInput" min="0.5" max="50" step="0.1" value="6.5" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
+      </div>
+
+      <div>
+        <div class="control-row"><label style="width:100%;">Camera Rotation</label></div>
+        <div class="pos-inputs">
+          <input type="number" id="camRotX" value="0" step="1" title="Pitch (X)">
+          <input type="number" id="camRotY" value="0" step="1" title="Yaw (Y)">
+          <input type="number" id="camRotZ" value="0" step="1" title="Roll (Z)">
+        </div>
+        <div class="control-row" style="margin-top:6px;"><label style="width:100%;">Camera Target</label></div>
+        <div class="pos-inputs">
+          <input type="number" id="camTargetX" value="0" step="0.1">
+          <input type="number" id="camTargetY" value="-0.2" step="0.1">
+          <input type="number" id="camTargetZ" value="0" step="0.1">
+        </div>
+      </div>
+
+      <div>
+        <button id="resetCamBtn" style="width:100%; margin-top:18px;">Reset Camera</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: LIGHTING -->
+  <div id="tab-lighting" class="dock-tab-content">
+    <div id="dockContent" class="lighting-grid"></div>
+  </div>
+
+  <!-- TAB 4: POST-PROCESSING -->
+  <div id="tab-postproc" class="dock-tab-content">
+    <div class="postproc-grid">
+      <div class="postproc-card">
+        <h2 style="margin-top:0;">Quality & Shadows</h2>
+        <div class="control-row">
+          <label>Enable AA</label>
+          <input type="checkbox" id="aaToggle" checked>
+        </div>
+        <div class="control-row">
+          <label>AA Mode</label>
+          <select id="aaQualitySelect" style="flex:1;">
+            <option value="fxaa+2msaa">FXAA + 2x MSAA</option>
+            <option value="fxaa+4msaa" selected>FXAA + 4x MSAA</option>
+            <option value="fxaa+8msaa">FXAA + 8x MSAA</option>
+            <option value="fxaa">FXAA Only</option>
+          </select>
+        </div>
+        <div class="control-row" style="margin-top:6px;">
+          <label>Shadow Res</label>
+          <select id="shadowQualitySelect" style="flex:1;">
+            <option value="512">Low (512px)</option>
+            <option value="1024">Medium (1024px)</option>
+            <option value="2048" selected>High (2048px)</option>
+            <option value="4096">Ultra (4096px)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="postproc-card">
+        <h2 style="margin-top:0;">Bloom</h2>
+        <div class="control-row">
+          <label>Enable Bloom</label>
+          <input type="checkbox" id="bloomToggle">
+        </div>
+        <div class="control-row">
+          <label>Strength</label>
+          <input type="range" id="bloomStrength" min="0" max="3" step="0.05" value="1.0">
+          <input type="number" id="bloomStrengthInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
+        <div class="control-row">
+          <label>Radius</label>
+          <input type="range" id="bloomRadius" min="0" max="2" step="0.05" value="0.75">
+          <input type="number" id="bloomRadiusInput" min="0" max="5" step="0.05" value="0.75" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
+        <div class="control-row">
+          <label>Threshold</label>
+          <input type="range" id="bloomThreshold" min="0" max="1" step="0.05" value="0.9">
+          <input type="number" id="bloomThresholdInput" min="0" max="1" step="0.05" value="0.90" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
+      </div>
+
+      <div class="postproc-card">
+        <h2 style="margin-top:0;">Color & Exposure</h2>
+        <div class="control-row">
+          <label>Tone Mapping</label>
+          <select id="toneMappingSelect" style="flex:1;">
+            <option value="ACESFilmic" selected>ACES Filmic</option>
+            <option value="Linear">Linear</option>
+            <option value="Reinhard">Reinhard</option>
+            <option value="Cineon">Cineon</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label>Exposure</label>
+          <input type="range" id="exposureRange" min="0.1" max="3" step="0.05" value="1.1">
+          <input type="number" id="exposureInput" min="0.01" max="10" step="0.05" value="1.10" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
+        <div class="control-row">
+          <label>Contrast</label>
+          <input type="range" id="contrastRange" min="0.5" max="2" step="0.05" value="1.0">
+          <input type="number" id="contrastInput" min="0.1" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
+        <div class="control-row">
+          <label>Saturation</label>
+          <input type="range" id="saturationRange" min="0" max="2" step="0.05" value="1.0">
+          <input type="number" id="saturationInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <script type="importmap">
 {
@@ -572,7 +638,7 @@ window.addEventListener('mouseup', () => {
   scrubInput = null;
 });
 
-// Dock Tab Handling
+// Dock Tab & Toggle Handling
 document.querySelectorAll('.dock-tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.dock-tab-btn').forEach(b => b.classList.remove('active'));
@@ -581,8 +647,17 @@ document.querySelectorAll('.dock-tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById(btn.dataset.tab).classList.add('active');
     
-    document.querySelector('#bottom-dock').classList.remove('collapsed');
+    const dock = document.querySelector('#bottom-dock');
+    dock.classList.remove('collapsed');
+    document.querySelector('#toggleDockBtn').textContent = 'Collapse Dock';
   });
+});
+
+const toggleDockBtn = document.querySelector('#toggleDockBtn');
+toggleDockBtn.addEventListener('click', () => {
+  const dock = document.querySelector('#bottom-dock');
+  dock.classList.toggle('collapsed');
+  toggleDockBtn.textContent = dock.classList.contains('collapsed') ? 'Expand Dock' : 'Collapse Dock';
 });
 
 const STANDARD_BUTTONS = [
@@ -605,7 +680,7 @@ const MESH_MAPPINGS = {
   'DPad_Up': 12,     'DPad_Down': 13, 'DPad_Left': 14, 'DPad_Right': 15, 'Btn_Home': 16
 };
 
-function getButtonLabel(i) { return STANDARD_BUTTONS[i]?.label || `Button ${i}`; }
+function getButtonLabel(i) { return STANDARD_BUTTONS[i]?.label || `B${i}`; }
 
 const app = document.querySelector('#app');
 const scene = new THREE.Scene();
@@ -728,15 +803,13 @@ document.querySelector('#resetCamBtn').addEventListener('click', () => {
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     setActiveLight(null);
-    logEvent('Restored rotation controls back to camera via Escape.');
   } else if (e.key === 'Tab') {
     e.preventDefault();
     const hud = document.querySelector('#hud');
-    hud.style.display = (hud.style.display === 'none') ? 'flex' : 'none';
-  } else if (e.ctrlKey && e.key.toLowerCase() === 'tab') {
-    e.preventDefault();
-    const rightPanel = document.querySelector('#right');
-    rightPanel.style.display = (rightPanel.style.display === 'none') ? 'block' : 'none';
+    const bottomDock = document.querySelector('#bottom-dock');
+    const isHidden = (hud.style.display === 'none');
+    hud.style.display = isHidden ? 'flex' : 'none';
+    bottomDock.style.display = isHidden ? 'flex' : 'none';
   }
 });
 
@@ -1008,12 +1081,8 @@ lightConfigs.forEach(cfg => {
 function setActiveLight(id) {
   if (activeLightId === id && id !== null) {
     activeLightId = null;
-    logEvent(`Released controls from light back to camera.`);
   } else {
     activeLightId = id;
-    if (id) {
-      logEvent(`Acquired rotation controls for light: ${id}`);
-    }
   }
 
   document.querySelectorAll('.light-card').forEach(c => c.classList.remove('active-light-target'));
@@ -1290,17 +1359,14 @@ function parseAndLoadGLTF(buffer, fileName = "Model") {
       if (node.name === 'Stick_Right') rightStick3DGroup = node;
       if (node.name === 'DPad_Rocker') dpadRockerPivot = node;
     });
-
-    logEvent('Loaded GLB: ' + fileName);
   }, (err) => {
-    logEvent('Error parsing GLB: ' + err.message);
+    console.error('Error parsing GLB:', err);
   });
 }
 
 document.querySelector('#loadDefaultBtn').addEventListener('click', async () => {
   await clearStoredModel();
   buildProceduralController();
-  logEvent('Loaded Default Controller & Cleared Model Cache');
 });
 
 const fileInput = document.querySelector('#glbFile');
@@ -1326,10 +1392,7 @@ async function verifyPermission(fileHandle) {
 }
 
 document.querySelector('#openPickerBtn').addEventListener('click', async () => {
-  if (!window.showOpenFilePicker) {
-    logEvent('File Access API not supported in this browser.');
-    return;
-  }
+  if (!window.showOpenFilePicker) return;
 
   try {
     const [handle] = await window.showOpenFilePicker({
@@ -1349,14 +1412,11 @@ document.querySelector('#openPickerBtn').addEventListener('click', async () => {
     await saveBinaryModel(buffer, file.name);
     await saveFileHandle(handle);
   } catch (err) {
-    if (err.name !== 'AbortError') {
-      logEvent('Picker error: ' + err.message);
-    }
+    // Ignore cancelation errors
   }
 });
 
 async function initModelPersistence() {
-  // Check File Handle First
   const handle = await getStoredFileHandle();
   if (handle) {
     try {
@@ -1371,21 +1431,19 @@ async function initModelPersistence() {
     }
   }
 
-  // Fallback to Saved Binary ArrayBuffer in IndexedDB
   const stored = await getStoredBinaryModel();
   if (stored && stored.buffer) {
     parseAndLoadGLTF(stored.buffer, stored.name || 'Cached Model');
     return;
   }
 
-  // Procedural Fallback
   buildProceduralController();
 }
 
 const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.015, 8, 96), new THREE.MeshBasicMaterial({color:0x62d8ff, transparent:true, opacity:0.25}));
 ring.rotation.x = Math.PI / 2; ring.position.y = -0.8;
 
-let pads = [], selectedIndex = null, lastSnapshot = null, lastLog = 0;
+let pads = [], selectedIndex = null, lastSnapshot = null;
 
 function refreshPads(){
   pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
@@ -1421,32 +1479,15 @@ function setDot(id, x, y){
 }
 
 function buildUI(pad){
-  const axes = document.querySelector('#axes'); axes.innerHTML = '';
-  pad.axes.forEach((v, i) => {
-    const r = document.createElement('div'); r.className = 'row';
-    const axisLabel = i === 0 ? 'LX' : i === 1 ? 'LY' : i === 2 ? 'RX' : i === 3 ? 'RY' : `Axis ${i}`;
-    r.innerHTML = `<span>${axisLabel}</span><div class="bar"><div class="fill"></div></div><span class="value">${fmt(v)}</span>`;
-    r.querySelector('.fill').style.width = `${Math.abs(v) * 100}%`;
-    axes.appendChild(r);
-  });
-
   const bs = document.querySelector('#buttons'); bs.innerHTML = '';
   pad.buttons.forEach((b, i) => {
     const el = document.createElement('div'); el.className = 'btn' + (b.pressed ? ' on' : ''); el.dataset.button = i;
     el.innerHTML = `
-      <div class="btn-header"><span class="b-name">B${i} • ${getButtonLabel(i)}</span><span class="b-val">${fmt(b.value)}</span></div>
+      <div class="btn-header"><span class="b-name">${getButtonLabel(i)}</span><span class="b-val">${fmt(b.value)}</span></div>
       <div class="pressure-bar" style="width:${(b.value||0)*100}%"></div>
     `;
     bs.appendChild(el);
   });
-}
-
-function logEvent(text){
-  const box = document.querySelector('#events');
-  const d = document.createElement('div'); d.className = 'event';
-  d.textContent = `${new Date().toLocaleTimeString()}  ${text}`;
-  box.prepend(d);
-  while(box.children.length > 80) box.lastChild.remove();
 }
 
 function processPad(pad){
@@ -1484,14 +1525,6 @@ function processPad(pad){
     lastSnapshot = { id: pad.id, axes: [], buttons: pad.buttons.map(b => b.value) };
   }
 
-  const changed = [];
-  pad.axes.forEach((v, i) => { 
-    if(Math.abs(v - (lastSnapshot.axes[i] ?? 0)) > 0.08) {
-      const axisLabel = i === 0 ? 'LX' : i === 1 ? 'LY' : i === 2 ? 'RX' : i === 3 ? 'RY' : `A${i}`;
-      changed.push(`${axisLabel}=${fmt(v)}`); 
-    }
-  });
-
   pad.buttons.forEach((b, i) => {
     const val = b.value;
     const isPressed = b.pressed || val > 0.1;
@@ -1501,10 +1534,6 @@ function processPad(pad){
       visual.classList.toggle('on', isPressed);
       const valText = visual.querySelector('.b-val'); if(valText) valText.textContent = fmt(val);
       const pressureBar = visual.querySelector('.pressure-bar'); if(pressureBar) pressureBar.style.width = `${(val||0)*100}%`;
-    }
-
-    if(Math.abs(val - (lastSnapshot.buttons[i] ?? 0)) > 0.05) {
-      changed.push(`B${i} (${getButtonLabel(i)})=${fmt(val)}${b.pressed ? ' DOWN' : ''}`);
     }
 
     if (buttons3D[i]) {
@@ -1527,11 +1556,6 @@ function processPad(pad){
     }
   });
 
-  if(changed.length && performance.now() - lastLog > 40){ 
-    logEvent(changed.join('  ')); 
-    lastLog = performance.now(); 
-  }
-  
   lastSnapshot.axes = pad.axes.slice(); 
   lastSnapshot.buttons = pad.buttons.map(b => b.value);
 }
@@ -1551,15 +1575,14 @@ document.querySelector('#padSelect').addEventListener('change', e => { selectedI
 document.querySelector('#scan').onclick = refreshPads;
 document.querySelector('#rumble').onclick = async () => {
   const p = selectedPad();
-  if(!p?.vibrationActuator){ logEvent('No vibration actuator exposed.'); return; }
+  if(!p?.vibrationActuator) return;
   try {
     await p.vibrationActuator.playEffect('dual-rumble', {duration:180, strongMagnitude:.65, weakMagnitude:.35});
-    logEvent('Rumble test sent.');
-  } catch(e){ logEvent('Rumble failed: ' + e.message); }
+  } catch(e){}
 };
 
-window.addEventListener('gamepadconnected', e => { logEvent('Connected: ' + e.gamepad.id); refreshPads(); });
-window.addEventListener('gamepaddisconnected', e => { logEvent('Disconnected: ' + e.gamepad.id); refreshPads(); });
+window.addEventListener('gamepadconnected', e => { refreshPads(); });
+window.addEventListener('gamepaddisconnected', e => { refreshPads(); });
 window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; 
   camera.updateProjectionMatrix();
@@ -1723,7 +1746,6 @@ function loadFromLocalStorage() {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (raw) {
       applySettingsState(JSON.parse(raw));
-      logEvent('Restored settings from localStorage.');
     }
   } catch (err) {
     console.error('Failed to parse settings from localStorage:', err);
@@ -1744,7 +1766,6 @@ document.querySelector('#exportSettingsBtn').addEventListener('click', () => {
   a.click();
   
   URL.revokeObjectURL(url);
-  logEvent('Exported settings JSON file.');
 });
 
 document.querySelector('#importSettingsInput').addEventListener('change', (e) => {
@@ -1757,10 +1778,7 @@ document.querySelector('#importSettingsInput').addEventListener('change', (e) =>
       const parsed = JSON.parse(evt.target.result);
       applySettingsState(parsed);
       saveToLocalStorage();
-      logEvent(`Imported settings from: ${file.name}`);
-    } catch (err) {
-      logEvent('Error: Invalid settings JSON file.');
-    }
+    } catch (err) {}
   };
   reader.readAsText(file);
 });
