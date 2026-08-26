@@ -102,8 +102,6 @@
     background: color-mix(in srgb, var(--accent) 5%, transparent);
   }
 
-  .dock-toggle-btn { display: none; }
-
   .dock-tab-content {
     display: none;
     padding: 12px;
@@ -179,6 +177,20 @@
     align-items: start;
   }
 
+  .file-btn-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0c1017;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    height: 24px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .file-btn-label:hover { border-color: #53657e; }
+
   @media(max-width:900px){ 
     #right { display:none; } 
     #left { width:min(100%, 390px); } 
@@ -242,14 +254,24 @@
     <div id="tab-model" class="dock-tab-content active">
       <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:16px; align-items:start;">
         <div>
-          <h2 style="margin-top:0;">Presets</h2>
-          <button id="loadDefaultBtn" style="width:100%;">Reset Scene</button>
+          <h2 style="margin-top:0;">Presets & Storage</h2>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <button id="loadDefaultBtn" style="width:100%;">Reset Scene</button>
+            <button id="exportSettingsBtn" style="width:100%;">Save Settings File</button>
+            <label class="file-btn-label">
+              Load Settings File
+              <input type="file" id="importSettingsInput" accept=".json" style="display:none;">
+            </label>
+          </div>
         </div>
         <div>
           <h2 style="margin-top:0;">Load Model</h2>
-          <input type="file" id="glbFile" accept=".glb,.gltf">
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <input type="file" id="glbFile" accept=".glb,.gltf">
+            <button id="openPickerBtn" style="width:100%;">Pick Persistent File</button>
+          </div>
           <div class="sub" style="margin-top:4px; font-size:10px;">
-            Select a .glb model
+            Select a .glb model or store persistent handle
           </div>
         </div>
         <div>
@@ -317,7 +339,6 @@
     <!-- TAB 4: POST-PROCESSING -->
     <div id="tab-postproc" class="dock-tab-content">
       <div class="postproc-grid">
-        <!-- Anti-Aliasing & Shadows -->
         <div class="postproc-card">
           <h2 style="margin-top:0;">Quality & Shadows</h2>
           <div class="control-row">
@@ -344,7 +365,6 @@
           </div>
         </div>
 
-        <!-- Bloom -->
         <div class="postproc-card">
           <h2 style="margin-top:0;">Bloom</h2>
           <div class="control-row">
@@ -368,7 +388,6 @@
           </div>
         </div>
 
-        <!-- Color Space & Tone Mapping -->
         <div class="postproc-card">
           <h2 style="margin-top:0;">Color & Exposure</h2>
           <div class="control-row">
@@ -419,7 +438,87 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 
-// Click-and-Drag Scrubbing with drag threshold so standard typing works on click
+// --- INDEXEDDB & BINARY MODEL PERSISTENCE ---
+const DB_NAME = 'TrailpadOmniStore';
+const DB_VERSION = 1;
+const STORE_NAME = 'models';
+const MODEL_KEY = 'current_glb';
+const HANDLE_KEY = 'current_file_handle';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveBinaryModel(buffer, name) {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put({ buffer, name }, MODEL_KEY);
+  } catch (err) {
+    console.error('Failed to save model to IndexedDB:', err);
+  }
+}
+
+async function getStoredBinaryModel() {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(MODEL_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (err) {
+    return null;
+  }
+}
+
+async function saveFileHandle(handle) {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(handle, HANDLE_KEY);
+  } catch (err) {
+    console.error('Failed to save handle to IndexedDB:', err);
+  }
+}
+
+async function getStoredFileHandle() {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(HANDLE_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (err) {
+    return null;
+  }
+}
+
+async function clearStoredModel() {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).delete(MODEL_KEY);
+    tx.objectStore(STORE_NAME).delete(HANDLE_KEY);
+  } catch (err) {
+    console.error('Failed to clear model from IndexedDB:', err);
+  }
+}
+
+// Click-and-Drag Scrubbing
 let isPotentialScrub = false;
 let isScrubbing = false;
 let scrubInput = null;
@@ -443,12 +542,10 @@ window.addEventListener('mousemove', (e) => {
   if (!isPotentialScrub || !scrubInput) return;
   
   const deltaX = e.clientX - scrubStartX;
-  const deltaY = e.clientY - scrubStartY;
   
-  // Require moving at least 4 pixels horizontally before treating as a scrub action
   if (!isScrubbing && Math.abs(deltaX) > 4) {
     isScrubbing = true;
-    scrubInput.blur(); // Unfocus so cursor doesn't interfere during drag
+    scrubInput.blur();
   }
 
   if (isScrubbing) {
@@ -545,7 +642,6 @@ function updateCameraPosition(skipRotationUpdate = false) {
   }
 }
 
-// Camera Input Synchronizers with Zoom Compensation
 const syncFov = (val, compensate = true) => {
   const oldFov = camera.fov;
   const fovVal = Math.max(1, Math.min(170, parseFloat(val) || 50));
@@ -555,13 +651,9 @@ const syncFov = (val, compensate = true) => {
     const oldHalfFovRad = (oldFov * 0.5) * toRad;
     const newHalfFovRad = (fovVal * 0.5) * toRad;
     
-    // Adjust radius proportionally to maintain subject screen size
     radius = radius * (Math.tan(oldHalfFovRad) / Math.tan(newHalfFovRad));
-    
-    // Clamp radius within safe bounds
     radius = Math.max(0.5, Math.min(50, radius));
     
-    // Update camera position/zoom UI elements
     document.querySelector('#camRadius').value = radius;
     document.querySelector('#camRadiusInput').value = radius.toFixed(1);
   }
@@ -616,7 +708,6 @@ document.querySelector('#resetCamBtn').addEventListener('click', () => {
   updateCameraPosition();
 });
 
-// UI Visibility Toggle & Diagnostics shortcut via Keyboard
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     setActiveLight(null);
@@ -632,7 +723,6 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-// Renderer setup with Soft Shadows enabled
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -644,7 +734,6 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 app.appendChild(renderer.domElement);
 
-// Unified Post-Processing Pipeline Setup (Alpha Preserving Bloom Fix)
 function createMainRenderTarget(samples = 4) {
   return new THREE.WebGLRenderTarget(innerWidth, innerHeight, {
     type: THREE.HalfFloatType,
@@ -662,10 +751,9 @@ renderPass.clearAlpha = 0;
 composer.addPass(renderPass);
 
 const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.0, 0.75, 0.9);
-bloomPass.enabled = false; // Disabled by default
+bloomPass.enabled = false;
 composer.addPass(bloomPass);
 
-// Combined Contrast & Saturation adjustment shader preserving native background alpha
 const ContrastSaturationShader = {
   uniforms: { 
     tDiffuse: { value: null }, 
@@ -685,15 +773,10 @@ const ContrastSaturationShader = {
     varying vec2 vUv; 
     void main() { 
       vec4 col = texture2D(tDiffuse, vUv); 
-      
-      // Contrast adjustment
       vec3 color = (col.rgb - 0.5) * contrast + 0.5;
-      
-      // Saturation adjustment
       float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
       vec3 grayscale = vec3(luminance);
       color = mix(grayscale, color, saturation);
-
       gl_FragColor = vec4(color, col.a); 
     }`
 };
@@ -710,7 +793,6 @@ composer.addPass(fxaaPass);
 const outputPass = new OutputPass();
 composer.addPass(outputPass);
 
-// Dual-binding helper for Sliders and Number Inputs
 function bindSliderAndInput(sliderSel, inputSel, callback, decimals = 2) {
   const slider = document.querySelector(sliderSel);
   const input = document.querySelector(inputSel);
@@ -731,7 +813,6 @@ function bindSliderAndInput(sliderSel, inputSel, callback, decimals = 2) {
   });
 }
 
-// Post-Processing Tab Controls Logic
 function updateAntiAliasing() {
   const enabled = document.querySelector('#aaToggle').checked;
   const mode = document.querySelector('#aaQualitySelect').value;
@@ -857,7 +938,6 @@ renderer.domElement.addEventListener('wheel', (e) => {
   syncZoom(radius + e.deltaY * 0.005);
 }, { passive: false });
 
-// Lighting Dock Configuration
 const lightConfigs = [
   { id: 'hemi', name: 'Hemisphere Light', type: 'HemisphereLight', color: '#8ab4f8', groundColor: '#080b12', intensity: 1.2, pos: [0, 5, 0], rot: [0, 0, 0], castShadow: false, softShadow: true },
   { id: 'main', name: 'Main Light', type: 'DirectionalLight', color: '#fff5ea', intensity: 2.8, pos: [5, 10, 5], rot: [0, 0, 0], castShadow: true, softShadow: true },
@@ -991,7 +1071,6 @@ function renderLightingDock() {
 
     card.querySelector(`#${cfg.id}-toggle`).addEventListener('change', (e) => { entry.instance.visible = e.target.checked; });
     
-    // Intensity Slider & Number Input Syncing
     const intRange = card.querySelector(`#${cfg.id}-intensity`);
     const intInput = card.querySelector(`#${cfg.id}-intensity-input`);
     
@@ -1164,20 +1243,9 @@ function buildProceduralController() {
   controllerGroup.add(currentModel);
 }
 
-document.querySelector('#loadDefaultBtn').addEventListener('click', () => {
-  buildProceduralController();
-  logEvent('Loaded Default Controller');
-});
-
-const fileInput = document.querySelector('#glbFile');
-fileInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const url = URL.createObjectURL(file);
+function parseAndLoadGLTF(buffer, fileName = "Model") {
   const loader = new GLTFLoader();
-
-  loader.load(url, (gltf) => {
+  loader.parse(buffer, '', (gltf) => {
     clearController3D();
     currentModel = gltf.scene;
     controllerGroup.add(currentModel);
@@ -1198,12 +1266,96 @@ fileInput.addEventListener('change', (e) => {
       if (node.name === 'DPad_Rocker') dpadRockerPivot = node;
     });
 
-    logEvent('Loaded GLB: ' + file.name);
-    URL.revokeObjectURL(url);
-  }, undefined, (err) => { logEvent('Error loading GLB: ' + err.message); });
+    logEvent('Loaded GLB: ' + fileName);
+  }, (err) => {
+    logEvent('Error parsing GLB: ' + err.message);
+  });
+}
+
+document.querySelector('#loadDefaultBtn').addEventListener('click', async () => {
+  await clearStoredModel();
+  buildProceduralController();
+  logEvent('Loaded Default Controller & Cleared Model Cache');
 });
 
-buildProceduralController();
+const fileInput = document.querySelector('#glbFile');
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    const buffer = evt.target.result;
+    parseAndLoadGLTF(buffer, file.name);
+    await saveBinaryModel(buffer, file.name);
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// File System Access API Handler
+async function verifyPermission(fileHandle) {
+  const options = { mode: 'read' };
+  if ((await fileHandle.queryPermission(options)) === 'granted') return true;
+  if ((await fileHandle.requestPermission(options)) === 'granted') return true;
+  return false;
+}
+
+document.querySelector('#openPickerBtn').addEventListener('click', async () => {
+  if (!window.showOpenFilePicker) {
+    logEvent('File Access API not supported in this browser.');
+    return;
+  }
+
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{
+        description: '3D Models',
+        accept: { 'model/gltf-binary': ['.glb'] }
+      }],
+      multiple: false
+    });
+
+    if (!handle) return;
+
+    const file = await handle.getFile();
+    const buffer = await file.arrayBuffer();
+
+    parseAndLoadGLTF(buffer, file.name);
+    await saveBinaryModel(buffer, file.name);
+    await saveFileHandle(handle);
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      logEvent('Picker error: ' + err.message);
+    }
+  }
+});
+
+async function initModelPersistence() {
+  // Check File Handle First
+  const handle = await getStoredFileHandle();
+  if (handle) {
+    try {
+      if (await verifyPermission(handle)) {
+        const file = await handle.getFile();
+        const buffer = await file.arrayBuffer();
+        parseAndLoadGLTF(buffer, file.name);
+        return;
+      }
+    } catch (err) {
+      console.warn('File handle load error:', err);
+    }
+  }
+
+  // Fallback to Saved Binary ArrayBuffer in IndexedDB
+  const stored = await getStoredBinaryModel();
+  if (stored && stored.buffer) {
+    parseAndLoadGLTF(stored.buffer, stored.name || 'Cached Model');
+    return;
+  }
+
+  // Procedural Fallback
+  buildProceduralController();
+}
 
 const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.015, 8, 96), new THREE.MeshBasicMaterial({color:0x62d8ff, transparent:true, opacity:0.25}));
 ring.rotation.x = Math.PI / 2; ring.position.y = -0.8;
@@ -1393,6 +1545,203 @@ window.addEventListener('resize', () => {
   fxaaPass.material.uniforms['resolution'].value.x = 1 / (innerWidth * pr);
   fxaaPass.material.uniforms['resolution'].value.y = 1 / (innerHeight * pr);
 });
+
+// --- PERSISTENCE & SETTINGS SYSTEM ---
+const LOCAL_STORAGE_KEY = 'trailpad_omni_settings';
+
+function getSettingsState() {
+  return {
+    camera: {
+      fov: parseFloat(document.querySelector('#camFov').value),
+      radius: radius,
+      target: [cameraTarget.x, cameraTarget.y, cameraTarget.z]
+    },
+    model: {
+      scale: parseFloat(document.querySelector('#modelScale').value),
+      emissionIntensity: parseFloat(document.querySelector('#emissionIntensity').value),
+      emissionColor: document.querySelector('#emissionColor').value
+    },
+    postProcessing: {
+      aaEnabled: document.querySelector('#aaToggle').checked,
+      aaQuality: document.querySelector('#aaQualitySelect').value,
+      shadowQuality: document.querySelector('#shadowQualitySelect').value,
+      bloom: {
+        enabled: document.querySelector('#bloomToggle').checked,
+        strength: parseFloat(document.querySelector('#bloomStrength').value),
+        radius: parseFloat(document.querySelector('#bloomRadius').value),
+        threshold: parseFloat(document.querySelector('#bloomThreshold').value)
+      },
+      color: {
+        toneMapping: document.querySelector('#toneMappingSelect').value,
+        exposure: parseFloat(document.querySelector('#exposureRange').value),
+        contrast: parseFloat(document.querySelector('#contrastRange').value),
+        saturation: parseFloat(document.querySelector('#saturationRange').value)
+      }
+    },
+    lighting: lightConfigs.map(cfg => ({
+      id: cfg.id,
+      type: cfg.type,
+      color: cfg.color,
+      intensity: cfg.intensity,
+      pos: [...cfg.pos],
+      rot: [...cfg.rot],
+      castShadow: cfg.castShadow,
+      softShadow: cfg.softShadow
+    }))
+  };
+}
+
+function applySettingsState(state) {
+  if (!state) return;
+
+  if (state.camera) {
+    if (state.camera.fov !== undefined) syncFov(state.camera.fov, false);
+    if (state.camera.radius !== undefined) syncZoom(state.camera.radius);
+    if (state.camera.target) {
+      cameraTarget.set(...state.camera.target);
+      syncTargetInputs();
+    }
+  }
+
+  if (state.model) {
+    if (state.model.scale !== undefined) syncModelScale(state.model.scale);
+    if (state.model.emissionIntensity !== undefined) {
+      buttonEmissionMultiplier = state.model.emissionIntensity;
+      document.querySelector('#emissionIntensity').value = buttonEmissionMultiplier;
+      document.querySelector('#emissionIntensityInput').value = buttonEmissionMultiplier.toFixed(2);
+    }
+    if (state.model.emissionColor) {
+      document.querySelector('#emissionColor').value = state.model.emissionColor;
+      buttonEmissionColor.set(state.model.emissionColor);
+    }
+  }
+
+  if (state.postProcessing) {
+    const pp = state.postProcessing;
+    if (pp.aaEnabled !== undefined) document.querySelector('#aaToggle').checked = pp.aaEnabled;
+    if (pp.aaQuality) document.querySelector('#aaQualitySelect').value = pp.aaQuality;
+    updateAntiAliasing();
+
+    if (pp.shadowQuality) {
+      const sel = document.querySelector('#shadowQualitySelect');
+      sel.value = pp.shadowQuality;
+      sel.dispatchEvent(new Event('change'));
+    }
+
+    if (pp.bloom) {
+      document.querySelector('#bloomToggle').checked = pp.bloom.enabled;
+      bloomPass.enabled = pp.bloom.enabled;
+      bloomPass.strength = pp.bloom.strength;
+      bloomPass.radius = pp.bloom.radius;
+      bloomPass.threshold = pp.bloom.threshold;
+      
+      document.querySelector('#bloomStrength').value = pp.bloom.strength;
+      document.querySelector('#bloomStrengthInput').value = pp.bloom.strength.toFixed(2);
+      document.querySelector('#bloomRadius').value = pp.bloom.radius;
+      document.querySelector('#bloomRadiusInput').value = pp.bloom.radius.toFixed(2);
+      document.querySelector('#bloomThreshold').value = pp.bloom.threshold;
+      document.querySelector('#bloomThresholdInput').value = pp.bloom.threshold.toFixed(2);
+    }
+
+    if (pp.color) {
+      document.querySelector('#toneMappingSelect').value = pp.color.toneMapping;
+      document.querySelector('#toneMappingSelect').dispatchEvent(new Event('change'));
+      
+      document.querySelector('#exposureRange').value = pp.color.exposure;
+      document.querySelector('#exposureInput').value = pp.color.exposure.toFixed(2);
+      renderer.toneMappingExposure = pp.color.exposure;
+      
+      document.querySelector('#contrastRange').value = pp.color.contrast;
+      document.querySelector('#contrastInput').value = pp.color.contrast.toFixed(2);
+      postShaderPass.uniforms.contrast.value = pp.color.contrast;
+
+      document.querySelector('#saturationRange').value = pp.color.saturation;
+      document.querySelector('#saturationInput').value = pp.color.saturation.toFixed(2);
+      postShaderPass.uniforms.saturation.value = pp.color.saturation;
+    }
+  }
+
+  if (state.lighting && Array.isArray(state.lighting)) {
+    state.lighting.forEach(savedCfg => {
+      const match = lightConfigs.find(c => c.id === savedCfg.id);
+      if (match) {
+        Object.assign(match, savedCfg);
+        const entry = lightsMap.get(match.id);
+        if (entry) {
+          scene.remove(entry.instance);
+          if (entry.instance.dispose) entry.instance.dispose();
+          entry.instance = createLightInstance(match);
+          scene.add(entry.instance);
+        }
+      }
+    });
+    renderLightingDock();
+  }
+
+  updateCameraPosition();
+}
+
+function saveToLocalStorage() {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(getSettingsState()));
+  } catch (err) {
+    console.error('Failed to save settings:', err);
+  }
+}
+
+function loadFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (raw) {
+      applySettingsState(JSON.parse(raw));
+      logEvent('Restored settings from localStorage.');
+    }
+  } catch (err) {
+    console.error('Failed to parse settings from localStorage:', err);
+  }
+}
+
+document.querySelector('#bottom-dock').addEventListener('input', saveToLocalStorage);
+document.querySelector('#bottom-dock').addEventListener('change', saveToLocalStorage);
+
+document.querySelector('#exportSettingsBtn').addEventListener('click', () => {
+  const data = JSON.stringify(getSettingsState(), null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `trailpad-settings-${Date.now()}.json`;
+  a.click();
+  
+  URL.revokeObjectURL(url);
+  logEvent('Exported settings JSON file.');
+});
+
+document.querySelector('#importSettingsInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      applySettingsState(parsed);
+      saveToLocalStorage();
+      logEvent(`Imported settings from: ${file.name}`);
+    } catch (err) {
+      logEvent('Error: Invalid settings JSON file.');
+    }
+  };
+  reader.readAsText(file);
+});
+
+bindSliderAndInput('#emissionIntensity', '#emissionIntensityInput', (val) => {
+  buttonEmissionMultiplier = val;
+}, 2);
+
+loadFromLocalStorage();
+initModelPersistence();
 
 refreshPads();
 requestAnimationFrame(loop);
