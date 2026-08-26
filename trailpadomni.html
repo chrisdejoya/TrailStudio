@@ -722,6 +722,7 @@ document.querySelector('#resetCamBtn').addEventListener('click', () => {
   syncFov(50);
   syncTargetInputs();
   updateCameraPosition();
+  saveToLocalStorage();
 });
 
 window.addEventListener('keydown', (e) => {
@@ -901,7 +902,14 @@ renderer.domElement.addEventListener('mousedown', (e) => {
   previousMousePosition = { x: e.clientX, y: e.clientY };
 });
 
-window.addEventListener('mouseup', () => { isMouseDown = false; activeMouseButton = -1; });
+window.addEventListener('mouseup', () => { 
+  if (isMouseDown) {
+    saveToLocalStorage();
+  }
+  isMouseDown = false; 
+  activeMouseButton = -1; 
+});
+
 window.addEventListener('mousemove', (e) => {
   if (!isMouseDown) return;
   const deltaX = e.clientX - previousMousePosition.x;
@@ -952,6 +960,7 @@ window.addEventListener('mousemove', (e) => {
 renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
   syncZoom(radius + e.deltaY * 0.005);
+  saveToLocalStorage();
 }, { passive: false });
 
 const lightConfigs = [
@@ -1570,6 +1579,8 @@ function getSettingsState() {
     camera: {
       fov: parseFloat(document.querySelector('#camFov').value),
       radius: radius,
+      theta: theta,
+      phi: phi,
       target: [cameraTarget.x, cameraTarget.y, cameraTarget.z]
     },
     model: {
@@ -1612,7 +1623,9 @@ function applySettingsState(state) {
 
   if (state.camera) {
     if (state.camera.fov !== undefined) syncFov(state.camera.fov, false);
-    if (state.camera.radius !== undefined) syncZoom(state.camera.radius);
+    if (state.camera.radius !== undefined) radius = state.camera.radius;
+    if (state.camera.theta !== undefined) theta = state.camera.theta;
+    if (state.camera.phi !== undefined) phi = state.camera.phi;
     if (state.camera.target) {
       cameraTarget.set(...state.camera.target);
       syncTargetInputs();
