@@ -623,6 +623,15 @@ function syncTargetInputs() {
   document.querySelector('#camTargetZ').value = cameraTarget.z.toFixed(2);
 }
 
+function syncAnglesFromCameraPosition() {
+  const offset = new THREE.Vector3().subVectors(camera.position, cameraTarget);
+  radius = offset.length();
+  if (radius > 0) {
+    phi = Math.acos(Math.max(-1, Math.min(1, offset.y / radius)));
+    theta = Math.atan2(offset.x, offset.z);
+  }
+}
+
 function updateCameraPosition(skipRotationUpdate = false) {
   phi = Math.max(0.01, Math.min(Math.PI - 0.01, phi));
   camera.position.x = cameraTarget.x + radius * Math.sin(phi) * Math.sin(theta);
@@ -683,7 +692,14 @@ const updateRotFromInputs = () => {
   const rotY = (parseFloat(document.querySelector('#camRotY').value) || 0) * (Math.PI / 180);
   const rotZ = (parseFloat(document.querySelector('#camRotZ').value) || 0) * (Math.PI / 180);
 
-  camera.rotation.set(rotX, rotY, rotZ);
+  const offset = new THREE.Vector3(0, 0, radius);
+  const euler = new THREE.Euler(rotX, rotY, rotZ, 'YXZ');
+  offset.applyEuler(euler);
+
+  camera.position.copy(cameraTarget).add(offset);
+  camera.lookAt(cameraTarget);
+
+  syncAnglesFromCameraPosition();
 };
 
 ['X', 'Y', 'Z'].forEach(axis => {
