@@ -1321,10 +1321,31 @@ function registerMotionNode(node) {
   motionBaseQuaternions.set(node, node.quaternion.clone());
 }
 
-function register3DButton(index, mesh, parent = controllerGroup, isStick = false) {
-  if (mesh.material) mesh.material = mesh.material.clone();
-  buttons3D[index] = { mesh, isStick, originalMaterial: mesh.material };
-  basePositions[index] = mesh.position.clone();
+function cloneNodeMaterials(node) {
+  if (!node?.material) return [];
+
+  const materials = Array.isArray(node.material) ? node.material : [node.material];
+  const clonedMaterials = materials.map(material => material.clone());
+  node.material = Array.isArray(node.material) ? clonedMaterials : clonedMaterials[0];
+  return clonedMaterials;
+}
+
+function findBoneEmissiveTargets(root, bone) {
+  const targets = [];
+  root.traverse(node => {
+    if (node.isSkinnedMesh && node.skeleton?.bones.includes(bone)) {
+      targets.push(node);
+    }
+  });
+  return targets;
+}
+
+function register3DButton(index, node, parent = controllerGroup, isStick = false, emissiveTargets = null) {
+  const targets = emissiveTargets || (node.isMesh ? [node] : []);
+  const materials = targets.flatMap(target => cloneNodeMaterials(target));
+
+  buttons3D[index] = { node, isStick, emissiveMaterials: materials };
+  basePositions[index] = node.position.clone();
 }
 
 function clearController3D() {
@@ -1441,8 +1462,10 @@ function processModelNode(node, visited = new Set()) {
     const buttonIndex = MESH_MAPPINGS[node.name];
     if (buttonIndex !== undefined) {
       const isStick = (buttonIndex === 10 || buttonIndex === 11);
-      if (node.isMesh && node.material) node.material = node.material.clone();
-      register3DButton(buttonIndex, node, node.parent, isStick);
+      const emissiveTargets = node.isBone
+        ? findBoneEmissiveTargets(currentModel, node)
+        : [node];
+      register3DButton(buttonIndex, node, node.parent, isStick, emissiveTargets);
     }
 
     if (node.name === 'Stick_Left') {
@@ -1675,22 +1698,23 @@ function processPad(pad){
     }
 
     if (buttons3D[i]) {
-      const { mesh, isStick } = buttons3D[i];
+      const { node, isStick, emissiveMaterials } = buttons3D[i];
       const basePos = basePositions[i];
       const maxTravel = isStick ? 0.04 : 0.03;
       const pressDepth = isStick ? (isPressed ? maxTravel : 0) : val * maxTravel;
 
-      mesh.position.y = basePos.y - pressDepth;
+      node.position.y = basePos.y - pressDepth;
 
-      if (mesh.material && mesh.material.emissive) {
+      emissiveMaterials.forEach(material => {
+        if (!material.emissive) return;
         if (isPressed) { 
-          mesh.material.emissive.copy(buttonEmissionColor); 
-          mesh.material.emissiveIntensity = 0.5 * val * buttonEmissionMultiplier; 
+          material.emissive.copy(buttonEmissionColor); 
+          material.emissiveIntensity = 0.5 * val * buttonEmissionMultiplier; 
         } else { 
-          mesh.material.emissive.setHex(0x000000); 
-          mesh.material.emissiveIntensity = 0; 
+          material.emissive.setHex(0x000000); 
+          material.emissiveIntensity = 0; 
         }
-      }
+      });
     }
   });
 
