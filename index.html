@@ -708,6 +708,23 @@ const MESH_MAPPINGS = {
 
 function getButtonLabel(i) { return STANDARD_BUTTONS[i]?.label || `B${i}`; }
 
+const hudUI = {
+  mapping: document.querySelector('#mapping'),
+  axisCount: document.querySelector('#axisCount'),
+  buttonCount: document.querySelector('#buttonCount'),
+  leftValue: document.querySelector('#lx'),
+  rightValue: document.querySelector('#rx'),
+  leftBar: document.querySelector('#lxBar'),
+  rightBar: document.querySelector('#rxBar'),
+  leftDot: document.querySelector('#leftDot'),
+  rightDot: document.querySelector('#rightDot'),
+  status: document.querySelector('#status'),
+  buttons: document.querySelector('#buttons'),
+  buttonElements: [],
+  buttonValues: [],
+  buttonPressureBars: []
+};
+
 const app = document.querySelector('#app');
 const scene = new THREE.Scene();
 
@@ -1005,6 +1022,10 @@ let isMouseDown = false;
 let activeMouseButton = -1;
 let previousMousePosition = { x: 0, y: 0 };
 let activeLightId = null;
+const lightSpherical = new THREE.Spherical();
+const panRight = new THREE.Vector3();
+const panUp = new THREE.Vector3();
+const panForward = new THREE.Vector3();
 
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 renderer.domElement.addEventListener('mousedown', (e) => {
@@ -1034,10 +1055,10 @@ window.addEventListener('mousemove', (e) => {
       const light = entry.instance;
       const rotSpeed = 0.01;
       
-      const spherical = new THREE.Spherical().setFromVector3(light.position);
-      spherical.theta -= deltaX * rotSpeed;
-      spherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, spherical.phi + deltaY * rotSpeed));
-      light.position.setFromSpherical(spherical);
+      lightSpherical.setFromVector3(light.position);
+      lightSpherical.theta -= deltaX * rotSpeed;
+      lightSpherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, lightSpherical.phi + deltaY * rotSpeed));
+      light.position.setFromSpherical(lightSpherical);
 
       entry.config.pos = [light.position.x, light.position.y, light.position.z];
       const card = document.querySelector(`#light-card-${activeLightId}`);
@@ -1053,15 +1074,12 @@ window.addEventListener('mousemove', (e) => {
     }
   } else if (activeMouseButton === 1) {
     const panSpeed = radius * 0.0015;
-    const right = new THREE.Vector3();
-    const up = new THREE.Vector3();
+    camera.matrix.extractBasis(panRight, panUp, panForward);
     
-    camera.matrix.extractBasis(right, up, new THREE.Vector3());
+    panRight.multiplyScalar(-deltaX * panSpeed);
+    panUp.multiplyScalar(deltaY * panSpeed);
     
-    right.multiplyScalar(-deltaX * panSpeed);
-    up.multiplyScalar(deltaY * panSpeed);
-    
-    cameraTarget.add(right).add(up);
+    cameraTarget.add(panRight).add(panUp);
     syncTargetInputs();
     updateCameraPosition();
   } else if (activeMouseButton === 2) {
@@ -1073,7 +1091,7 @@ window.addEventListener('mousemove', (e) => {
 renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
   syncZoom(radius + e.deltaY * 0.005);
-  saveToLocalStorage();
+  scheduleSave();
 }, { passive: false });
 
 const lightConfigs = [
@@ -1506,42 +1524,54 @@ function refreshPads(){
 
 function selectedPad(){ return navigator.getGamepads?.()[selectedIndex] || null; }
 function setStatus(ok){
-  const el = document.querySelector('#status');
-  el.textContent = ok ? 'Connected' : 'Waiting';
-  el.className = 'status ' + (ok ? 'connected' : '');
+  const text = ok ? 'Connected' : 'Waiting';
+  const className = 'status ' + (ok ? 'connected' : '');
+  if (hudUI.status.textContent !== text) hudUI.status.textContent = text;
+  if (hudUI.status.className !== className) hudUI.status.className = className;
 }
 function fmt(v){ return Number(v || 0).toFixed(3); }
 
 function setDot(id, x, y){
-  const d = document.querySelector('#' + id);
+  const d = id === 'leftDot' ? hudUI.leftDot : hudUI.rightDot;
   d.style.left = `${50 + Math.max(-1, Math.min(1, x)) * 45}%`;
   d.style.top = `${50 + Math.max(-1, Math.min(1, y)) * 45}%`;
 }
 
 function buildUI(pad){
-  const bs = document.querySelector('#buttons'); bs.innerHTML = '';
+  hudUI.buttons.innerHTML = '';
+  hudUI.buttonElements = [];
+  hudUI.buttonValues = [];
+  hudUI.buttonPressureBars = [];
   pad.buttons.forEach((b, i) => {
     const el = document.createElement('div'); el.className = 'btn' + (b.pressed ? ' on' : ''); el.dataset.button = i;
     el.innerHTML = `
       <div class="btn-header"><span class="b-name">${getButtonLabel(i)}</span><span class="b-val">${fmt(b.value)}</span></div>
       <div class="pressure-bar" style="width:${(b.value||0)*100}%"></div>
     `;
-    bs.appendChild(el);
+    hudUI.buttons.appendChild(el);
+    hudUI.buttonElements[i] = el;
+    hudUI.buttonValues[i] = el.querySelector('.b-val');
+    hudUI.buttonPressureBars[i] = el.querySelector('.pressure-bar');
   });
 }
 
 function processPad(pad){
-  document.querySelector('#mapping').textContent = pad.mapping || 'non-standard';
-  document.querySelector('#axisCount').textContent = pad.axes.length;
-  document.querySelector('#buttonCount').textContent = pad.buttons.length;
+  const mapping = pad.mapping || 'non-standard';
+  if (hudUI.mapping.textContent !== mapping) hudUI.mapping.textContent = mapping;
+  if (hudUI.axisCount.textContent !== String(pad.axes.length)) hudUI.axisCount.textContent = pad.axes.length;
+  if (hudUI.buttonCount.textContent !== String(pad.buttons.length)) hudUI.buttonCount.textContent = pad.buttons.length;
 
   const ax = pad.axes;
   const lx = ax[0] || 0, ly = ax[1] || 0, rx = ax[2] || 0, ry = ax[3] || 0;
   
-  document.querySelector('#lx').textContent = `${fmt(lx)}, ${fmt(ly)}`;
-  document.querySelector('#rx').textContent = `${fmt(rx)}, ${fmt(ry)}`;
-  document.querySelector('#lxBar').style.width = `${Math.min(100, Math.hypot(lx, ly) * 100)}%`;
-  document.querySelector('#rxBar').style.width = `${Math.min(100, Math.hypot(rx, ry) * 100)}%`;
+  const leftText = `${fmt(lx)}, ${fmt(ly)}`;
+  const rightText = `${fmt(rx)}, ${fmt(ry)}`;
+  const leftWidth = `${Math.min(100, Math.hypot(lx, ly) * 100)}%`;
+  const rightWidth = `${Math.min(100, Math.hypot(rx, ry) * 100)}%`;
+  if (hudUI.leftValue.textContent !== leftText) hudUI.leftValue.textContent = leftText;
+  if (hudUI.rightValue.textContent !== rightText) hudUI.rightValue.textContent = rightText;
+  if (hudUI.leftBar.style.width !== leftWidth) hudUI.leftBar.style.width = leftWidth;
+  if (hudUI.rightBar.style.width !== rightWidth) hudUI.rightBar.style.width = rightWidth;
   
   setDot('leftDot', lx, ly); setDot('rightDot', rx, ry);
 
@@ -1569,11 +1599,13 @@ function processPad(pad){
     const val = b.value;
     const isPressed = b.pressed || val > 0.1;
 
-    const visual = document.querySelector(`.btn[data-button="${i}"]`);
+    const visual = hudUI.buttonElements[i];
     if(visual) {
-      visual.classList.toggle('on', isPressed);
-      const valText = visual.querySelector('.b-val'); if(valText) valText.textContent = fmt(val);
-      const pressureBar = visual.querySelector('.pressure-bar'); if(pressureBar) pressureBar.style.width = `${(val||0)*100}%`;
+      if (visual.classList.contains('on') !== isPressed) visual.classList.toggle('on', isPressed);
+      const valueText = fmt(val);
+      const pressureWidth = `${(val || 0) * 100}%`;
+      if (hudUI.buttonValues[i].textContent !== valueText) hudUI.buttonValues[i].textContent = valueText;
+      if (hudUI.buttonPressureBars[i].style.width !== pressureWidth) hudUI.buttonPressureBars[i].style.width = pressureWidth;
     }
 
     if (buttons3D[i]) {
@@ -1602,7 +1634,8 @@ function processPad(pad){
 
 function loop(t){
   requestAnimationFrame(loop);
-  const p = selectedPad();
+  const gamepads = navigator.getGamepads?.() || [];
+  const p = selectedIndex === null ? null : gamepads[selectedIndex] || null;
   if(p){ setStatus(true); processPad(p); }
   else if(selectedIndex !== null){ setStatus(false); }
   
@@ -1804,6 +1837,12 @@ function saveToLocalStorage() {
   }
 }
 
+let saveTimer = null;
+function scheduleSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToLocalStorage, 150);
+}
+
 function loadFromLocalStorage() {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -1815,8 +1854,8 @@ function loadFromLocalStorage() {
   }
 }
 
-document.querySelector('#bottom-dock').addEventListener('input', saveToLocalStorage);
-document.querySelector('#bottom-dock').addEventListener('change', saveToLocalStorage);
+document.querySelector('#bottom-dock').addEventListener('input', scheduleSave);
+document.querySelector('#bottom-dock').addEventListener('change', scheduleSave);
 
 document.querySelector('#exportSettingsBtn').addEventListener('click', () => {
   const data = JSON.stringify(getSettingsState(), null, 2);
