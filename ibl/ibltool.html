@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynamic Three.js IBL Studio Generator</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel-bg: rgba(30, 41, 59, 0.95);
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --border: rgba(255, 255, 255, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #ui-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 320px;
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+    }
+
+    /* Scrollbar styling */
+    #ui-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+    #ui-panel::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    #preview-canvas {
+      width: 100%;
+      height: 90px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #000;
+      object-fit: fill;
+    }
+
+    /* Accordion Details/Summary UI */
+    details {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    summary {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      padding: 8px 10px;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    summary::after {
+      content: '►';
+      font-size: 0.65rem;
+      transition: transform 0.2s ease;
+    }
+
+    details[open] summary::after {
+      transform: rotate(90deg);
+    }
+
+    .accordion-content {
+      padding: 8px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+    }
+
+    .control-row-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    label {
+      color: #cbd5e1;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    input[type="color"] {
+      border: none;
+      width: 28px;
+      height: 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    input[type="checkbox"] {
+      accent-color: var(--accent);
+      cursor: pointer;
+      width: 14px;
+      height: 14px;
+    }
+
+    .val-badge {
+      font-size: 0.7rem;
+      color: #94a3b8;
+    }
+
+    /* Two-column layout grid for compact inline parameters */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="ui-panel">
+    <canvas id="preview-canvas" width="256" height="128"></canvas>
+
+    <!-- Environment Colors Section -->
+    <details open>
+      <summary>Environment Colors</summary>
+      <div class="accordion-content">
+        <div class="grid-2col">
+          <div class="control-group">
+            <div class="control-row"><label for="skyColor">Sky</label><input type="color" id="skyColor" value="#1e293b" /></div>
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label for="skyLevel">Sky Offset</label><span class="val-badge" id="skyLevelVal">0.40</span></div>
+            <input type="range" id="skyLevel" min="0.01" max="1.0" step="0.01" value="0.4" />
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <div class="control-group">
+            <div class="control-row"><label for="horizonColor">Horizon</label><input type="color" id="horizonColor" value="#38bdf8" /></div>
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label for="horizonLevel">Horizon Offset</label><span class="val-badge" id="horizonLevelVal">0.00</span></div>
+            <input type="range" id="horizonLevel" min="-0.5" max="0.5" step="0.01" value="0" />
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <div class="control-group">
+            <div class="control-row"><label for="groundColor">Ground</label><input type="color" id="groundColor" value="#0f172a" /></div>
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label for="groundLevel">Ground Offset</label><span class="val-badge" id="groundLevelVal">-0.40</span></div>
+            <input type="range" id="groundLevel" min="-1.0" max="-0.01" step="0.01" value="-0.4" />
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- Sun 1 Section -->
+    <details open>
+      <summary>
+        <span>Sun 1</span>
+        <span class="control-row-inline" onclick="event.stopPropagation()">
+          <input type="checkbox" id="sun1Visible" checked />
+        </span>
+      </summary>
+      <div class="accordion-content">
+        <div class="control-group">
+          <div class="control-row"><label for="sun1Color">Color</label><input type="color" id="sun1Color" value="#ffffff" /></div>
+        </div>
+        <div class="grid-2col">
+          <div class="control-group">
+            <div class="control-row"><label for="sun1Elevation">Elevation</label><span class="val-badge" id="sun1ElevationVal">45°</span></div>
+            <input type="range" id="sun1Elevation" min="0" max="90" value="45" />
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label for="sun1Azimuth">Rotation</label><span class="val-badge" id="sun1AzimuthVal">180°</span></div>
+            <input type="range" id="sun1Azimuth" min="0" max="360" value="180" />
+          </div>
+        </div>
+        <div class="grid-2col">
+          <div class="control-group">
+            <div class="control-row"><label for="sun1Size">Size</label><span class="val-badge" id="sun1SizeVal">1.00</span></div>
+            <input type="range" id="sun1Size" min="0.1" max="5.0" step="0.05" value="1.0" />
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label for="sun1Intensity">Intensity</label><span class="val-badge" id="sun1IntensityVal">5.00</span></div>
+            <input type="range" id="sun1Intensity" min="0" max="10" step="0.1" value="5.0" />
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="control-row"><label for="sun1Atmosphere">Atmosphere Glow</label><span class="val-badge" id="sun1AtmosphereVal">0.50</span></div>
+          <input type="range" id="sun1Atmosphere" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+      </div>
+    </details>
+
+    <!-- Sun 2 Section -->
+    <details>
+      <summary>
+        <span>Sun 2</span>
+        <span class="control-row-inline" onclick="event.stopPropagation()">
+          <input type="checkbox" id="sun2Visible" checked />
+        </span>
+      </summary>
+      <div class="accordion-content">
+        <div class="control-group">
+          <div class="control-row"><label for="sun2Color">Color</label><input type="color" id="sun2Color" value="#f59e0b" /></div>
+        </div>
+        <div class="grid-2col">
+          <div class="control-group">
+            <div class="control-row"><label for="sun2Elevation">Elevation</label><span class="val-badge" id="sun2ElevationVal">20°</span></div>
+            <input type="range" id="sun2Elevation" min="0" max="90" value="20" />
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label for="sun2Azimuth">Rotation</label><span class="val-badge" id="sun2AzimuthVal">45°</span></div>
+            <input type="range" id="sun2Azimuth" min="0" max="360" value="45" />
+          </div>
+        </div>
+        <div class="grid-2col">
+          <div class="control-group">
+            <div class="control-row"><label for="sun2Size">Size</label><span class="val-badge" id="sun2SizeVal">1.50</span></div>
+            <input type="range" id="sun2Size" min="0.1" max="5.0" step="0.05" value="1.5" />
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label for="sun2Intensity">Intensity</label><span class="val-badge" id="sun2IntensityVal">0.00</span></div>
+            <input type="range" id="sun2Intensity" min="0" max="10" step="0.1" value="0.0" />
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="control-row"><label for="sun2Atmosphere">Atmosphere Glow</label><span class="val-badge" id="sun2AtmosphereVal">0.70</span></div>
+          <input type="range" id="sun2Atmosphere" min="0" max="1" step="0.01" value="0.7" />
+        </div>
+      </div>
+    </details>
+
+    <!-- Ring Light Section -->
+    <details>
+      <summary>
+        <span>Studio Ring Light</span>
+        <span class="control-row-inline" onclick="event.stopPropagation()">
+          <input type="checkbox" id="ringVisible" checked />
+        </span>
+      </summary>
+      <div class="accordion-content">
+        <div class="control-group">
+          <div class="control-row"><label for="ringColor">Ring Color</label><input type="color" id="ringColor" value="#38bdf8" /></div>
+        </div>
+        <div class="grid-2col">
+          <div class="control-group">
+            <div class="control-row"><label for="ringHeight">Elevation</label><span class="val-badge" id="ringHeightVal">20.0</span></div>
+            <input type="range" id="ringHeight" min="-50" max="50" step="0.5" value="20.0" />
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label for="ringSharpness">Sharpness</label><span class="val-badge" id="ringSharpnessVal">0.50</span></div>
+            <input type="range" id="ringSharpness" min="0.05" max="2.0" step="0.05" value="0.5" />
+          </div>
+        </div>
+        <div class="control-group">
+          <div class="control-row"><label for="ringIntensity">Intensity</label><span class="val-badge" id="ringIntensityVal">3.00</span></div>
+          <input type="range" id="ringIntensity" min="0" max="10" step="0.1" value="3.0" />
+        </div>
+      </div>
+    </details>
+
+    <!-- Camera & Material Section -->
+    <details open>
+      <summary>Camera & Material</summary>
+      <div class="accordion-content">
+        <div class="control-group">
+          <div class="control-row"><label for="camAltitude">Camera Altitude</label><span class="val-badge" id="camAltitudeVal">1.50</span></div>
+          <input type="range" id="camAltitude" min="-5" max="15" step="0.1" value="1.5" />
+        </div>
+        <div class="grid-2col">
+          <div class="control-group">
+            <div class="control-row"><label for="roughness">Roughness</label><span class="val-badge" id="roughnessVal">0.15</span></div>
+            <input type="range" id="roughness" min="0" max="1" step="0.01" value="0.15" />
+          </div>
+          <div class="control-group">
+            <div class="control-row"><label for="metalness">Metalness</label><span class="val-badge" id="metalnessVal">0.90</span></div>
+            <input type="range" id="metalness" min="0" max="1" step="0.01" value="0.9" />
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // 1. DATA STATE & STORE
+    const defaultState = {
+      camAltitude: 1.5,
+      skyColor: '#1e293b', horizonColor: '#38bdf8', groundColor: '#0f172a',
+      skyLevel: 0.4, horizonLevel: 0.0, groundLevel: -0.4,
+      
+      // Sun 1
+      sun1Visible: true,
+      sun1Color: '#ffffff', sun1Elevation: 45, sun1Azimuth: 180,
+      sun1Size: 1.0, sun1Intensity: 5.0, sun1Atmosphere: 0.5,
+
+      // Sun 2
+      sun2Visible: true,
+      sun2Color: '#f59e0b', sun2Elevation: 20, sun2Azimuth: 45,
+      sun2Size: 1.5, sun2Intensity: 0.0, sun2Atmosphere: 0.7,
+
+      // Studio Ring
+      ringVisible: true,
+      ringColor: '#38bdf8', ringIntensity: 3.0, ringHeight: 20.0, ringSharpness: 0.5,
+      
+      metalness: 0.9, roughness: 0.15
+    };
+
+    class IBLStore {
+      constructor(state = defaultState) {
+        this.state = { ...state };
+        this.listeners = new Set();
+      }
+      get(key) { return this.state[key]; }
+      set(key, value) {
+        if (this.state[key] !== value) {
+          this.state[key] = value;
+          this.notify(key, value);
+        }
+      }
+      subscribe(callback) {
+        this.listeners.add(callback);
+        return () => this.listeners.delete(callback);
+      }
+      notify(key, value) {
+        for (const cb of this.listeners) cb(key, value, this.state);
+      }
+    }
+
+    // 2. PROCEDURAL ENVIRONMENT GENERATOR
+    class DynamicIBLEditor {
+      constructor(renderer) {
+        this.renderer = renderer;
+        this.pmremGenerator = new THREE.PMREMGenerator(renderer);
+        this.pmremGenerator.compileCubemapShader();
+
+        this.envScene = new THREE.Scene();
+        this.currentRenderTarget = null;
+
+        this._initSkyDome();
+        this._initStudioRing();
+      }
+
+      _initSkyDome() {
+        this.skyUniforms = {
+          uSkyColor: { value: new THREE.Color() },
+          uHorizonColor: { value: new THREE.Color() },
+          uGroundColor: { value: new THREE.Color() },
+          uSkyLevel: { value: 0.4 },
+          uHorizonLevel: { value: 0.0 },
+          uGroundLevel: { value: -0.4 },
+
+          uSun1Color: { value: new THREE.Color() },
+          uSun1Position: { value: new THREE.Vector3() },
+          uSun1Size: { value: 1.0 },
+          uSun1Intensity: { value: 5.0 },
+          uSun1Atmosphere: { value: 0.5 },
+
+          uSun2Color: { value: new THREE.Color() },
+          uSun2Position: { value: new THREE.Vector3() },
+          uSun2Size: { value: 1.5 },
+          uSun2Intensity: { value: 0.0 },
+          uSun2Atmosphere: { value: 0.7 }
+        };
+
+        const shaderMaterial = new THREE.ShaderMaterial({
+          side: THREE.BackSide,
+          uniforms: this.skyUniforms,
+          vertexShader: `
+            varying vec3 vWorldPosition;
+            void main() {
+              vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+              vWorldPosition = worldPosition.xyz;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            uniform vec3 uSkyColor, uHorizonColor, uGroundColor;
+            uniform float uSkyLevel, uHorizonLevel, uGroundLevel;
+
+            uniform vec3 uSun1Color, uSun1Position;
+            uniform float uSun1Size, uSun1Intensity, uSun1Atmosphere;
+
+            uniform vec3 uSun2Color, uSun2Position;
+            uniform float uSun2Size, uSun2Intensity, uSun2Atmosphere;
+
+            varying vec3 vWorldPosition;
+
+            vec3 computeSun(vec3 viewDir, vec3 sunPos, vec3 sunCol, float sunSize, float sunInt, float atmos) {
+              float cosTheta = dot(viewDir, normalize(sunPos));
+              float powBase = mix(8000.0 / (sunSize * sunSize), 2.0 / sunSize, clamp(atmos, 0.0, 1.0));
+              float sunGlow = pow(max(cosTheta, 0.0), powBase);
+
+              float sharpCutoff = 1.0 - (0.0005 * sunSize);
+              float sharpSun = step(sharpCutoff, cosTheta);
+              float finalSunFactor = mix(sharpSun, sunGlow * (1.0 + atmos * 3.0), atmos);
+
+              return sunCol * sunInt * finalSunFactor;
+            }
+
+            void main() {
+              vec3 viewDir = normalize(vWorldPosition);
+              float h = viewDir.y;
+
+              // 3-point vertical gradient
+              vec3 skyGrad = mix(uHorizonColor, uSkyColor, smoothstep(uHorizonLevel, uSkyLevel, h));
+              vec3 groundGrad = mix(uHorizonColor, uGroundColor, smoothstep(uHorizonLevel, uGroundLevel, h));
+              vec3 baseGradient = h >= uHorizonLevel ? skyGrad : groundGrad;
+
+              vec3 sun1 = computeSun(viewDir, uSun1Position, uSun1Color, uSun1Size, uSun1Intensity, uSun1Atmosphere);
+              vec3 sun2 = computeSun(viewDir, uSun2Position, uSun2Color, uSun2Size, uSun2Intensity, uSun2Atmosphere);
+
+              gl_FragColor = vec4(baseGradient + sun1 + sun2, 1.0);
+            }
+          `
+        });
+
+        const domeGeo = new THREE.SphereGeometry(100, 64, 32);
+        this.envScene.add(new THREE.Mesh(domeGeo, shaderMaterial));
+      }
+
+      _initStudioRing() {
+        this.ringGeo = new THREE.TorusGeometry(15, 0.5, 16, 64);
+        this.ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        this.ringMesh = new THREE.Mesh(this.ringGeo, this.ringMaterial);
+        this.ringMesh.rotation.x = Math.PI / 2;
+        this.envScene.add(this.ringMesh);
+      }
+
+      updateFromState(store) {
+        // Sun 1 Calc
+        const sun1Visible = store.get('sun1Visible');
+        const phi1 = THREE.MathUtils.degToRad(90 - store.get('sun1Elevation'));
+        const theta1 = THREE.MathUtils.degToRad(store.get('sun1Azimuth'));
+        this.skyUniforms.uSun1Position.value.setFromSphericalCoords(100, phi1, theta1);
+        this.skyUniforms.uSun1Color.value.set(store.get('sun1Color'));
+        this.skyUniforms.uSun1Size.value = store.get('sun1Size');
+        this.skyUniforms.uSun1Intensity.value = sun1Visible ? store.get('sun1Intensity') : 0.0;
+        this.skyUniforms.uSun1Atmosphere.value = store.get('sun1Atmosphere');
+
+        // Sun 2 Calc
+        const sun2Visible = store.get('sun2Visible');
+        const phi2 = THREE.MathUtils.degToRad(90 - store.get('sun2Elevation'));
+        const theta2 = THREE.MathUtils.degToRad(store.get('sun2Azimuth'));
+        this.skyUniforms.uSun2Position.value.setFromSphericalCoords(100, phi2, theta2);
+        this.skyUniforms.uSun2Color.value.set(store.get('sun2Color'));
+        this.skyUniforms.uSun2Size.value = store.get('sun2Size');
+        this.skyUniforms.uSun2Intensity.value = sun2Visible ? store.get('sun2Intensity') : 0.0;
+        this.skyUniforms.uSun2Atmosphere.value = store.get('sun2Atmosphere');
+
+        // Colors & Heights
+        this.skyUniforms.uSkyColor.value.set(store.get('skyColor'));
+        this.skyUniforms.uHorizonColor.value.set(store.get('horizonColor'));
+        this.skyUniforms.uGroundColor.value.set(store.get('groundColor'));
+        this.skyUniforms.uSkyLevel.value = store.get('skyLevel');
+        this.skyUniforms.uHorizonLevel.value = store.get('horizonLevel');
+        this.skyUniforms.uGroundLevel.value = store.get('groundLevel');
+
+        // Ring
+        const ringVisible = store.get('ringVisible');
+        this.ringMesh.visible = ringVisible;
+        if (ringVisible) {
+          this.ringMaterial.color.set(store.get('ringColor')).multiplyScalar(store.get('ringIntensity'));
+          this.ringMesh.position.y = store.get('ringHeight');
+          
+          // Ring Sharpness/Thickness rebuild
+          const sharpness = store.get('ringSharpness');
+          this.ringGeo.dispose();
+          this.ringGeo = new THREE.TorusGeometry(15, sharpness, 16, 64);
+          this.ringMesh.geometry = this.ringGeo;
+        }
+
+        if (this.currentRenderTarget) this.currentRenderTarget.dispose();
+        this.currentRenderTarget = this.pmremGenerator.fromScene(this.envScene);
+        
+        this.renderThumbnailPreview(store);
+        return this.currentRenderTarget.texture;
+      }
+
+      renderThumbnailPreview(store) {
+        const canvas = document.getElementById('preview-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        const w = canvas.width, h = canvas.height;
+        const imgData = ctx.createImageData(w, h);
+
+        const skyCol = this.skyUniforms.uSkyColor.value;
+        const horCol = this.skyUniforms.uHorizonColor.value;
+        const gndCol = this.skyUniforms.uGroundColor.value;
+        
+        const sun1Pos = this.skyUniforms.uSun1Position.value.clone().normalize();
+        const sun1Col = this.skyUniforms.uSun1Color.value;
+        const sun1Int = store.get('sun1Visible') ? store.get('sun1Intensity') : 0.0;
+        const sun1Size = store.get('sun1Size');
+        const sun1Atmos = store.get('sun1Atmosphere');
+
+        const sun2Pos = this.skyUniforms.uSun2Position.value.clone().normalize();
+        const sun2Col = this.skyUniforms.uSun2Color.value;
+        const sun2Int = store.get('sun2Visible') ? store.get('sun2Intensity') : 0.0;
+        const sun2Size = store.get('sun2Size');
+        const sun2Atmos = store.get('sun2Atmosphere');
+
+        let ptr = 0;
+        for (let y = 0; y < h; y++) {
+          const v = 1.0 - (y / h);
+          const phi = (1.0 - v) * Math.PI;
+          const cosPhi = Math.cos(phi);
+          const sinPhi = Math.sin(phi);
+
+          for (let x = 0; x < w; x++) {
+            const u = x / w;
+            const theta = u * Math.PI * 2.0 - Math.PI;
+
+            const dir = new THREE.Vector3(
+              -sinPhi * Math.sin(theta),
+              cosPhi,
+              -sinPhi * Math.cos(theta)
+            );
+
+            // Height gradient
+            let r, g, b;
+            const hVal = dir.y;
+            const skyL = store.get('skyLevel');
+            const horL = store.get('horizonLevel');
+            const gndL = store.get('groundLevel');
+
+            if (hVal >= horL) {
+              const factor = Math.min(Math.max((hVal - horL) / (skyL - horL), 0.0), 1.0);
+              r = THREE.MathUtils.lerp(horCol.r, skyCol.r, factor);
+              g = THREE.MathUtils.lerp(horCol.g, skyCol.g, factor);
+              b = THREE.MathUtils.lerp(horCol.b, skyCol.b, factor);
+            } else {
+              const factor = Math.min(Math.max((horL - hVal) / (horL - gndL), 0.0), 1.0);
+              r = THREE.MathUtils.lerp(horCol.r, gndCol.r, factor);
+              g = THREE.MathUtils.lerp(horCol.g, gndCol.g, factor);
+              b = THREE.MathUtils.lerp(horCol.b, gndCol.b, factor);
+            }
+
+            // Add Suns
+            const addSunContribution = (sunPos, sunCol, sunInt, sunSize, atmos) => {
+              const cosTheta = dir.dot(sunPos);
+              if (cosTheta > 0.0) {
+                const powBase = THREE.MathUtils.lerp(8000.0 / (sunSize * sunSize), 2.0 / sunSize, atmos);
+                let factor = Math.pow(cosTheta, powBase) * (1.0 + atmos * 3.0);
+                if (atmos < 0.05 && cosTheta > (1.0 - 0.0005 * sunSize)) factor = 1.0;
+                r += sunCol.r * sunInt * factor;
+                g += sunCol.g * sunInt * factor;
+                b += sunCol.b * sunInt * factor;
+              }
+            };
+
+            if (sun1Int > 0) addSunContribution(sun1Pos, sun1Col, sun1Int, sun1Size, sun1Atmos);
+            if (sun2Int > 0) addSunContribution(sun2Pos, sun2Col, sun2Int, sun2Size, sun2Atmos);
+
+            imgData.data[ptr]     = Math.min(r * 255, 255);
+            imgData.data[ptr + 1] = Math.min(g * 255, 255);
+            imgData.data[ptr + 2] = Math.min(b * 255, 255);
+            imgData.data[ptr + 3] = 255;
+            ptr += 4;
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+    }
+
+    // 3. MAIN APPLICATION
+    class Application {
+      constructor() {
+        this.container = document.getElementById('canvas-container');
+        this.store = new IBLStore();
+
+        this._initThree();
+        this._initObjects();
+        this._initEditor();
+        this._bindUIControls();
+
+        this.rebakeIBL();
+        this.animate();
+      }
+
+      _initThree() {
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.container.appendChild(this.renderer.domElement);
+
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(45, this.container.clientWidth / this.container.clientHeight, 0.1, 1000);
+        this.camera.position.set(0, this.store.get('camAltitude'), 6);
+
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+      }
+
+      _initObjects() {
+        this.material = new THREE.MeshPhysicalMaterial({
+          color: 0xffffff,
+          metalness: this.store.get('metalness'),
+          roughness: this.store.get('roughness')
+        });
+
+        const geometry = new THREE.TorusKnotGeometry(1, 0.35, 128, 32);
+        this.mesh = new THREE.Mesh(geometry, this.material);
+        this.scene.add(this.mesh);
+      }
+
+      _initEditor() {
+        this.iblEditor = new DynamicIBLEditor(this.renderer);
+      }
+
+      _bindUIControls() {
+        const bindInput = (id, key, isFloat = false, isBool = false) => {
+          const elem = document.getElementById(id);
+          const badge = document.getElementById(`${id}Val`);
+
+          const eventType = isBool ? 'change' : 'input';
+          elem.addEventListener(eventType, (e) => {
+            let val;
+            if (isBool) {
+              val = e.target.checked;
+            } else if (isFloat) {
+              val = parseFloat(e.target.value);
+            } else {
+              val = e.target.value;
+            }
+
+            if (badge) badge.textContent = isFloat ? (id.includes('Azimuth') || id.includes('Elevation') ? `${val.toFixed(0)}°` : val.toFixed(2)) : val;
+            this.store.set(key, val);
+          });
+        };
+
+        // Camera
+        bindInput('camAltitude', 'camAltitude', true);
+
+        // Heights
+        bindInput('skyColor', 'skyColor');
+        bindInput('skyLevel', 'skyLevel', true);
+        bindInput('horizonColor', 'horizonColor');
+        bindInput('horizonLevel', 'horizonLevel', true);
+        bindInput('groundColor', 'groundColor');
+        bindInput('groundLevel', 'groundLevel', true);
+
+        // Sun 1
+        bindInput('sun1Visible', 'sun1Visible', false, true);
+        bindInput('sun1Color', 'sun1Color');
+        bindInput('sun1Elevation', 'sun1Elevation', true);
+        bindInput('sun1Azimuth', 'sun1Azimuth', true);
+        bindInput('sun1Size', 'sun1Size', true);
+        bindInput('sun1Intensity', 'sun1Intensity', true);
+        bindInput('sun1Atmosphere', 'sun1Atmosphere', true);
+
+        // Sun 2
+        bindInput('sun2Visible', 'sun2Visible', false, true);
+        bindInput('sun2Color', 'sun2Color');
+        bindInput('sun2Elevation', 'sun2Elevation', true);
+        bindInput('sun2Azimuth', 'sun2Azimuth', true);
+        bindInput('sun2Size', 'sun2Size', true);
+        bindInput('sun2Intensity', 'sun2Intensity', true);
+        bindInput('sun2Atmosphere', 'sun2Atmosphere', true);
+
+        // Ring & Material
+        bindInput('ringVisible', 'ringVisible', false, true);
+        bindInput('ringColor', 'ringColor');
+        bindInput('ringHeight', 'ringHeight', true);
+        bindInput('ringSharpness', 'ringSharpness', true);
+        bindInput('ringIntensity', 'ringIntensity', true);
+        bindInput('roughness', 'roughness', true);
+        bindInput('metalness', 'metalness', true);
+
+        this.store.subscribe((key, value) => {
+          if (key === 'camAltitude') {
+            this.camera.position.y = value;
+          } else if (key === 'roughness') {
+            this.material.roughness = value;
+          } else if (key === 'metalness') {
+            this.material.metalness = value;
+          } else {
+            this.rebakeIBL();
+          }
+        });
+
+        window.addEventListener('resize', this.onResize.bind(this));
+      }
+
+      rebakeIBL() {
+        const envMap = this.iblEditor.updateFromState(this.store);
+        this.scene.environment = envMap;
+        this.scene.background = envMap;
+      }
+
+      onResize() {
+        const width = this.container.clientWidth;
+        const height = this.container.clientHeight;
+        this.camera.aspect = width / height;
+        this.camera.updatePolygonMatrix ? this.camera.updatePolygonMatrix() : this.camera.updateProjectionMatrix();
+        this.renderer.setSize(width, height);
+      }
+
+      animate() {
+        requestAnimationFrame(this.animate.bind(this));
+        this.controls.update();
+        this.mesh.rotation.y += 0.003;
+        this.renderer.render(this.scene, this.camera);
+      }
+    }
+
+    new Application();
+  </script>
+</body>
+</html>
