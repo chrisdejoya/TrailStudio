@@ -172,6 +172,9 @@
   }
   .toggle-btn:hover { color: var(--text); border-color: var(--accent); }
 
+  .bone-toggle { display:flex; align-items:center; gap:6px; margin-right:10px; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.05em; }
+  .bone-toggle input { accent-color:var(--accent); cursor:pointer; }
+
   .dock-tab-content {
     display: none;
     padding: 12px;
@@ -316,6 +319,7 @@
       <button class="dock-tab-btn" data-tab="tab-lighting">Lighting</button>
       <button class="dock-tab-btn" data-tab="tab-postproc">Post-Processing</button>
     </div>
+    <label class="bone-toggle"><input type="checkbox" id="boneVisibilityToggle"> Show Bones</label>
     <button id="toggleDockBtn" class="toggle-btn">Collapse Dock</button>
   </div>
   
@@ -1309,6 +1313,13 @@ document.querySelector('#emissionColor').addEventListener('input', (e) => {
 
 const baseBtnMat = new THREE.MeshStandardMaterial({color:0x3a4454, roughness:0.25, metalness:0.5});
 let buttons3D = [], basePositions = [], currentModel = null, leftStick3DGroup = null, rightStick3DGroup = null, dpadRockerPivot = null;
+const motionBaseQuaternions = new WeakMap();
+let boneHelpers = [];
+let showBones = false;
+
+function registerMotionNode(node) {
+  motionBaseQuaternions.set(node, node.quaternion.clone());
+}
 
 function register3DButton(index, mesh, parent = controllerGroup, isStick = false) {
   if (mesh.material) mesh.material = mesh.material.clone();
@@ -1317,9 +1328,32 @@ function register3DButton(index, mesh, parent = controllerGroup, isStick = false
 }
 
 function clearController3D() {
+  boneHelpers.forEach(helper => {
+    controllerGroup.remove(helper);
+    helper.geometry.dispose();
+    helper.material.dispose();
+  });
+  boneHelpers = [];
   if (currentModel) controllerGroup.remove(currentModel);
   buttons3D = []; basePositions = []; leftStick3DGroup = null; rightStick3DGroup = null; dpadRockerPivot = null;
 }
+
+function addBoneHelper(skinnedMesh) {
+  if (!skinnedMesh.skeleton || boneHelpers.some(helper => helper.userData.skeleton === skinnedMesh.skeleton)) return;
+  const helper = new THREE.SkeletonHelper(skinnedMesh);
+  helper.userData.skeleton = skinnedMesh.skeleton;
+  helper.material.color.set(0xffd166);
+  helper.material.depthTest = false;
+  helper.material.depthWrite = false;
+  helper.visible = showBones;
+  boneHelpers.push(helper);
+  controllerGroup.add(helper);
+}
+
+document.querySelector('#boneVisibilityToggle').addEventListener('change', (e) => {
+  showBones = e.target.checked;
+  boneHelpers.forEach(helper => { helper.visible = showBones; });
+});
 
 function buildProceduralController() {
   clearController3D();
@@ -1373,11 +1407,13 @@ function buildProceduralController() {
 
   const lStick = createStick(-0.5, 0.45); const rStick = createStick(0.5, 0.45);
   leftStick3DGroup = lStick.group; rightStick3DGroup = rStick.group;
+  registerMotionNode(leftStick3DGroup); registerMotionNode(rightStick3DGroup);
   register3DButton(10, lStick.cap, lStick.group, true);
   register3DButton(11, rStick.cap, rStick.group, true);
 
   const dpadBasePos = new THREE.Vector3(-1.1, 0.32, 0.2);
   dpadRockerPivot = new THREE.Group(); dpadRockerPivot.position.copy(dpadBasePos); dpadRockerPivot.position.y += 0.08;
+  registerMotionNode(dpadRockerPivot);
   proceduralGroup.add(dpadRockerPivot);
 
   const dpadCrossV = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.62), rockerMat);
@@ -1395,6 +1431,40 @@ function buildProceduralController() {
   controllerGroup.add(currentModel);
 }
 
+function processModelNode(node, visited = new Set()) {
+  if (visited.has(node)) return;
+  visited.add(node);
+
+  if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }
+  if (node.isSkinnedMesh) addBoneHelper(node);
+  if (node.isMesh || node.isBone || node.isGroup) {
+    const buttonIndex = MESH_MAPPINGS[node.name];
+    if (buttonIndex !== undefined) {
+      const isStick = (buttonIndex === 10 || buttonIndex === 11);
+      if (node.isMesh && node.material) node.material = node.material.clone();
+      register3DButton(buttonIndex, node, node.parent, isStick);
+    }
+
+    if (node.name === 'Stick_Left') {
+      leftStick3DGroup = node;
+      registerMotionNode(node);
+    }
+    if (node.name === 'Stick_Right') {
+      rightStick3DGroup = node;
+      registerMotionNode(node);
+    }
+    if (node.name === 'DPad_Rocker') {
+      dpadRockerPivot = node;
+      registerMotionNode(node);
+    }
+  }
+
+  node.children.forEach(child => processModelNode(child, visited));
+  if (node.isSkinnedMesh && node.skeleton) {
+    node.skeleton.bones.forEach(bone => processModelNode(bone, visited));
+  }
+}
+
 function parseAndLoadGLTF(buffer, fileName = "Model") {
   const loader = new GLTFLoader();
   loader.parse(buffer, '', (gltf) => {
@@ -1402,21 +1472,7 @@ function parseAndLoadGLTF(buffer, fileName = "Model") {
     currentModel = gltf.scene;
     controllerGroup.add(currentModel);
 
-    currentModel.traverse((node) => {
-      if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }
-      if (!node.isMesh && !node.isGroup) return;
-
-      const buttonIndex = MESH_MAPPINGS[node.name];
-      if (buttonIndex !== undefined) {
-        const isStick = (buttonIndex === 10 || buttonIndex === 11);
-        if (node.isMesh && node.material) node.material = node.material.clone();
-        register3DButton(buttonIndex, node, node.parent, isStick);
-      }
-
-      if (node.name === 'Stick_Left')  leftStick3DGroup = node;
-      if (node.name === 'Stick_Right') rightStick3DGroup = node;
-      if (node.name === 'DPad_Rocker') dpadRockerPivot = node;
-    });
+    processModelNode(currentModel);
   }, (err) => {
     console.error('Error parsing GLB:', err);
   });
@@ -1576,8 +1632,14 @@ function processPad(pad){
   setDot('leftDot', lx, ly); setDot('rightDot', rx, ry);
 
   const maxTilt = 0.35;
-  if (leftStick3DGroup) { leftStick3DGroup.rotation.z = -lx * maxTilt; leftStick3DGroup.rotation.x = ly * maxTilt; }
-  if (rightStick3DGroup) { rightStick3DGroup.rotation.z = -rx * maxTilt; rightStick3DGroup.rotation.x = ry * maxTilt; }
+  const leftStickRotation = new THREE.Euler(ly * maxTilt, 0, -lx * maxTilt);
+  const rightStickRotation = new THREE.Euler(ry * maxTilt, 0, -rx * maxTilt);
+  if (leftStick3DGroup) {
+    leftStick3DGroup.quaternion.copy(motionBaseQuaternions.get(leftStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(leftStickRotation));
+  }
+  if (rightStick3DGroup) {
+    rightStick3DGroup.quaternion.copy(motionBaseQuaternions.get(rightStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(rightStickRotation));
+  }
 
   if (dpadRockerPivot) {
     const dpadUp = pad.buttons[12]?.value || 0;
@@ -1586,8 +1648,12 @@ function processPad(pad){
     const dpadRight = pad.buttons[15]?.value || 0;
 
     const rockerTiltMax = 0.22;
-    dpadRockerPivot.rotation.x = (dpadDown - dpadUp) * rockerTiltMax;
-    dpadRockerPivot.rotation.z = (dpadLeft - dpadRight) * rockerTiltMax;
+    const dpadRotation = new THREE.Euler(
+      (dpadDown - dpadUp) * rockerTiltMax,
+      0,
+      (dpadLeft - dpadRight) * rockerTiltMax
+    );
+    dpadRockerPivot.quaternion.copy(motionBaseQuaternions.get(dpadRockerPivot)).multiply(new THREE.Quaternion().setFromEuler(dpadRotation));
   }
 
   if(!lastSnapshot || lastSnapshot.id !== pad.id || lastSnapshot.buttons.length !== pad.buttons.length){
