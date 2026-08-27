@@ -240,6 +240,8 @@
     gap: 4px;
   }
 
+  .postproc-card input[type="number"] { width:55px; text-align:right; cursor:ew-resize; }
+
   .camera-container {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -456,6 +458,29 @@
       </div>
 
       <div class="postproc-card">
+        <h2 style="margin-top:0;">Ambient Occlusion</h2>
+        <div class="control-row">
+          <label>Enable AO</label>
+          <input type="checkbox" id="aoToggle">
+        </div>
+        <div class="control-row">
+          <label>Radius</label>
+          <input type="range" id="aoRadius" min="0" max="32" step="0.5" value="8">
+          <input type="number" id="aoRadiusInput" min="0" max="32" step="0.5" value="8.00">
+        </div>
+        <div class="control-row">
+          <label>Min Distance</label>
+          <input type="range" id="aoMinDistance" min="0" max="0.1" step="0.001" value="0.001">
+          <input type="number" id="aoMinDistanceInput" min="0" max="0.1" step="0.001" value="0.001">
+        </div>
+        <div class="control-row">
+          <label>Max Distance</label>
+          <input type="range" id="aoMaxDistance" min="0.01" max="1" step="0.01" value="0.1">
+          <input type="number" id="aoMaxDistanceInput" min="0.01" max="1" step="0.01" value="0.10">
+        </div>
+      </div>
+
+      <div class="postproc-card">
         <h2 style="margin-top:0;">Color & Exposure</h2>
         <div class="control-row">
           <label>Tone Mapping</label>
@@ -500,6 +525,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
@@ -840,6 +866,13 @@ renderPass.clearColor = new THREE.Color(0, 0, 0);
 renderPass.clearAlpha = 0;
 composer.addPass(renderPass);
 
+const aoPass = new SSAOPass(scene, camera, innerWidth, innerHeight);
+aoPass.enabled = false;
+aoPass.kernelRadius = 8;
+aoPass.minDistance = 0.001;
+aoPass.maxDistance = 0.1;
+composer.addPass(aoPass);
+
 const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.0, 0.75, 0.9);
 bloomPass.enabled = false;
 composer.addPass(bloomPass);
@@ -945,6 +978,13 @@ document.querySelector('#bloomToggle').addEventListener('change', (e) => {
 bindSliderAndInput('#bloomStrength', '#bloomStrengthInput', (val) => { bloomPass.strength = val; }, 2);
 bindSliderAndInput('#bloomRadius', '#bloomRadiusInput', (val) => { bloomPass.radius = val; }, 2);
 bindSliderAndInput('#bloomThreshold', '#bloomThresholdInput', (val) => { bloomPass.threshold = val; }, 2);
+
+document.querySelector('#aoToggle').addEventListener('change', (e) => {
+  aoPass.enabled = e.target.checked;
+});
+bindSliderAndInput('#aoRadius', '#aoRadiusInput', (val) => { aoPass.kernelRadius = val; }, 2);
+bindSliderAndInput('#aoMinDistance', '#aoMinDistanceInput', (val) => { aoPass.minDistance = val; }, 3);
+bindSliderAndInput('#aoMaxDistance', '#aoMaxDistanceInput', (val) => { aoPass.maxDistance = val; }, 2);
 
 document.querySelector('#toneMappingSelect').addEventListener('change', (e) => {
   switch (e.target.value) {
@@ -1588,6 +1628,7 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
   composer.setSize(innerWidth, innerHeight);
+  aoPass.setSize(innerWidth, innerHeight);
   
   const pr = renderer.getPixelRatio();
   fxaaPass.material.uniforms['resolution'].value.x = 1 / (innerWidth * pr);
@@ -1620,6 +1661,12 @@ function getSettingsState() {
         strength: parseFloat(document.querySelector('#bloomStrength').value),
         radius: parseFloat(document.querySelector('#bloomRadius').value),
         threshold: parseFloat(document.querySelector('#bloomThreshold').value)
+      },
+      ambientOcclusion: {
+        enabled: document.querySelector('#aoToggle').checked,
+        radius: parseFloat(document.querySelector('#aoRadius').value),
+        minDistance: parseFloat(document.querySelector('#aoMinDistance').value),
+        maxDistance: parseFloat(document.querySelector('#aoMaxDistance').value)
       },
       color: {
         toneMapping: document.querySelector('#toneMappingSelect').value,
@@ -1693,6 +1740,22 @@ function applySettingsState(state) {
       document.querySelector('#bloomRadiusInput').value = pp.bloom.radius.toFixed(2);
       document.querySelector('#bloomThreshold').value = pp.bloom.threshold;
       document.querySelector('#bloomThresholdInput').value = pp.bloom.threshold.toFixed(2);
+    }
+
+    if (pp.ambientOcclusion) {
+      const ao = pp.ambientOcclusion;
+      document.querySelector('#aoToggle').checked = ao.enabled;
+      aoPass.enabled = ao.enabled;
+      aoPass.kernelRadius = ao.radius;
+      aoPass.minDistance = ao.minDistance;
+      aoPass.maxDistance = ao.maxDistance;
+
+      document.querySelector('#aoRadius').value = ao.radius;
+      document.querySelector('#aoRadiusInput').value = ao.radius.toFixed(2);
+      document.querySelector('#aoMinDistance').value = ao.minDistance;
+      document.querySelector('#aoMinDistanceInput').value = ao.minDistance.toFixed(3);
+      document.querySelector('#aoMaxDistance').value = ao.maxDistance;
+      document.querySelector('#aoMaxDistanceInput').value = ao.maxDistance.toFixed(2);
     }
 
     if (pp.color) {
