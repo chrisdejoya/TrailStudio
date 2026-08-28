@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OBS Inspector UI</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Rubik', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+      color: #d8d8d8;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+    }
+
+    body {
+      background-color: rgba(14, 14, 16, 0.95);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 24px;
+      width: 360px;
+    }
+
+    /* Seamless Header Switcher */
+    .mode-header {
+      position: relative;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 8px 12px;
+    }
+
+    .mode-select {
+      width: 100%;
+      background-color: transparent;
+      border: none;
+      color: #ffffff;
+      padding: 8px 16px;
+      outline: none;
+      font-size: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      text-align: left;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .mode-select option {
+      background-color: #121214;
+      color: #ffffff;
+      text-transform: none;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .mode-header-arrow {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: #ffffff;
+    }
+
+    /* Inspector Group Container */
+    .inspector-group {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .inspector-group.active {
+      display: flex;
+    }
+
+    /* Panel Container */
+    .panel {
+      background-color: #121214;
+      border: 2px solid #333338;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Collapsible Header */
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 600;
+      color: #ffffff;
+      font-size: 17px;
+      cursor: pointer;
+    }
+
+    .panel.collapsed .panel-body {
+      display: none;
+    }
+
+    .panel.collapsed .panel-header {
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .panel:not(.collapsed) .panel-header {
+      padding-bottom: 8px;
+      border-bottom: 1px solid #222226;
+    }
+
+    .panel.collapsed .caret {
+      transform: rotate(180deg);
+    }
+
+    .panel-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .panel-body {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* Form Layouts */
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .row-stacked {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .label-with-icon {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      font-weight: 500;
+      color: #aaaaaa;
+    }
+
+    /* Inputs */
+    select {
+      background-color: #1e1e22;
+      border: 1px solid #3a3a42;
+      color: #ffffff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      outline: none;
+      font-size: 14px;
+      font-weight: 500;
+      width: 160px;
+      text-align: right;
+      cursor: pointer;
+    }
+
+    input[type="text"].drag-input,
+    input[type="number"].drag-input {
+      background-color: #1e1e22;
+      border: 1px solid #3a3a42;
+      color: #ffffff;
+      padding: 6px 8px;
+      border-radius: 4px;
+      outline: none;
+      text-align: right;
+      width: 68px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: ew-resize;
+      transition: border-color 0.15s ease;
+    }
+
+    input[type="text"].drag-input:focus,
+    input[type="number"].drag-input:focus {
+      border-color: #5896ed;
+      background-color: #26262c;
+      cursor: text;
+    }
+
+    /* Ensure vector grid takes up full container width with consistent spacing */
+    .vec3-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      width: 100%;
+    }
+
+    /* Force inputs inside vec3-group to expand dynamically to grid columns */
+    .vec3-group input[type="text"].drag-input,
+    .vec3-group input[type="number"].drag-input {
+      width: 100%;
+      min-width: 0;
+      text-align: center;
+    }
+
+    /* Sliders */
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1;
+      height: 8px;
+      border-radius: 4px;
+      outline: none;
+      background: #121214;
+      border: 1px solid #3a3a42;
+      box-sizing: border-box;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #8e8e8e;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 2px rgba(0,0,0,0.8);
+    }
+
+    /* Checkboxes */
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #a0a0a0;
+      font-size: 14px;
+    }
+
+    .checkbox-row label {
+      cursor: pointer;
+    }
+
+    input[type="checkbox"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background-color: #1e1e22;
+      border: 1px solid #3a3a42;
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    input[type="checkbox"]:checked {
+      background-color: #1e1e22;
+      border-color: #5896ed;
+    }
+
+    input[type="checkbox"]:checked::after {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 1px;
+      width: 4px;
+      height: 9px;
+      border: solid #ffffff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    /* Color Swatch Wrapper */
+    .color-swatch-wrapper {
+      position: relative;
+      width: 100%;
+      height: 28px;
+      border-radius: 4px;
+      border: 1px solid #3a3a42;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .color-swatch-wrapper input[type="color"] {
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      width: 200%;
+      height: 200%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .color-swatch-display {
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* Reset & Caret Icons */
+    .reset-icon {
+      cursor: pointer;
+      opacity: 0.7;
+      transition: transform 0.2s ease, opacity 0.15s ease, color 0.15s ease;
+      color: #aaa;
+    }
+
+    .reset-icon:hover {
+      opacity: 1;
+      color: #fff;
+    }
+
+    .reset-icon:active {
+      transform: rotate(-90deg);
+    }
+
+    .caret {
+      cursor: pointer;
+      opacity: 0.7;
+      transition: transform 0.2s ease, opacity 0.15s ease;
+      color: #aaa;
+    }
+
+    .caret:hover {
+      opacity: 1;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="mode-header">
+    <select id="modeSelector" class="mode-select" onchange="switchMode(this.value)">
+      <option value="group-scene">Scene</option>
+      <option value="group-model">Model</option>
+      <option value="group-camera">Camera</option>
+      <option value="group-environment">Environment</option>
+      <option value="group-lighting" selected>Lighting</option>
+      <option value="group-postprocessing">Post-Processing</option>
+    </select>
+    <svg class="mode-header-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+      <polygon points="12,16 4,8 20,8"/>
+    </svg>
+  </div>
+
+  <!-- Scene Group -->
+  <div id="group-scene" class="inspector-group">
+    
+    <!-- Helpers Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <span>Scene Helpers</span>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="checkbox-row">
+          <input type="checkbox" id="grid-helper-enable" checked>
+          <label for="grid-helper-enable">Show Grid Helper</label>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Grid Size</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="10.0" data-slider="grid-size-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="grid-size-slider" min="1" max="50" step="1" value="10">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Grid Divisions</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="10.0" data-slider="grid-div-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="grid-div-slider" min="2" max="50" step="2" value="10">
+          </div>
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="axis-helper-enable" checked>
+          <label for="axis-helper-enable">Show Axis Helper</label>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Axis Size</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="5.0" data-slider="axis-size-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="axis-size-slider" min="0.5" max="20" step="0.5" value="5">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canvas Settings Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <span>Canvas</span>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="checkbox-row">
+          <input type="checkbox" id="transparent-bg" onclick="document.getElementById('bg-color-wrapper').style.opacity = this.checked ? '0.4' : '1'">
+          <label for="transparent-bg">Transparent Background</label>
+        </div>
+
+        <div class="row-stacked" id="bg-color-wrapper">
+          <span>Background Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#0e0e10">
+            <div class="color-swatch-display" style="background-color: #0e0e10;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Model Group -->
+  <div id="group-model" class="inspector-group">
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <span>Model Settings</span>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          <span>Type</span>
+          <select>
+            <option value="">(Empty)</option>
+            <option value="fight-stick">Fight Stick</option>
+            <option value="leverless">Leverless</option>
+            <option value="gamepad">Gamepad</option>
+            <option value="dance-pad">Dance Pad</option>
+            <option value="load-model">Load Model</option>
+          </select>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Scale</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="model-scale-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="model-scale-slider" min="0.1" max="3" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Button Glow Intensity</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.5" data-slider="glow-int-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="glow-int-slider" min="0" max="2" step="0.05" value="0.5">
+          </div>
+        </div>
+
+        <div class="row-stacked">
+          <span>Button Glow Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#5896ed">
+            <div class="color-swatch-display" style="background-color: #5896ed;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Camera Group -->
+  <div id="group-camera" class="inspector-group">
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <span>Camera Settings</span>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>FOV</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="60.0" data-slider="cam-fov-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="cam-fov-slider" min="10" max="120" step="1" value="60">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Zoom</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="cam-zoom-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="cam-zoom-slider" min="0.1" max="5" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="row-stacked">
+          <div class="label-with-icon">
+            <span>Rotation (X, Y, Z)</span>
+            <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </div>
+          <div class="vec3-group">
+            <input type="text" class="drag-input" value="0.0">
+            <input type="text" class="drag-input" value="0.0">
+            <input type="text" class="drag-input" value="0.0">
+          </div>
+        </div>
+
+        <div class="row-stacked">
+          <div class="label-with-icon">
+            <span>Target (X, Y, Z)</span>
+            <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </div>
+          <div class="vec3-group">
+            <input type="text" class="drag-input" value="0.0">
+            <input type="text" class="drag-input" value="0.0">
+            <input type="text" class="drag-input" value="0.0">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Environment Group -->
+  <div id="group-environment" class="inspector-group">
+    
+    <!-- Image Based Lighting Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <input type="checkbox" id="ibl-enable" checked onclick="event.stopPropagation()">
+          <label for="ibl-enable" onclick="event.stopPropagation()">Image Based Lighting</label>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Intensity (Background)</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="ibl-int-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="ibl-int-slider" min="0" max="3" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="ibl-show-bg" checked>
+          <label for="ibl-show-bg">Show background</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sky Gradient Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <span>Sky Gradient</span>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="row-stacked">
+          <span>Sky Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#4a90e2">
+            <div class="color-swatch-display" style="background-color: #4a90e2;"></div>
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Sky Level</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="sky-lvl-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="sky-lvl-slider" min="0" max="2" step="0.05" value="1.0">
+          </div>
+        </div>
+
+        <div class="row-stacked">
+          <span>Horizon Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#d1e8ff">
+            <div class="color-swatch-display" style="background-color: #d1e8ff;"></div>
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Horizon Level</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.5" data-slider="horiz-lvl-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="horiz-lvl-slider" min="0" max="2" step="0.05" value="0.5">
+          </div>
+        </div>
+
+        <div class="row-stacked">
+          <span>Ground Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#2b2b30">
+            <div class="color-swatch-display" style="background-color: #2b2b30;"></div>
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Ground Level</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.0" data-slider="grnd-lvl-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="grnd-lvl-slider" min="-1" max="1" step="0.05" value="0.0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Light 1 Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <input type="checkbox" id="env-l1-enable" checked onclick="event.stopPropagation()">
+          <label for="env-l1-enable" onclick="event.stopPropagation()">Light 1</label>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="row-stacked">
+          <span>Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#ffffff">
+            <div class="color-swatch-display" style="background-color: #ffffff;"></div>
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Intensity</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="l1-int-env-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l1-int-env-slider" min="0" max="5" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Size</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="l1-sz-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l1-sz-slider" min="0.1" max="10" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Elevation</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="45.0" data-slider="l1-el-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l1-el-slider" min="-90" max="90" step="1" value="45">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Azimuth</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.0" data-slider="l1-az-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l1-az-slider" min="0" max="360" step="1" value="0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Atmosphere</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.0" data-slider="l1-at-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l1-at-slider" min="0" max="1" step="0.05" value="0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Light 2 Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <input type="checkbox" id="env-l2-enable" onclick="event.stopPropagation()">
+          <label for="env-l2-enable" onclick="event.stopPropagation()">Light 2</label>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="row-stacked">
+          <span>Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#ffaa55">
+            <div class="color-swatch-display" style="background-color: #ffaa55;"></div>
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Intensity</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="l2-int-env-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l2-int-env-slider" min="0" max="5" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Size</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="l2-sz-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l2-sz-slider" min="0.1" max="10" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Elevation</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="30.0" data-slider="l2-el-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l2-el-slider" min="-90" max="90" step="1" value="30">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Azimuth</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="180.0" data-slider="l2-az-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l2-az-slider" min="0" max="360" step="1" value="180">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Atmosphere</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.0" data-slider="l2-at-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l2-at-slider" min="0" max="1" step="0.05" value="0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ring Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <input type="checkbox" id="ring-enable" onclick="event.stopPropagation()">
+          <label for="ring-enable" onclick="event.stopPropagation()">Ring</label>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="row-stacked">
+          <span>Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#ffffff">
+            <div class="color-swatch-display" style="background-color: #ffffff;"></div>
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Intensity</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="rng-int-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="rng-int-slider" min="0" max="5" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Elevation</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.0" data-slider="rng-el-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="rng-el-slider" min="-90" max="90" step="1" value="0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Sharpness</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.5" data-slider="rng-shp-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="rng-shp-slider" min="0" max="1" step="0.05" value="0.5">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Lighting Group -->
+  <div id="group-lighting" class="inspector-group active">
+    
+    <!-- Light 1 Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <input type="checkbox" id="l1-enable" checked onclick="event.stopPropagation()">
+          <label for="l1-enable" onclick="event.stopPropagation()">Light 1</label>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          <span>Type</span>
+          <select onchange="updateLightType(this)">
+            <option value="directional" selected>Directional</option>
+            <option value="point">Point</option>
+            <option value="spot">Spot</option>
+            <option value="hemisphere">Hemisphere</option>
+          </select>
+        </div>
+
+        <div class="row-stacked field-color">
+          <span>Sky / Main Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#ffffff">
+            <div class="color-swatch-display" style="background-color: #ffffff;"></div>
+          </div>
+        </div>
+
+        <div class="row-stacked field-ground-color" style="display: none;">
+          <span>Ground Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#444444">
+            <div class="color-swatch-display" style="background-color: #444444;"></div>
+          </div>
+        </div>
+
+        <div class="slider-row field-intensity">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Intensity</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="l1-int-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l1-int-slider" min="0" max="10" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="row-stacked field-position">
+          <div class="label-with-icon">
+            <span>Position (X, Y, Z)</span>
+            <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </div>
+          <div class="vec3-group">
+            <input type="text" class="drag-input" value="3.5">
+            <input type="text" class="drag-input" value="5.0">
+            <input type="text" class="drag-input" value="2.5">
+          </div>
+        </div>
+
+        <div class="row-stacked field-rotation">
+          <div class="label-with-icon">
+            <span>Rotation (X, Y, Z)</span>
+            <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </div>
+          <div class="vec3-group">
+            <input type="text" class="drag-input" value="-0.5">
+            <input type="text" class="drag-input" value="0.5">
+            <input type="text" class="drag-input" value="0.0">
+          </div>
+        </div>
+
+        <div class="slider-row field-distance" style="display: none;">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Distance</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.0" data-slider="l1-dist-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l1-dist-slider" min="0" max="50" step="0.5" value="0">
+          </div>
+        </div>
+
+        <div class="slider-row field-decay" style="display: none;">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Decay</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="2.0" data-slider="l1-decay-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l1-decay-slider" min="0" max="5" step="0.1" value="2.0">
+          </div>
+        </div>
+
+        <div class="slider-row field-angle" style="display: none;">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Angle (rad)</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.8" data-slider="l1-angle-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l1-angle-slider" min="0" max="1.57" step="0.01" value="0.8">
+          </div>
+        </div>
+
+        <div class="slider-row field-penumbra" style="display: none;">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Penumbra</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.0" data-slider="l1-pen-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l1-pen-slider" min="0" max="1" step="0.05" value="0">
+          </div>
+        </div>
+
+        <div class="checkbox-row field-shadows">
+          <input type="checkbox" id="l1-shadows">
+          <label for="l1-shadows">Cast Shadows</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Light 2 Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <input type="checkbox" id="l2-enable" checked onclick="event.stopPropagation()">
+          <label for="l2-enable" onclick="event.stopPropagation()">Light 2</label>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          <span>Type</span>
+          <select onchange="updateLightType(this)">
+            <option value="directional">Directional</option>
+            <option value="point" selected>Point</option>
+            <option value="spot">Spot</option>
+            <option value="hemisphere">Hemisphere</option>
+          </select>
+        </div>
+
+        <div class="row-stacked field-color">
+          <span>Sky / Main Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#ff9000">
+            <div class="color-swatch-display" style="background-color: #ff9000;"></div>
+          </div>
+        </div>
+
+        <div class="row-stacked field-ground-color" style="display: none;">
+          <span>Ground Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#444444">
+            <div class="color-swatch-display" style="background-color: #444444;"></div>
+          </div>
+        </div>
+
+        <div class="slider-row field-intensity">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Intensity</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="2.0" data-slider="l2-int-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l2-int-slider" min="0" max="10" step="0.1" value="2.0">
+          </div>
+        </div>
+
+        <div class="row-stacked field-position">
+          <div class="label-with-icon">
+            <span>Position (X, Y, Z)</span>
+            <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </div>
+          <div class="vec3-group">
+            <input type="text" class="drag-input" value="-2.0">
+            <input type="text" class="drag-input" value="3.0">
+            <input type="text" class="drag-input" value="1.0">
+          </div>
+        </div>
+
+        <div class="row-stacked field-rotation" style="display: none;">
+          <div class="label-with-icon">
+            <span>Rotation (X, Y, Z)</span>
+            <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </div>
+          <div class="vec3-group">
+            <input type="text" class="drag-input" value="0.0">
+            <input type="text" class="drag-input" value="0.0">
+            <input type="text" class="drag-input" value="0.0">
+          </div>
+        </div>
+
+        <div class="slider-row field-distance">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Distance</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="10.0" data-slider="l2-dist-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l2-dist-slider" min="0" max="50" step="0.5" value="10.0">
+          </div>
+        </div>
+
+        <div class="slider-row field-decay">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Decay</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="2.0" data-slider="l2-decay-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l2-decay-slider" min="0" max="5" step="0.1" value="2.0">
+          </div>
+        </div>
+
+        <div class="slider-row field-angle" style="display: none;">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Angle (rad)</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.8" data-slider="l2-angle-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l2-angle-slider" min="0" max="1.57" step="0.01" value="0.8">
+          </div>
+        </div>
+
+        <div class="slider-row field-penumbra" style="display: none;">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Penumbra</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.0" data-slider="l2-pen-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l2-pen-slider" min="0" max="1" step="0.05" value="0">
+          </div>
+        </div>
+
+        <div class="checkbox-row field-shadows">
+          <input type="checkbox" id="l2-shadows">
+          <label for="l2-shadows">Cast Shadows</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Light 3 Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <input type="checkbox" id="l3-enable" onclick="event.stopPropagation()">
+          <label for="l3-enable" onclick="event.stopPropagation()">Light 3</label>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          <span>Type</span>
+          <select onchange="updateLightType(this)">
+            <option value="directional">Directional</option>
+            <option value="point">Point</option>
+            <option value="spot">Spot</option>
+            <option value="hemisphere" selected>Hemisphere</option>
+          </select>
+        </div>
+
+        <div class="row-stacked field-color">
+          <span>Sky / Main Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#87ceeb">
+            <div class="color-swatch-display" style="background-color: #87ceeb;"></div>
+          </div>
+        </div>
+
+        <div class="row-stacked field-ground-color">
+          <span>Ground Color</span>
+          <div class="color-swatch-wrapper">
+            <input type="color" value="#3a2e2b">
+            <div class="color-swatch-display" style="background-color: #3a2e2b;"></div>
+          </div>
+        </div>
+
+        <div class="slider-row field-intensity">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Intensity</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.6" data-slider="l3-int-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l3-int-slider" min="0" max="10" step="0.1" value="0.6">
+          </div>
+        </div>
+
+        <div class="row-stacked field-position">
+          <div class="label-with-icon">
+            <span>Position (X, Y, Z)</span>
+            <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </div>
+          <div class="vec3-group">
+            <input type="text" class="drag-input" value="0.0">
+            <input type="text" class="drag-input" value="10.0">
+            <input type="text" class="drag-input" value="0.0">
+          </div>
+        </div>
+
+        <div class="row-stacked field-rotation" style="display: none;">
+          <div class="label-with-icon">
+            <span>Rotation (X, Y, Z)</span>
+            <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </div>
+          <div class="vec3-group">
+            <input type="text" class="drag-input" value="0.0">
+            <input type="text" class="drag-input" value="0.0">
+            <input type="text" class="drag-input" value="0.0">
+          </div>
+        </div>
+
+        <div class="slider-row field-distance" style="display: none;">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Distance</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.0" data-slider="l3-dist-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l3-dist-slider" min="0" max="50" step="0.5" value="0">
+          </div>
+        </div>
+
+        <div class="slider-row field-decay" style="display: none;">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Decay</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="2.0" data-slider="l3-decay-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l3-decay-slider" min="0" max="5" step="0.1" value="2.0">
+          </div>
+        </div>
+
+        <div class="slider-row field-angle" style="display: none;">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Angle (rad)</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.8" data-slider="l3-angle-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l3-angle-slider" min="0" max="1.57" step="0.01" value="0.8">
+          </div>
+        </div>
+
+        <div class="slider-row field-penumbra" style="display: none;">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Penumbra</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.0" data-slider="l3-pen-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="l3-pen-slider" min="0" max="1" step="0.05" value="0">
+          </div>
+        </div>
+
+        <div class="checkbox-row field-shadows" style="display: none;">
+          <input type="checkbox" id="l3-shadows">
+          <label for="l3-shadows">Cast Shadows</label>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Post-Processing Group -->
+  <div id="group-postprocessing" class="inspector-group">
+    
+    <!-- Anti-Aliasing Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <input type="checkbox" id="aa-enable" checked onclick="event.stopPropagation()">
+          <label for="aa-enable" onclick="event.stopPropagation()">Anti-Aliasing</label>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          <span>AA Mode</span>
+          <select>
+            <option>FXAA + 2X MSAA</option>
+            <option>FXAA + 4X MSAA</option>
+            <option>FXAA + 8X MSAA</option>
+            <option>FXAA Only</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <span>Shadow Resolution</span>
+          <select>
+            <option>Low (512)</option>
+            <option>Medium (1024)</option>
+            <option selected>High (2048)</option>
+            <option>Ultra (4096)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bloom Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <input type="checkbox" id="bloom-enable" checked onclick="event.stopPropagation()">
+          <label for="bloom-enable" onclick="event.stopPropagation()">Bloom</label>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Strength</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="bloom-str-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="bloom-str-slider" min="0" max="3" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Radius</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.5" data-slider="bloom-rad-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="bloom-rad-slider" min="0" max="1" step="0.05" value="0.5">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Threshold</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.8" data-slider="bloom-thresh-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="bloom-thresh-slider" min="0" max="1" step="0.05" value="0.8">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ambient Occlusion Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <input type="checkbox" id="ao-enable" onclick="event.stopPropagation()">
+          <label for="ao-enable" onclick="event.stopPropagation()">Ambient Occlusion</label>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Radius</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="ao-rad-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="ao-rad-slider" min="0.1" max="5" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Minimum Distance</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="0.1" data-slider="ao-min-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="ao-min-slider" min="0" max="2" step="0.05" value="0.1">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Maximum Distance</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="2.0" data-slider="ao-max-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="ao-max-slider" min="0.5" max="10" step="0.1" value="2.0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image Panel -->
+    <div class="panel">
+      <div class="panel-header" onclick="togglePanel(this)">
+        <div class="panel-header-left">
+          <span>Image</span>
+        </div>
+        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="12,8 20,16 4,16"/>
+        </svg>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          <span>Tonemapping</span>
+          <select>
+            <option>ACES Filmic</option>
+            <option>Linear</option>
+            <option>Reinhard</option>
+            <option>Cineon</option>
+          </select>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Exposure</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="img-exp-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="img-exp-slider" min="0" max="3" step="0.1" value="1.0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Contrast</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="img-con-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="img-con-slider" min="0" max="2" step="0.05" value="1.0">
+          </div>
+        </div>
+
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon">
+              <span>Saturation</span>
+              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <input type="text" class="drag-input" value="1.0" data-slider="img-sat-slider">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="img-sat-slider" min="0" max="2" step="0.05" value="1.0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function switchMode(groupId) {
+      document.querySelectorAll('.inspector-group').forEach(group => group.classList.remove('active'));
+      const selected = document.getElementById(groupId);
+      if (selected) selected.classList.add('active');
+    }
+
+    function togglePanel(headerElement) {
+      headerElement.closest('.panel').classList.toggle('collapsed');
+    }
+
+    /* OBS-Compatible Color Picker Handler */
+    document.querySelectorAll('.color-swatch-wrapper input[type="color"]').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const display = e.target.nextElementSibling;
+        if (display) display.style.backgroundColor = e.target.value;
+      });
+    });
+
+    /* Three.js Dynamic Light Controls Manager */
+    function updateLightType(selectElem) {
+      const body = selectElem.closest('.panel-body');
+      const lightType = selectElem.value;
+
+      const groundColor = body.querySelector('.field-ground-color');
+      const rotation = body.querySelector('.field-rotation');
+      const distance = body.querySelector('.field-distance');
+      const decay = body.querySelector('.field-decay');
+      const angle = body.querySelector('.field-angle');
+      const penumbra = body.querySelector('.field-penumbra');
+      const shadows = body.querySelector('.field-shadows');
+
+      if (groundColor) groundColor.style.display = 'none';
+      if (rotation) rotation.style.display = 'none';
+      if (distance) distance.style.display = 'none';
+      if (decay) decay.style.display = 'none';
+      if (angle) angle.style.display = 'none';
+      if (penumbra) penumbra.style.display = 'none';
+      if (shadows) shadows.style.display = 'flex';
+
+      switch(lightType) {
+        case 'hemisphere':
+          if (groundColor) groundColor.style.display = 'flex';
+          if (shadows) shadows.style.display = 'none';
+          break;
+        case 'directional':
+          if (rotation) rotation.style.display = 'flex';
+          break;
+        case 'point':
+          if (distance) distance.style.display = 'flex';
+          if (decay) decay.style.display = 'flex';
+          break;
+        case 'spot':
+          if (rotation) rotation.style.display = 'flex';
+          if (distance) distance.style.display = 'flex';
+          if (decay) decay.style.display = 'flex';
+          if (angle) angle.style.display = 'flex';
+          if (penumbra) penumbra.style.display = 'flex';
+          break;
+      }
+    }
+
+    function updateSliderTrack(slider) {
+      const min = parseFloat(slider.min) || 0;
+      const max = parseFloat(slider.max) || 100;
+      const val = parseFloat(slider.value) || 0;
+      const percentage = Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
+      slider.style.background = `linear-gradient(to right, #8e8e8e 0%, #8e8e8e ${percentage}%, #121214 ${percentage}%, #121214 100%)`;
+    }
+
+    document.querySelectorAll('input[type="range"]').forEach(slider => {
+      updateSliderTrack(slider);
+      slider.addEventListener('input', (e) => {
+        updateSliderTrack(e.target);
+        const boundInput = document.querySelector(`input[data-slider="${e.target.id}"]`);
+        if (boundInput) boundInput.value = parseFloat(e.target.value).toFixed(1);
+      });
+    });
+
+    document.querySelectorAll('.reset-icon').forEach(icon => {
+      icon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const parentContext = icon.closest('.row-stacked, .slider-row, .row');
+        if (!parentContext) return;
+
+        const inputs = parentContext.querySelectorAll('input[type="text"], input[type="number"]');
+        inputs.forEach(input => {
+          input.value = "0.0";
+          const sliderId = input.getAttribute('data-slider');
+          if (sliderId) {
+            const slider = document.getElementById(sliderId);
+            if (slider) {
+              slider.value = 0.0;
+              updateSliderTrack(slider);
+            }
+          }
+        });
+      });
+    });
+
+    document.querySelectorAll('.drag-input').forEach(input => {
+      let isDragging = false;
+      let startX = 0;
+      let startVal = 0;
+
+      input.addEventListener('mousedown', (e) => {
+        if (document.activeElement === input) return;
+        isDragging = true;
+        startX = e.clientX;
+        startVal = parseFloat(input.value) || 0;
+        document.body.style.cursor = 'ew-resize';
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const deltaX = e.clientX - startX;
+        const stepChange = Math.round(deltaX / 5) * 0.1;
+        const newVal = (startVal + stepChange).toFixed(1);
+        
+        input.value = newVal;
+
+        const sliderId = input.getAttribute('data-slider');
+        if (sliderId) {
+          const slider = document.getElementById(sliderId);
+          if (slider) {
+            slider.value = newVal;
+            updateSliderTrack(slider);
+          }
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          document.body.style.cursor = 'default';
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>
