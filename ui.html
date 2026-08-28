@@ -22,13 +22,88 @@
       user-select: none;
     }
 
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
     body {
       background-color: rgba(14, 14, 16, 0.95);
       display: flex;
       flex-direction: column;
       gap: 16px;
       padding: 24px;
-      width: 360px;
+      width: min(360px, 100vw);
+    }
+
+    .inspector-scroll {
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-gutter: stable;
+      overscroll-behavior: contain;
+      cursor: grab;
+
+      /* Firefox dark scrollbar with transparent track */
+      scrollbar-width: thin;
+      scrollbar-color: #1e1e22 transparent;
+    }
+
+    /* WebKit-based browsers (Chrome, Edge, Safari, CEF/OBS) */
+    .inspector-scroll::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .inspector-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .inspector-scroll::-webkit-scrollbar-thumb {
+      background-color: #1e1e22;
+      border-radius: 4px;
+      border: 1px solid #3a3a42;
+    }
+
+    .inspector-scroll::-webkit-scrollbar-thumb:hover {
+      background-color: #26262c;
+      border-color: #5896ed;
+    }
+
+    .inspector-scroll::-webkit-scrollbar-thumb:vertical {
+      min-height: 30px;
+    }
+
+    .inspector-scroll.is-dragging {
+      cursor: grabbing;
+      user-select: none;
+    }
+
+    /* Button Styles */
+    .btn {
+      width: 100%;
+      background-color: #1e1e22;
+      border: 1px solid #3a3a42;
+      color: #ffffff;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      outline: none;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn:hover {
+      background-color: #26262c;
+      border-color: #5896ed;
+    }
+
+    .btn:active {
+      background-color: #1a1a1e;
+      border-color: #3b74c4;
     }
 
     /* Seamless Header Switcher */
@@ -367,98 +442,69 @@
     </svg>
   </div>
 
-  <!-- Scene Group -->
-  <div id="group-scene" class="inspector-group">
-    
-    <!-- Helpers Panel -->
-    <div class="panel">
-      <div class="panel-header" onclick="togglePanel(this)">
-        <div class="panel-header-left">
-          <span>Scene Helpers</span>
-        </div>
-        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-          <polygon points="12,8 20,16 4,16"/>
-        </svg>
+  <main class="inspector-scroll" id="inspectorScroll">
+
+<!-- Scene Group -->
+<div id="group-scene" class="inspector-group">
+  
+  <!-- Scene Actions Panel -->
+  <div class="panel">
+    <div class="panel-header" onclick="togglePanel(this)">
+      <div class="panel-header-left">
+        <span>Scene</span>
       </div>
-      <div class="panel-body">
-        <div class="checkbox-row">
-          <input type="checkbox" id="grid-helper-enable" checked>
-          <label for="grid-helper-enable">Show Grid Helper</label>
-        </div>
-
-        <div class="slider-row">
-          <div class="row">
-            <div class="label-with-icon">
-              <span>Grid Size</span>
-              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            </div>
-            <input type="text" class="drag-input" value="10.0" data-slider="grid-size-slider">
-          </div>
-          <div class="slider-controls">
-            <input type="range" id="grid-size-slider" min="1" max="50" step="1" value="10">
-          </div>
-        </div>
-
-        <div class="slider-row">
-          <div class="row">
-            <div class="label-with-icon">
-              <span>Grid Divisions</span>
-              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            </div>
-            <input type="text" class="drag-input" value="10.0" data-slider="grid-div-slider">
-          </div>
-          <div class="slider-controls">
-            <input type="range" id="grid-div-slider" min="2" max="50" step="2" value="10">
-          </div>
-        </div>
-
-        <div class="checkbox-row">
-          <input type="checkbox" id="axis-helper-enable" checked>
-          <label for="axis-helper-enable">Show Axis Helper</label>
-        </div>
-
-        <div class="slider-row">
-          <div class="row">
-            <div class="label-with-icon">
-              <span>Axis Size</span>
-              <svg class="reset-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            </div>
-            <input type="text" class="drag-input" value="5.0" data-slider="axis-size-slider">
-          </div>
-          <div class="slider-controls">
-            <input type="range" id="axis-size-slider" min="0.5" max="20" step="0.5" value="5">
-          </div>
-        </div>
+      <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="12,8 20,16 4,16"/>
+      </svg>
+    </div>
+    <div class="panel-body">
+      <div class="row">
+        <button class="btn" onclick="loadScene()">Load Scene</button>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="saveScene()">Save Scene</button>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="resetScene()">Reset Scene</button>
       </div>
     </div>
-
-    <!-- Canvas Settings Panel -->
-    <div class="panel">
-      <div class="panel-header" onclick="togglePanel(this)">
-        <div class="panel-header-left">
-          <span>Canvas</span>
-        </div>
-        <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-          <polygon points="12,8 20,16 4,16"/>
-        </svg>
-      </div>
-      <div class="panel-body">
-        <div class="checkbox-row">
-          <input type="checkbox" id="transparent-bg" onclick="document.getElementById('bg-color-wrapper').style.opacity = this.checked ? '0.4' : '1'">
-          <label for="transparent-bg">Transparent Background</label>
-        </div>
-
-        <div class="row-stacked" id="bg-color-wrapper">
-          <span>Background Color</span>
-          <div class="color-swatch-wrapper">
-            <input type="color" value="#0e0e10">
-            <div class="color-swatch-display" style="background-color: #0e0e10;"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
+
+  <!-- Settings Panel -->
+  <div class="panel">
+    <div class="panel-header" onclick="togglePanel(this)">
+      <div class="panel-header-left">
+        <span>Settings</span>
+      </div>
+      <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="12,8 20,16 4,16"/>
+      </svg>
+    </div>
+    <div class="panel-body">
+      <div class="row">
+        <span>Language</span>
+        <select id="language-select">
+          <option value="en" selected>English</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="ja">Japanese</option>
+        </select>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="show-fps">
+        <label for="show-fps">Show FPS</label>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="show-controller-diagnostics">
+        <label for="show-controller-diagnostics">Show Controller Diagnostics</label>
+      </div>
+    </div>
+  </div>
+
+</div>
 
   <!-- Model Group -->
   <div id="group-model" class="inspector-group">
@@ -1548,6 +1594,8 @@
 
   </div>
 
+  </main>
+
   <script>
     function switchMode(groupId) {
       document.querySelectorAll('.inspector-group').forEach(group => group.classList.remove('active'));
@@ -1687,6 +1735,35 @@
         }
       });
     });
+
+    const inspectorScroll = document.getElementById('inspectorScroll');
+    let scrollDragStartY = 0;
+    let scrollDragStartTop = 0;
+    let isScrollDragging = false;
+
+    inspectorScroll.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0 || event.target.closest('input, select, button, label, .mode-header, .panel-header, .color-swatch-wrapper')) return;
+
+      isScrollDragging = true;
+      scrollDragStartY = event.clientY;
+      scrollDragStartTop = inspectorScroll.scrollTop;
+      inspectorScroll.classList.add('is-dragging');
+      inspectorScroll.setPointerCapture(event.pointerId);
+    });
+
+    inspectorScroll.addEventListener('pointermove', (event) => {
+      if (!isScrollDragging) return;
+
+      inspectorScroll.scrollTop = scrollDragStartTop - (event.clientY - scrollDragStartY);
+    });
+
+    const stopScrollDrag = () => {
+      isScrollDragging = false;
+      inspectorScroll.classList.remove('is-dragging');
+    };
+
+    inspectorScroll.addEventListener('pointerup', stopScrollDrag);
+    inspectorScroll.addEventListener('pointercancel', stopScrollDrag);
   </script>
 
 </body>
