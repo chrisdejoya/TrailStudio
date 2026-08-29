@@ -54,16 +54,23 @@
 
       const positionMenu = () => {
         const rect = trigger.getBoundingClientRect();
+        const shellRect = document.querySelector('.inspector-shell')?.getBoundingClientRect();
         const menuHeight = Math.min(menu.scrollHeight, 220);
         const spaceBelow = window.innerHeight - rect.bottom - 8;
         const openAbove = spaceBelow < menuHeight && rect.top > menuHeight + 8;
 
-        menu.style.left = 'auto';
-        menu.style.right = `${window.innerWidth - rect.right}px`;
-        menu.style.width = `${rect.width}px`;
-        menu.style.top = openAbove
-          ? `${rect.top - menuHeight - 4}px`
-          : `${rect.bottom + 4}px`;
+        const shellLeft = shellRect ? shellRect.left + 4 : 8;
+        const shellRight = shellRect ? shellRect.right - 4 : window.innerWidth - 8;
+        const shellWidth = Math.max(0, shellRight - shellLeft);
+        const menuWidth = Math.min(rect.width, shellWidth);
+        const left = Math.min(Math.max(shellLeft, rect.left), Math.max(shellLeft, shellRight - menuWidth));
+
+        menu.style.left = `${left}px`;
+        menu.style.right = 'auto';
+        menu.style.width = `${menuWidth}px`;
+
+        const topPosition = openAbove ? rect.top - menuHeight - 4 : rect.bottom + 4;
+        menu.style.top = `${Math.min(Math.max(8, topPosition), window.innerHeight - menuHeight - 8)}px`;
       };
 
       const syncDisplay = () => {
@@ -96,21 +103,29 @@
         menu.appendChild(menuOption);
       });
 
-      trigger.addEventListener('click', () => {
+      trigger.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
         document.querySelectorAll('.custom-select.open').forEach(openWrapper => {
+          if (openWrapper === wrapper) return;
           openWrapper.classList.remove('open');
           const openTrigger = openWrapper.querySelector('.custom-select-trigger');
           openTrigger.setAttribute('aria-expanded', 'false');
           document.querySelector(`.custom-select-menu[data-owner="${openWrapper.dataset.owner}"]`).classList.remove('is-open');
         });
-        const isOpen = wrapper.classList.toggle('open');
-        if (isOpen) {
-          positionMenu();
-          menu.classList.add('is-open');
-        } else {
+
+        if (wrapper.classList.contains('open')) {
+          wrapper.classList.remove('open');
           menu.classList.remove('is-open');
+          trigger.setAttribute('aria-expanded', 'false');
+          return;
         }
-        trigger.setAttribute('aria-expanded', String(isOpen));
+
+        wrapper.classList.add('open');
+        positionMenu();
+        menu.classList.add('is-open');
+        trigger.setAttribute('aria-expanded', 'true');
       });
       select.addEventListener('change', syncDisplay);
       wrapper.append(trigger);
@@ -132,15 +147,56 @@
     });
 
     document.querySelectorAll('input, select').forEach(control => {
+      const isUiScaleControl = control.id === 'ui-scale-slider' || control.dataset.slider === 'ui-scale-slider';
+      if (isUiScaleControl) {
+        control.addEventListener('change', () => reportInspectorChange(control));
+        return;
+      }
       control.addEventListener('input', () => reportInspectorChange(control));
       control.addEventListener('change', () => reportInspectorChange(control));
     });
 
+    const uiScaleSlider = document.getElementById('ui-scale-slider');
+    const uiScaleText = document.querySelector('.drag-input[data-slider="ui-scale-slider"]');
+
+    function syncUiScale(value, shouldReport = false) {
+      const normalized = Number(value);
+      if (!Number.isFinite(normalized)) return;
+      const clamped = Math.min(1.5, Math.max(0.75, normalized));
+      document.documentElement.style.setProperty('--ui-scale', clamped.toFixed(2));
+      if (uiScaleSlider) uiScaleSlider.value = clamped.toFixed(2);
+      if (uiScaleText && document.activeElement !== uiScaleText) uiScaleText.value = clamped.toFixed(2);
+      if (shouldReport) {
+        reportInspectorChange(uiScaleSlider || uiScaleText, clamped.toFixed(2));
+      }
+    }
+
+    if (uiScaleSlider) {
+      uiScaleSlider.addEventListener('input', (event) => {
+        const numericValue = parseFloat(event.target.value);
+        if (!Number.isFinite(numericValue)) return;
+        syncUiScale(event.target.value, false);
+      });
+      uiScaleSlider.addEventListener('change', (event) => syncUiScale(event.target.value, true));
+    }
+
+    if (uiScaleText) {
+      uiScaleText.addEventListener('change', (event) => syncUiScale(event.target.value, true));
+    }
+
+    syncUiScale(uiScaleSlider ? uiScaleSlider.value : 1, false);
+
     function switchMode(groupId) {
       const activeGroup = document.querySelector('.inspector-group.active');
       const targetGroup = document.getElementById(groupId);
+      const inspectorScroll = document.getElementById('inspectorScroll');
 
-      if (activeGroup === targetGroup) return;
+      if (activeGroup === targetGroup) {
+        if (inspectorScroll) inspectorScroll.scrollTop = 0;
+        return;
+      }
+
+      if (inspectorScroll) inspectorScroll.scrollTop = 0;
 
       if (activeGroup) {
         activeGroup.classList.remove('is-visible');
@@ -252,12 +308,11 @@
       picker.fromString(initialValue);
       syncSwatchDisplay(textInput, swatchButton, initialValue);
 
-      swatchButton.addEventListener('mousedown', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
+      swatchButton.addEventListener('pointerdown', (event) => {
         const popup = document.querySelector('.jscolor-wrap');
-        if (!popup || popup.contains(event.target)) {
-          picker.show();
+        if (!popup || !popup.contains(event.target)) {
+          swatchButton.dataset.revertColor = swatchButton.dataset.color || initialValue;
+          picker.show(event);
           requestAnimationFrame(() => {
             const wrap = document.querySelector('.jscolor-wrap');
             if (!wrap) return;
@@ -315,34 +370,36 @@
       };
 
       swatchButton.addEventListener('click', (event) => {
+        if (event.button !== 0) return;
+        const popup = document.querySelector('.jscolor-wrap');
+        if (!popup || !popup.contains(event.target)) {
+          picker.show(event);
+        }
+      });
+
+      swatchButton.addEventListener('contextmenu', (event) => {
         event.preventDefault();
-        event.stopPropagation();
         picker.show(event);
       });
     }
 
     if (typeof window.jscolor !== 'undefined') {
       document.querySelectorAll('.color-swatch-wrapper').forEach(setupJsColorSwatch);
-      document.addEventListener('mousedown', (event) => {
-        const clickedInsidePicker = event.target.closest('.jscolor-wrap, .jscolor-active, .color-swatch-button');
-        if (!clickedInsidePicker) {
-          document.querySelectorAll('.jscolor-active').forEach(activeEl => {
-            if (activeEl && typeof activeEl.jscolor !== 'undefined') {
-              activeEl.jscolor.hide();
-            }
-          });
-        }
-      });
 
-      document.addEventListener('click', (event) => {
-        const clickedInsidePicker = event.target.closest('.jscolor-wrap, .color-swatch-button');
-        if (!clickedInsidePicker) {
-          document.querySelectorAll('.jscolor-active').forEach(activeEl => {
-            if (activeEl && typeof activeEl.jscolor !== 'undefined') {
-              activeEl.jscolor.hide();
-            }
-          });
-        }
+      document.addEventListener('pointerdown', (event) => {
+        const pickerWrap = event.target.closest('.jscolor-wrap');
+        const swatchButton = event.target.closest('.color-swatch-button');
+        const hexInput = event.target.closest('.hex-color-input');
+
+        if (pickerWrap || swatchButton || hexInput) return;
+
+        const activePicker = document.querySelector('.jscolor-active');
+        if (!activePicker || !activePicker.jscolor) return;
+
+        const revertColor = activePicker.dataset.revertColor || activePicker.dataset.color || '#FFFFFF';
+        activePicker.jscolor.fromString(revertColor);
+        activePicker.style.backgroundColor = revertColor;
+        activePicker.jscolor.hide();
       });
     }
 
