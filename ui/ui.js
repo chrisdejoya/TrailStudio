@@ -68,6 +68,8 @@
         menu.style.left = `${left}px`;
         menu.style.right = 'auto';
         menu.style.width = `${menuWidth}px`;
+        menu.style.transform = `scale(var(--ui-scale))`;
+        menu.style.transformOrigin = 'top left';
 
         const topPosition = openAbove ? rect.top - menuHeight - 4 : rect.bottom + 4;
         menu.style.top = `${Math.min(Math.max(8, topPosition), window.innerHeight - menuHeight - 8)}px`;
@@ -162,7 +164,7 @@
     function syncUiScale(value, shouldReport = false) {
       const normalized = Number(value);
       if (!Number.isFinite(normalized)) return;
-      const clamped = Math.min(1.5, Math.max(0.75, normalized));
+      const clamped = Math.min(2.5, Math.max(0.5, normalized));
       document.documentElement.style.setProperty('--ui-scale', clamped.toFixed(2));
       if (uiScaleSlider) uiScaleSlider.value = clamped.toFixed(2);
       if (uiScaleText && document.activeElement !== uiScaleText) uiScaleText.value = clamped.toFixed(2);
@@ -208,7 +210,7 @@
               targetGroup.classList.add('is-visible');
             });
           }
-        }, 200);
+        }, 0);
       } else if (targetGroup) {
         targetGroup.classList.add('active');
         requestAnimationFrame(() => {
