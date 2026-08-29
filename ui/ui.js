@@ -165,13 +165,186 @@
       headerElement.closest('.panel').classList.toggle('collapsed');
     }
 
-    /* OBS-Compatible Color Picker Handler */
-    document.querySelectorAll('.color-swatch-wrapper input[type="color"]').forEach(input => {
-      input.addEventListener('input', (e) => {
-        const display = e.target.nextElementSibling;
-        if (display) display.style.backgroundColor = e.target.value;
+    /* jscolor-compatible color swatches */
+    function normalizeHexColor(value) {
+      const raw = (value || '#ffffff').trim();
+      const match = raw.match(/^#?([0-9a-fA-F]{6})$/);
+      if (!match) return '#ffffff';
+      return '#' + match[1].toUpperCase();
+    }
+
+    function syncSwatchDisplay(textInput, swatchButton, nextColor) {
+      const color = normalizeHexColor(nextColor || textInput.value || swatchButton.dataset.color || '#ffffff');
+      textInput.value = color;
+      swatchButton.dataset.color = color;
+      swatchButton.style.backgroundColor = color;
+      swatchButton.style.boxShadow = `inset 0 0 0 1px rgba(255,255,255,0.18), 0 0 0 1px rgba(15,23,42,0.8)`;
+    }
+
+    function setupJsColorSwatch(wrapper) {
+      const nativeInput = wrapper.querySelector('input[type="color"]');
+      const initialValue = normalizeHexColor(nativeInput ? nativeInput.value : '#ffffff');
+
+      if (!nativeInput || typeof window.jscolor === 'undefined') {
+        return;
+      }
+
+      const textInput = document.createElement('input');
+      textInput.type = 'text';
+      textInput.className = 'hex-color-input';
+      textInput.value = initialValue;
+      textInput.maxLength = 7;
+      textInput.setAttribute('aria-label', 'Hex color value');
+
+      const swatchButton = document.createElement('button');
+      swatchButton.type = 'button';
+      swatchButton.className = 'color-swatch-button';
+      swatchButton.setAttribute('aria-label', 'Choose color');
+      swatchButton.dataset.color = initialValue;
+      swatchButton.style.backgroundColor = initialValue;
+
+      const anchor = document.createElement('div');
+      anchor.style.position = 'fixed';
+      anchor.style.left = '0px';
+      anchor.style.top = '0px';
+      anchor.style.width = '1px';
+      anchor.style.height = '1px';
+      anchor.style.pointerEvents = 'none';
+      anchor.style.opacity = '0';
+      document.body.appendChild(anchor);
+
+      wrapper.innerHTML = '';
+      wrapper.appendChild(textInput);
+      wrapper.appendChild(swatchButton);
+
+      const picker = new jscolor(anchor, {
+        value: initialValue,
+        valueElement: textInput,
+        previewElement: swatchButton,
+        format: 'hex',
+        hash: true,
+        uppercase: true,
+        alphaChannel: false,
+        mode: 'HSV',
+        position: 'bottom',
+        smartPosition: true,
+        closeButton: true,
+        closeText: 'Close',
+        hideOnLeave: false,
+        showOnClick: false,
+        shadow: false,
+        width: 176,
+        height: 88,
+        padding: 8,
+        sliderSize: 14,
+        borderWidth: 1,
+        controlBorderWidth: 1,
+        pointerThickness: 2,
+        buttonHeight: 28,
+        borderRadius: 8,
+        backgroundColor: 'rgba(15, 23, 32, 0.98)',
+        borderColor: 'rgba(58, 66, 80, 1)',
+        controlBorderColor: 'rgba(148, 163, 184, 0.9)',
+        buttonColor: 'rgba(240, 245, 249, 1)',
+        pointerColor: 'rgba(255,255,255,1)',
       });
-    });
+
+      picker.fromString(initialValue);
+      syncSwatchDisplay(textInput, swatchButton, initialValue);
+
+      swatchButton.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const popup = document.querySelector('.jscolor-wrap');
+        if (!popup || popup.contains(event.target)) {
+          picker.show();
+          requestAnimationFrame(() => {
+            const wrap = document.querySelector('.jscolor-wrap');
+            if (!wrap) return;
+            const popupWidth = Math.min(300, window.innerWidth - 24);
+            wrap.style.width = `${popupWidth}px`;
+            wrap.style.position = 'fixed';
+            wrap.style.left = `${Math.min(event.clientX + 12, window.innerWidth - popupWidth - 12)}px`;
+            wrap.style.top = `${Math.max(12, event.clientY - 12)}px`;
+            wrap.style.zIndex = '5000';
+          });
+        }
+      });
+
+      textInput.addEventListener('change', () => {
+        const safeValue = normalizeHexColor(textInput.value);
+        textInput.value = safeValue;
+        picker.fromString(safeValue);
+        syncSwatchDisplay(textInput, swatchButton, safeValue);
+      });
+
+      textInput.addEventListener('input', () => {
+        const next = normalizeHexColor(textInput.value);
+        if (next !== '#FFFFFF' && /^#?[0-9A-Fa-f]{0,6}$/.test(textInput.value || '')) {
+          swatchButton.style.backgroundColor = '#' + (textInput.value.replace('#', '').toUpperCase().padEnd(6, '0'));
+        }
+      });
+
+      const originalShow = picker.show.bind(picker);
+      picker.show = function (event) {
+        const panel = document.querySelector('.inspector-scroll') || document.body;
+        const panelRect = panel.getBoundingClientRect();
+        const panelWidth = Math.min(260, Math.max(220, panelRect.width - 18));
+        const clickX = event ? event.clientX : panelRect.left + 28;
+        const clickY = event ? event.clientY : panelRect.top + 40;
+        const x = Math.min(Math.max(panelRect.left + 8, clickX - 12), window.innerWidth - panelWidth - 12);
+        const y = Math.min(Math.max(8, clickY - 18), window.innerHeight - 220);
+
+        anchor.style.position = 'fixed';
+        anchor.style.left = `${clickX}px`;
+        anchor.style.top = `${clickY}px`;
+        anchor.style.width = '1px';
+        anchor.style.height = '1px';
+        picker.fixed = true;
+
+        const result = originalShow();
+        const wrap = document.querySelector('.jscolor-wrap');
+        if (wrap) {
+          wrap.style.position = 'fixed';
+          wrap.style.width = `${panelWidth}px`;
+          wrap.style.left = `${x}px`;
+          wrap.style.top = `${y}px`;
+          wrap.style.zIndex = '5000';
+        }
+        return result;
+      };
+
+      swatchButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        picker.show(event);
+      });
+    }
+
+    if (typeof window.jscolor !== 'undefined') {
+      document.querySelectorAll('.color-swatch-wrapper').forEach(setupJsColorSwatch);
+      document.addEventListener('mousedown', (event) => {
+        const clickedInsidePicker = event.target.closest('.jscolor-wrap, .jscolor-active, .color-swatch-button');
+        if (!clickedInsidePicker) {
+          document.querySelectorAll('.jscolor-active').forEach(activeEl => {
+            if (activeEl && typeof activeEl.jscolor !== 'undefined') {
+              activeEl.jscolor.hide();
+            }
+          });
+        }
+      });
+
+      document.addEventListener('click', (event) => {
+        const clickedInsidePicker = event.target.closest('.jscolor-wrap, .color-swatch-button');
+        if (!clickedInsidePicker) {
+          document.querySelectorAll('.jscolor-active').forEach(activeEl => {
+            if (activeEl && typeof activeEl.jscolor !== 'undefined') {
+              activeEl.jscolor.hide();
+            }
+          });
+        }
+      });
+    }
 
     /* Three.js Dynamic Light Controls Manager */
     function updateLightType(selectElem) {
