@@ -386,6 +386,11 @@
           <input type="range" id="emissionIntensity" min="0" max="3" step="0.05" value="1.0">
           <input type="number" id="emissionIntensityInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
         </div>
+        <div class="control-row" style="margin-top:6px;">
+          <label style="width:75px;">Trail Offset</label>
+          <input type="range" id="trailOffset" min="-1" max="1" step="0.01" value="0.20">
+          <input type="number" id="trailOffsetInput" min="-2" max="2" step="0.01" value="0.20" style="width:55px; text-align:right; cursor:ew-resize;">
+        </div>
         <div class="control-row" style="margin-top:4px;">
           <label style="width:75px;">Glow Color</label>
           <input type="color" id="emissionColor" value="#ffffff" style="flex:1;">
@@ -619,6 +624,7 @@ import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { LightTrail } from './js/trail.js';
 
 // --- INDEXEDDB & BINARY MODEL PERSISTENCE ---
 const DB_NAME = 'TrailpadOmniStore';
@@ -1546,11 +1552,57 @@ document.querySelector('#modelScale').addEventListener('input', (e) => syncModel
 document.querySelector('#modelScaleInput').addEventListener('input', (e) => syncModelScale(e.target.value));
 
 let buttonEmissionMultiplier = 1.0;
+let trailOffsetY = 5.0;
+let trail = null;
+let trailAnchor = null;
 
 let buttonEmissionColor = new THREE.Color(0xffffff);
 document.querySelector('#emissionColor').addEventListener('input', (e) => {
   buttonEmissionColor.set(e.target.value);
 });
+
+function destroyTrail() {
+  if (!trail) return;
+  trail.destroy();
+  trail = null;
+  trailAnchor = null;
+}
+
+function syncTrailTarget() {
+  const target = leftStick3DGroup || null;
+
+  if (!target) {
+    destroyTrail();
+    return;
+  }
+
+  if (!trailAnchor) {
+    trailAnchor = new THREE.Object3D();
+    trailAnchor.position.set(0, trailOffsetY, 0);
+    trail = new LightTrail(trailAnchor, scene, {
+      camera,
+      length: 20,
+      width: 0.1,
+      colorStart: 0xff0055,
+      colorEnd: 0x00ffff
+    });
+  }
+
+  if (trailAnchor.parent !== target) {
+    if (trailAnchor.parent) trailAnchor.parent.remove(trailAnchor);
+    target.add(trailAnchor);
+  }
+
+  trailAnchor.position.set(0, trailOffsetY, 0);
+  trail.mesh.visible = true;
+}
+
+bindSliderAndInput('#trailOffset', '#trailOffsetInput', (val) => {
+  trailOffsetY = val;
+  if (trailAnchor) trailAnchor.position.y = trailOffsetY;
+  if (trail) trail.mesh.visible = !!leftStick3DGroup;
+  if (leftStick3DGroup) syncTrailTarget();
+}, 2);
 
 const baseBtnMat = new THREE.MeshStandardMaterial({color:0x3a4454, roughness:0.25, metalness:0.5});
 let buttons3D = [], basePositions = [], currentModel = null, leftStick3DGroup = null, rightStick3DGroup = null, dpadRockerPivot = null;
@@ -1590,6 +1642,7 @@ function register3DButton(index, node, parent = controllerGroup, isStick = false
 }
 
 function clearController3D() {
+  destroyTrail();
   boneHelpers.forEach(helper => {
     controllerGroup.remove(helper);
     helper.geometry.dispose();
@@ -1672,6 +1725,7 @@ function buildProceduralController() {
   registerMotionNode(leftStick3DGroup); registerMotionNode(rightStick3DGroup);
   register3DButton(10, lStick.cap, lStick.group, true);
   register3DButton(11, rStick.cap, rStick.group, true);
+  syncTrailTarget();
 
   const dpadBasePos = new THREE.Vector3(-1.1, 0.32, 0.2);
   dpadRockerPivot = new THREE.Group(); dpadRockerPivot.position.copy(dpadBasePos); dpadRockerPivot.position.y += 0.08;
@@ -1737,6 +1791,7 @@ function parseAndLoadGLTF(buffer, fileName = "Model") {
     controllerGroup.add(currentModel);
 
     processModelNode(currentModel);
+    syncTrailTarget();
   }, (err) => {
     console.error('Error parsing GLB:', err);
   });
@@ -1969,6 +2024,10 @@ function loop(t){
   const p = selectedIndex === null ? null : gamepads[selectedIndex] || null;
   if(p){ setStatus(true); processPad(p); }
   else if(selectedIndex !== null){ setStatus(false); }
+
+  if (trail) {
+    trail.update();
+  }
   
   ring.rotation.z = t * 0.00015;
 
@@ -2014,6 +2073,7 @@ function getSettingsState() {
     model: {
       scale: parseFloat(document.querySelector('#modelScale').value),
       emissionIntensity: parseFloat(document.querySelector('#emissionIntensity').value),
+      trailOffsetY: trailOffsetY,
       emissionColor: document.querySelector('#emissionColor').value
     },
     postProcessing: {
@@ -2098,6 +2158,12 @@ function applySettingsState(state) {
       buttonEmissionMultiplier = state.model.emissionIntensity;
       document.querySelector('#emissionIntensity').value = buttonEmissionMultiplier;
       document.querySelector('#emissionIntensityInput').value = buttonEmissionMultiplier.toFixed(2);
+    }
+    if (state.model.trailOffsetY !== undefined) {
+      trailOffsetY = state.model.trailOffsetY;
+      document.querySelector('#trailOffset').value = trailOffsetY;
+      document.querySelector('#trailOffsetInput').value = trailOffsetY.toFixed(2);
+      if (trailAnchor) trailAnchor.position.y = trailOffsetY;
     }
     if (state.model.emissionColor) {
       document.querySelector('#emissionColor').value = state.model.emissionColor;
