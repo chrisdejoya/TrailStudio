@@ -388,8 +388,8 @@
         </div>
         <div class="control-row" style="margin-top:6px;">
           <label style="width:75px;">Trail Offset</label>
-          <input type="range" id="trailOffset" min="-1" max="1" step="0.01" value="0.20">
-          <input type="number" id="trailOffsetInput" min="-2" max="2" step="0.01" value="0.20" style="width:55px; text-align:right; cursor:ew-resize;">
+          <input type="range" id="trailOffset" min="-5" max="5" step="0.01" value="0.20">
+          <input type="number" id="trailOffsetInput" min="-10" max="10" step="0.01" value="0.20" style="width:55px; text-align:right; cursor:ew-resize;">
         </div>
         <div class="control-row" style="margin-top:4px;">
           <label style="width:75px;">Glow Color</label>
@@ -1552,7 +1552,7 @@ document.querySelector('#modelScale').addEventListener('input', (e) => syncModel
 document.querySelector('#modelScaleInput').addEventListener('input', (e) => syncModelScale(e.target.value));
 
 let buttonEmissionMultiplier = 1.0;
-let trailOffsetY = 5.0;
+let trailOffsetY = 0.2;
 let trail = null;
 let trailAnchor = null;
 
