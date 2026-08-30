@@ -9,59 +9,51 @@ export class LightTrail {
   constructor(target, scene, options = {}) {
     this.target = target;
     this.scene = scene;
-    this.camera = options.camera;
 
-    this.maxHistory = options.maxHistory || 20;
+    this.maxHistory = Math.min(options.maxHistory || 20, 64);
     this.subdivisions = options.subdivisions || 4;
-    this.maxLifetime = options.maxLifetime || 0.4; // Time in seconds before trail completely fades out when stopped
+    this.maxLifetime = options.maxLifetime || 0.4;
 
-    // Total vertex samples generated along the ribbon
-    this.sampleCount = (this.maxHistory - 1) * this.subdivisions + 1;
-
-    this.width = options.width || 0.6; // Slightly wider base width for fuller presence
+    this.width = options.width || 0.6;
     this.colorStart = new THREE.Color(options.colorStart ?? 0xff0055);
     this.colorEnd = new THREE.Color(options.colorEnd ?? 0x00ffff);
 
-    this.history = []; // Array of { pos: THREE.Vector3, time: number }
+    this.historyPositions = new Array(this.maxHistory).fill(null).map(() => new THREE.Vector3());
+    this.historyTimes = new Float32Array(this.maxHistory);
 
-    this._tempVecs = {
-      currentPos: new THREE.Vector3(),
-      dir: new THREE.Vector3(),
-      camDir: new THREE.Vector3(),
-      side: new THREE.Vector3(),
-      camPos: new THREE.Vector3(),
-      fallbackDir: new THREE.Vector3(0, 1, 0),
-      previousDir: new THREE.Vector3()
-    };
+    this.rawHistory = [];
+    this._lastWorldPos = new THREE.Vector3();
 
     this._initMesh();
   }
 
   _initMesh() {
-    const totalVertices = this.sampleCount * 2;
+    const totalSamples = (this.maxHistory - 1) * this.subdivisions + 1;
+    const totalVertices = totalSamples * 2;
+
     this.geometry = new THREE.BufferGeometry();
 
-    this.positions = new Float32Array(totalVertices * 3);
-    this.uvs = new Float32Array(totalVertices * 2);
-    this.progresses = new Float32Array(totalVertices);
-    this.alphas = new Float32Array(totalVertices);
+    const uvs = new Float32Array(totalVertices * 2);
+    const progressAttr = new Float32Array(totalVertices);
+    const sideAttr = new Float32Array(totalVertices);
 
-    for (let i = 0; i < this.sampleCount; i++) {
-      const u = i / (this.sampleCount - 1);
+    for (let i = 0; i < totalSamples; i++) {
+      const u = i / (totalSamples - 1);
       const vIdx = i * 2;
 
-      this.uvs[vIdx * 2] = u;
-      this.uvs[vIdx * 2 + 1] = 1.0;
+      uvs[vIdx * 2] = u;
+      uvs[vIdx * 2 + 1] = 1.0;
+      sideAttr[vIdx] = 1.0;
+      progressAttr[vIdx] = u;
 
-      this.uvs[(vIdx + 1) * 2] = u;
-      this.uvs[(vIdx + 1) * 2 + 1] = 0.0;
-
-      this.progresses[vIdx] = u;
-      this.progresses[vIdx + 1] = u;
+      uvs[(vIdx + 1) * 2] = u;
+      uvs[(vIdx + 1) * 2 + 1] = 0.0;
+      sideAttr[vIdx + 1] = -1.0;
+      progressAttr[vIdx + 1] = u;
     }
 
     const indices = [];
-    for (let i = 0; i < this.sampleCount - 1; i++) {
+    for (let i = 0; i < totalSamples - 1; i++) {
       const row1 = i * 2;
       const row2 = (i + 1) * 2;
       indices.push(row1, row1 + 1, row2);
@@ -69,210 +61,200 @@ export class LightTrail {
     }
 
     this.geometry.setIndex(indices);
+    this.geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    this.geometry.setAttribute('sideSign', new THREE.BufferAttribute(sideAttr, 1));
+    this.geometry.setAttribute('progress', new THREE.BufferAttribute(progressAttr, 1));
 
-    const posAttr = new THREE.BufferAttribute(this.positions, 3);
-    posAttr.setUsage(THREE.DynamicDrawUsage);
-    this.geometry.setAttribute('position', posAttr);
-
-    const alphaAttr = new THREE.BufferAttribute(this.alphas, 1);
-    alphaAttr.setUsage(THREE.DynamicDrawUsage);
-    this.geometry.setAttribute('alpha', alphaAttr);
-
-    this.geometry.setAttribute('uv', new THREE.BufferAttribute(this.uvs, 2));
-    this.geometry.setAttribute('progress', new THREE.BufferAttribute(this.progresses, 1));
+    this.geometry.setAttribute(
+      'position',
+      new THREE.BufferAttribute(new Float32Array(totalVertices * 3), 3)
+    );
 
     this.material = new THREE.ShaderMaterial({
       uniforms: {
+        uHistoryPositions: { value: this.historyPositions },
+        uHistoryTimes: { value: this.historyTimes },
+        uHistoryCount: { value: 0 },
+        uCurrentTime: { value: 0 },
+        uMaxLifetime: { value: this.maxLifetime },
+        uWidth: { value: this.width },
         uColorStart: { value: this.colorStart },
-        uColorEnd: { value: this.colorEnd },
-        uIntensity: { value: 1.5 }
+        uColorEnd: { value: this.colorEnd }
       },
       vertexShader: `
+        uniform vec3 uHistoryPositions[${this.maxHistory}];
+        uniform float uHistoryTimes[${this.maxHistory}];
+        uniform int uHistoryCount;
+        uniform float uCurrentTime;
+        uniform float uMaxLifetime;
+        uniform float uWidth;
+
+        attribute float sideSign;
+        attribute float progress;
+
         varying vec2 vUv;
         varying float vProgress;
         varying float vAlpha;
-        attribute float progress;
-        attribute float alpha;
+
+        vec3 catmullRom(vec3 p0, vec3 p1, vec3 p2, vec3 p3, float t) {
+          float t2 = t * t;
+          float t3 = t2 * t;
+          return 0.5 * (
+            (2.0 * p1) +
+            (-p0 + p2) * t +
+            (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2 +
+            (-p0 + 3.0 * p1 - 3.0 * p2 + p3) * t3
+          );
+        }
+
+        vec3 getSamplePoint(float tProgress, out float outTime) {
+          if (uHistoryCount < 2) {
+            outTime = uCurrentTime;
+            return uHistoryPositions[0];
+          }
+
+          float maxIdx = float(uHistoryCount - 1);
+          float rawIdx = tProgress * maxIdx;
+          int idx1 = int(floor(rawIdx));
+          int idx2 = min(idx1 + 1, uHistoryCount - 1);
+          int idx0 = max(idx1 - 1, 0);
+          int idx3 = min(idx2 + 1, uHistoryCount - 1);
+
+          float localT = fract(rawIdx);
+
+          outTime = mix(uHistoryTimes[idx1], uHistoryTimes[idx2], localT);
+          return catmullRom(uHistoryPositions[idx0], uHistoryPositions[idx1], uHistoryPositions[idx2], uHistoryPositions[idx3], localT);
+        }
 
         void main() {
           vUv = uv;
           vProgress = progress;
-          vAlpha = alpha;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+          if (uHistoryCount < 2) {
+            vAlpha = 0.0;
+            gl_Position = vec4(0.0);
+            return;
+          }
+
+          float sampleTime;
+          vec3 currentPos = getSamplePoint(progress, sampleTime);
+
+          float deltaP = 0.01;
+          float unusedTime;
+          vec3 nextPos = getSamplePoint(min(progress + deltaP, 1.0), unusedTime);
+          vec3 prevPos = getSamplePoint(max(progress - deltaP, 0.0), unusedTime);
+
+          vec3 tangent = nextPos - prevPos;
+          if (length(tangent) < 0.0001) {
+            tangent = vec3(0.0, 1.0, 0.0);
+          } else {
+            tangent = normalize(tangent);
+          }
+
+          vec3 camDir = normalize(cameraPosition - currentPos);
+          vec3 side = cross(tangent, camDir);
+          if (length(side) < 0.0001) {
+            side = vec3(1.0, 0.0, 0.0);
+          } else {
+            side = normalize(side);
+          }
+
+          float widthFactor = pow(progress, 0.5);
+          if (progress > 0.85) {
+            float headProgress = (1.0 - progress) / 0.15;
+            widthFactor *= sin(headProgress * 1.5707963);
+          }
+
+          vec3 finalPos = currentPos + side * (sideSign * uWidth * 0.5 * widthFactor);
+
+          float age = uCurrentTime - sampleTime;
+          vAlpha = clamp(1.0 - (age / uMaxLifetime), 0.0, 1.0);
+
+          gl_Position = projectionMatrix * viewMatrix * vec4(finalPos, 1.0);
         }
       `,
       fragmentShader: `
         uniform vec3 uColorStart;
         uniform vec3 uColorEnd;
-        uniform float uIntensity;
+
         varying vec2 vUv;
         varying float vProgress;
         varying float vAlpha;
 
         void main() {
-          // Smooth edge falloff without dark edges
           float distFromCenter = abs(vUv.y - 0.5) * 2.0;
-          float edgeFade = smoothstep(1.0, 0.0, distFromCenter);
-          float tailFade = smoothstep(0.0, 0.2, vProgress);
+
+          // Crisp edge profile
+          float edgeAlpha = smoothstep(1.0, 0.95, distFromCenter);
+          float tailFade = smoothstep(0.0, 0.1, vProgress);
+
+          float finalAlpha = edgeAlpha * tailFade * vAlpha;
+
+          if (finalAlpha < 0.01) discard;
 
           vec3 baseColor = mix(uColorStart, uColorEnd, vProgress);
-          float alphaFactor = edgeFade * tailFade * vAlpha;
 
-          // Glowing color boosted along the core
-          vec3 glowingColor = baseColor * (1.0 + (1.0 - distFromCenter) * uIntensity);
-
-          // Standard non-premultiplied output for AdditiveBlending prevents black outline artifacts
-          gl_FragColor = vec4(glowingColor, alphaFactor);
+          // Premultiplied alpha output: RGB channels are pre-scaled by alpha to avoid darkening self-overlaps
+          gl_FragColor = vec4(baseColor * finalAlpha, finalAlpha);
         }
       `,
       transparent: true,
+
+      // 1. Force trail to draw over all objects
       depthTest: false,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
+
+      // 2. Custom Premultiplied Alpha Blending (prevents dark self-overlap artifacts)
+      premultipliedAlpha: true,
+      blending: THREE.CustomBlending,
+      blendEquation: THREE.AddEquation,
+      blendSrc: THREE.OneFactor,
+      blendDst: THREE.OneMinusSrcAlphaFactor,
+      blendSrcAlpha: THREE.OneFactor,
+      blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+
       side: THREE.DoubleSide
     });
 
     this.mesh = new THREE.Mesh(this.geometry, this.material);
-    this.mesh.renderOrder = 999;
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 9999; // Ensures trail is drawn after normal scene objects
     this.scene.add(this.mesh);
   }
 
   update() {
-    if (!this.camera || !this.target) return;
+    if (!this.target) return;
 
     const currentTime = performance.now() / 1000;
-    const {
-      currentPos,
-      dir,
-      camDir,
-      side,
-      camPos,
-      fallbackDir,
-      previousDir
-    } = this._tempVecs;
+    this.target.getWorldPosition(this._lastWorldPos);
 
-    // 1. Record target position ONLY when moving
-    this.target.getWorldPosition(currentPos);
-    const lastPoint = this.history[this.history.length - 1];
-
-    if (!lastPoint || lastPoint.pos.distanceToSquared(currentPos) > 1e-4) {
-      this.history.push({
-        pos: currentPos.clone(),
+    const lastItem = this.rawHistory[this.rawHistory.length - 1];
+    if (!lastItem || lastItem.pos.distanceToSquared(this._lastWorldPos) > 1e-3) {
+      this.rawHistory.push({
+        pos: this._lastWorldPos.clone(),
         time: currentTime
       });
     }
 
-    // Keep ring buffer bounded
-    if (this.history.length > this.maxHistory) {
-      this.history.shift();
+    while (
+      this.rawHistory.length > 0 &&
+      currentTime - this.rawHistory[0].time > this.maxLifetime
+    ) {
+      this.rawHistory.shift();
     }
 
-    if (this.history.length < 2) return;
-
-    // 2. Filter duplicate/ultra-close points to prevent mesh clumping on tight turns
-    const uniqueHistory = [this.history[0]];
-    for (let i = 1; i < this.history.length; i++) {
-      if (this.history[i].pos.distanceToSquared(uniqueHistory[uniqueHistory.length - 1].pos) > 1e-4) {
-        uniqueHistory.push(this.history[i]);
-      }
+    if (this.rawHistory.length > this.maxHistory) {
+      this.rawHistory.shift();
     }
 
-    if (uniqueHistory.length < 2) return;
-
-    // 3. Generate Catmull-Rom curve over unique positions
-    const curvePositions = uniqueHistory.map(item => item.pos);
-    const curve = new THREE.CatmullRomCurve3(curvePositions);
-    curve.curveType = 'centripetal';
-
-    const samplePoints = curve.getPoints(this.sampleCount - 1);
-
-    this.camera.getWorldPosition(camPos);
-    let hasPreviousDir = false;
-
-    const historyCount = uniqueHistory.length;
-
-    // 4. Update vertex attributes
-    for (let i = 0; i < this.sampleCount; i++) {
-      const p = samplePoints[i];
-      const progress = i / (this.sampleCount - 1); // 0 = tail end, 1 = head (target)
-
-      // Lerp timestamp along history to compute point age
-      const rawIndex = progress * (historyCount - 1);
-      const index0 = Math.floor(rawIndex);
-      const index1 = Math.min(index0 + 1, historyCount - 1);
-      const t = rawIndex - index0;
-
-      const sampleTime = THREE.MathUtils.lerp(uniqueHistory[index0].time, uniqueHistory[index1].time, t);
-      const age = currentTime - sampleTime;
-
-      // Smooth alpha decay over maxLifetime
-      const pointAlpha = THREE.MathUtils.clamp(1.0 - (age / this.maxLifetime), 0.0, 1.0);
-
-      // Width profile: Full width across body, tapering down ONLY at the very leading tip (progress > 0.85)
-      let widthFactor = Math.pow(progress, 0.5); // Maintains full body thickness
-      if (progress > 0.85) {
-        const headProgress = (1.0 - progress) / 0.15; // 1.0 -> 0.0 at leading tip
-        widthFactor *= Math.sin(headProgress * Math.PI * 0.5); // Smooth tip roundness
-      }
-
-      const currentWidth = this.width * widthFactor;
-
-      // Tangent vector
-      if (i < this.sampleCount - 1) {
-        dir.subVectors(samplePoints[i + 1], p);
-      } else {
-        dir.subVectors(p, samplePoints[i - 1]);
-      }
-
-      if (dir.lengthSq() < 1e-6) {
-        dir.copy(hasPreviousDir ? previousDir : fallbackDir);
-      } else {
-        dir.normalize();
-        previousDir.copy(dir);
-        hasPreviousDir = true;
-      }
-
-      // Camera facing direction
-      camDir.subVectors(camPos, p);
-      if (camDir.lengthSq() < 1e-6) {
-        camDir.copy(fallbackDir);
-      } else {
-        camDir.normalize();
-      }
-
-      // Billboard side cross product
-      side.crossVectors(dir, camDir);
-      if (side.lengthSq() < 1e-6) {
-        side.crossVectors(fallbackDir, camDir);
-      }
-
-      if (side.lengthSq() < 1e-6) {
-        side.set(1, 0, 0);
-      } else {
-        side.normalize();
-      }
-
-      side.multiplyScalar(currentWidth * 0.5);
-
-      const vIdx = i * 2;
-
-      // Top ribbon position
-      this.positions[vIdx * 3]     = p.x + side.x;
-      this.positions[vIdx * 3 + 1] = p.y + side.y;
-      this.positions[vIdx * 3 + 2] = p.z + side.z;
-
-      // Bottom ribbon position
-      this.positions[(vIdx + 1) * 3]     = p.x - side.x;
-      this.positions[(vIdx + 1) * 3 + 1] = p.y - side.y;
-      this.positions[(vIdx + 1) * 3 + 2] = p.z - side.z;
-
-      // Assign alpha values
-      this.alphas[vIdx]     = pointAlpha;
-      this.alphas[vIdx + 1] = pointAlpha;
+    const count = this.rawHistory.length;
+    for (let i = 0; i < count; i++) {
+      this.historyPositions[i].copy(this.rawHistory[i].pos);
+      this.historyTimes[i] = this.rawHistory[i].time;
     }
 
-    this.geometry.attributes.position.needsUpdate = true;
-    this.geometry.attributes.alpha.needsUpdate = true;
+    this.material.uniforms.uHistoryCount.value = count;
+    this.material.uniforms.uCurrentTime.value = currentTime;
   }
 
   destroy() {
