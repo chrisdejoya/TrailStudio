@@ -21,7 +21,7 @@ const DEFAULT_CONFIG = {
   // Colors & Bloom
   colorStart: 0xff0055,
   colorEnd: 0x00ffff,
-  emissiveIntensity: 4.0,     // Values > 1.0 push color into HDR space to trigger bloom
+  emissiveIntensity: 1.25,     // Values > 1.0 push color into HDR space to trigger bloom
 
   // Performance Optimization
   minDistanceSq: 1e-3,         // Minimum squared distance before registering new point

@@ -974,8 +974,8 @@ function syncTrailTarget() {
     trailAnchor.position.set(0, trailOffsetY, 0);
     trail = new LightTrail(trailAnchor, scene, {
       camera,
-      length: 15,
-      width: 0.125,
+      length: 10,
+      width: 0.05,
       colorStart: 0xaa0022,
       colorEnd: 0x00aaaa
     });
