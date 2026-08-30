@@ -11,7 +11,7 @@ import { LightTrail } from './trail.js';
 import { DEFAULT_IBL_STATE, LOCAL_STORAGE_KEY, createLightConfigState } from './state.js';
 import { bindSliderAndInput, exposeAppApi, registerParentMessageBridge } from './uiBridge.js';
 
-const DB_NAME = 'TrailpadOmniStore';
+const DB_NAME = 'TrailpadStudio';
 const DB_VERSION = 1;
 const STORE_NAME = 'models';
 const MODEL_KEY = 'current_glb';
@@ -214,7 +214,7 @@ const hudUI = {
 const app = document.querySelector('#app');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 100);
-const cameraTarget = new THREE.Vector3(0, -0.2, 0);
+const cameraTarget = new THREE.Vector3(0, 0, 0);
 let radius = 6.5;
 let theta = 0;
 let phi = 0.85;
@@ -339,7 +339,7 @@ const resetCamBtn = document.querySelector('#resetCamBtn');
 if (resetCamBtn) {
   resetCamBtn.addEventListener('click', () => {
     radius = 6.5; theta = 0; phi = 0.85;
-    cameraTarget.set(0, -0.2, 0);
+    cameraTarget.set(0, 0, 0);
     syncFov(50);
     syncTargetInputs();
     updateCameraPosition();
@@ -361,17 +361,17 @@ window.addEventListener('keydown', (e) => {
 });
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1));
 renderer.setSize(innerWidth, innerHeight);
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.VSMShadowMap;
 app.appendChild(renderer.domElement);
 
-function createMainRenderTarget(samples = 4) {
+function createMainRenderTarget(samples = 2) {
   return new THREE.WebGLRenderTarget(innerWidth, innerHeight, {
     type: THREE.HalfFloatType,
     format: THREE.RGBAFormat,
@@ -379,7 +379,7 @@ function createMainRenderTarget(samples = 4) {
   });
 }
 
-let composer = new EffectComposer(renderer, createMainRenderTarget(4));
+let composer = new EffectComposer(renderer, createMainRenderTarget(2));
 
 const renderPass = new RenderPass(scene, camera);
 renderPass.clear = true;
@@ -390,7 +390,7 @@ composer.addPass(renderPass);
 const aoPass = new SSAOPass(scene, camera, innerWidth, innerHeight);
 aoPass.enabled = false; aoPass.kernelRadius = 8; aoPass.minDistance = 0.001; aoPass.maxDistance = 0.1; composer.addPass(aoPass);
 
-const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.0, 0.75, 0.9);
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.0, 0.5, 0.95);
 bloomPass.enabled = false; composer.addPass(bloomPass);
 
 const ContrastSaturationShader = {
@@ -454,9 +454,9 @@ class ProceduralIBLEditor {
       sun1Atmosphere: { value: 0 },
       sun2Color: { value: new THREE.Color() },
       sun2Position: { value: new THREE.Vector3() },
-      sun2Size: { value: 1.5 },
+      sun2Size: { value: 1.25 },
       sun2Intensity: { value: 0 },
-      sun2Atmosphere: { value: 0.7 }
+      sun2Atmosphere: { value: 0.5 }
     };
 
     const material = new THREE.ShaderMaterial({
@@ -494,8 +494,8 @@ class ProceduralIBLEditor {
         }`
     });
 
-    this.environmentScene.add(new THREE.Mesh(new THREE.SphereGeometry(100, 64, 32), material));
-    this.ringGeometry = new THREE.TorusGeometry(15, 0.5, 16, 64);
+    this.environmentScene.add(new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), material));
+    this.ringGeometry = new THREE.TorusGeometry(1.5, 0.05, 16, 64);
     this.ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
     this.ringMesh = new THREE.Mesh(this.ringGeometry, this.ringMaterial);
     this.ringMesh.rotation.x = Math.PI / 2;
@@ -722,7 +722,7 @@ window.addEventListener('mousemove', (e) => {
 
 renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
-  syncZoom(radius + e.deltaY * 0.005);
+  syncZoom(radius + e.deltaY * 0.0075);
   scheduleSave();
 }, { passive: false });
 
@@ -944,7 +944,7 @@ if (modelScale) modelScale.addEventListener('input', (e) => syncModelScale(e.tar
 if (modelScaleInput) modelScaleInput.addEventListener('input', (e) => syncModelScale(e.target.value));
 
 let buttonEmissionMultiplier = 1.0;
-let trailOffsetY = 0.2;
+let trailOffsetY = 1.8;
 let trail = null;
 let trailAnchor = null;
 
@@ -975,7 +975,7 @@ function syncTrailTarget() {
     trail = new LightTrail(trailAnchor, scene, {
       camera,
       length: 15,
-      width: 0.1,
+      width: 0.125,
       colorStart: 0xaa0022,
       colorEnd: 0x00aaaa
     });
@@ -997,7 +997,7 @@ bindSliderAndInput('#trailOffset', '#trailOffsetInput', (val) => {
   if (leftStick3DGroup) syncTrailTarget();
 }, 2);
 
-const baseBtnMat = new THREE.MeshPhysicalMaterial({ color: 0x3a4454, roughness: 0.25, metalness: 0.5 });
+const baseBtnMat = new THREE.MeshPhysicalMaterial({ color: 0x333333, roughness: 0.35, metalness: 0 });
 let buttons3D = [], basePositions = [], currentModel = null, leftStick3DGroup = null, rightStick3DGroup = null, dpadRockerPivot = null;
 const motionBaseQuaternions = new WeakMap();
 let boneHelpers = [];
@@ -1269,10 +1269,6 @@ async function initModelPersistence() {
   buildProceduralController();
 }
 
-const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.015, 8, 96), new THREE.MeshBasicMaterial({ color: 0x62d8ff, transparent: true, opacity: 0.25 }));
-ring.rotation.x = Math.PI / 2;
-ring.position.y = -0.8;
-
 let pads = [], selectedIndex = null, lastSnapshot = null;
 
 function refreshPads() {
@@ -1439,7 +1435,6 @@ function loop() {
   }
 
   if (trail) trail.update();
-  ring.rotation.z += 0.00015;
   composer.render();
 }
 
@@ -1824,7 +1819,7 @@ const appApi = {
   },
   resetCamera() {
     radius = 6.5; theta = 0; phi = 0.85;
-    cameraTarget.set(0, -0.2, 0);
+    cameraTarget.set(0, 0, 0);
     syncFov(50);
     syncTargetInputs();
     updateCameraPosition();

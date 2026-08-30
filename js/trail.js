@@ -11,61 +11,48 @@ export class LightTrail {
     this.scene = scene;
     this.camera = options.camera;
 
-    this.length = options.length || 60;
-    this.width = options.width || 0.45;
+    this.maxHistory = options.maxHistory || 20;
+    this.subdivisions = options.subdivisions || 4;
+    this.maxLifetime = options.maxLifetime || 0.4; // Time in seconds before trail completely fades out when stopped
+
+    // Total vertex samples generated along the ribbon
+    this.sampleCount = (this.maxHistory - 1) * this.subdivisions + 1;
+
+    this.width = options.width || 0.6; // Slightly wider base width for fuller presence
     this.colorStart = new THREE.Color(options.colorStart ?? 0xff0055);
     this.colorEnd = new THREE.Color(options.colorEnd ?? 0x00ffff);
 
-    this.history = [];
-    this.trailTexture = this._createTrailTexture();
+    this.history = []; // Array of { pos: THREE.Vector3, time: number }
+
+    this._tempVecs = {
+      currentPos: new THREE.Vector3(),
+      dir: new THREE.Vector3(),
+      camDir: new THREE.Vector3(),
+      side: new THREE.Vector3(),
+      camPos: new THREE.Vector3(),
+      fallbackDir: new THREE.Vector3(0, 1, 0),
+      previousDir: new THREE.Vector3()
+    };
+
     this._initMesh();
   }
 
-  _createTrailTexture() {
-    const size = 256;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
-
-    ctx.clearRect(0, 0, size, size);
-
-    const gradient = ctx.createRadialGradient(size * 0.5, size * 0.5, 0, size * 0.5, size * 0.5, size * 0.5);
-    gradient.addColorStop(0.0, 'rgba(255,255,255,1.0)');
-    gradient.addColorStop(0.22, 'rgba(255,255,255,0.95)');
-    gradient.addColorStop(0.56, 'rgba(255,255,255,0.35)');
-    gradient.addColorStop(1.0, 'rgba(255,255,255,0.0)');
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.needsUpdate = true;
-    return texture;
-  }
-
   _initMesh() {
-    const totalVertices = this.length * 2;
+    const totalVertices = this.sampleCount * 2;
     this.geometry = new THREE.BufferGeometry();
 
     this.positions = new Float32Array(totalVertices * 3);
     this.uvs = new Float32Array(totalVertices * 2);
     this.progresses = new Float32Array(totalVertices);
+    this.alphas = new Float32Array(totalVertices);
 
-    // Populate static UVs and progress attributes
-    for (let i = 0; i < this.length; i++) {
-      const u = i / (this.length - 1); // 0.0 (tail) to 1.0 (head)
+    for (let i = 0; i < this.sampleCount; i++) {
+      const u = i / (this.sampleCount - 1);
       const vIdx = i * 2;
 
-      // Top vertex UV: (u, 1.0)
       this.uvs[vIdx * 2] = u;
       this.uvs[vIdx * 2 + 1] = 1.0;
 
-      // Bottom vertex UV: (u, 0.0)
       this.uvs[(vIdx + 1) * 2] = u;
       this.uvs[(vIdx + 1) * 2 + 1] = 0.0;
 
@@ -73,9 +60,8 @@ export class LightTrail {
       this.progresses[vIdx + 1] = u;
     }
 
-    // Index buffer for ribbon quads
     const indices = [];
-    for (let i = 0; i < this.length - 1; i++) {
+    for (let i = 0; i < this.sampleCount - 1; i++) {
       const row1 = i * 2;
       const row2 = (i + 1) * 2;
       indices.push(row1, row1 + 1, row2);
@@ -84,47 +70,59 @@ export class LightTrail {
 
     this.geometry.setIndex(indices);
 
-    // Setup position buffer for dynamic stream updates
-    const posAttribute = new THREE.BufferAttribute(this.positions, 3);
-    posAttribute.setUsage(THREE.DynamicDrawUsage);
-    this.geometry.setAttribute('position', posAttribute);
+    const posAttr = new THREE.BufferAttribute(this.positions, 3);
+    posAttr.setUsage(THREE.DynamicDrawUsage);
+    this.geometry.setAttribute('position', posAttr);
+
+    const alphaAttr = new THREE.BufferAttribute(this.alphas, 1);
+    alphaAttr.setUsage(THREE.DynamicDrawUsage);
+    this.geometry.setAttribute('alpha', alphaAttr);
 
     this.geometry.setAttribute('uv', new THREE.BufferAttribute(this.uvs, 2));
     this.geometry.setAttribute('progress', new THREE.BufferAttribute(this.progresses, 1));
 
-    // Material with a soft alpha texture to keep the ribbon smooth and glow-like.
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         uColorStart: { value: this.colorStart },
         uColorEnd: { value: this.colorEnd },
-        uTrailTexture: { value: this.trailTexture }
+        uIntensity: { value: 1.5 }
       },
       vertexShader: `
         varying vec2 vUv;
         varying float vProgress;
+        varying float vAlpha;
         attribute float progress;
+        attribute float alpha;
 
         void main() {
           vUv = uv;
           vProgress = progress;
+          vAlpha = alpha;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
         uniform vec3 uColorStart;
         uniform vec3 uColorEnd;
-        uniform sampler2D uTrailTexture;
+        uniform float uIntensity;
         varying vec2 vUv;
         varying float vProgress;
+        varying float vAlpha;
 
         void main() {
-          float texAlpha = texture2D(uTrailTexture, vUv).r;
-          float tailFade = smoothstep(0.0, 1.0, vProgress);
-          vec3 baseColor = mix(uColorStart, uColorEnd, vProgress);
-          vec3 finalColor = baseColor * (0.9 + texAlpha * 1.6);
-          float finalAlpha = texAlpha * tailFade;
+          // Smooth edge falloff without dark edges
+          float distFromCenter = abs(vUv.y - 0.5) * 2.0;
+          float edgeFade = smoothstep(1.0, 0.0, distFromCenter);
+          float tailFade = smoothstep(0.0, 0.2, vProgress);
 
-          gl_FragColor = vec4(finalColor, finalAlpha);
+          vec3 baseColor = mix(uColorStart, uColorEnd, vProgress);
+          float alphaFactor = edgeFade * tailFade * vAlpha;
+
+          // Glowing color boosted along the core
+          vec3 glowingColor = baseColor * (1.0 + (1.0 - distFromCenter) * uIntensity);
+
+          // Standard non-premultiplied output for AdditiveBlending prevents black outline artifacts
+          gl_FragColor = vec4(glowingColor, alphaFactor);
         }
       `,
       transparent: true,
@@ -140,71 +138,101 @@ export class LightTrail {
   }
 
   update() {
-    if (!this.camera) return;
+    if (!this.camera || !this.target) return;
 
-    const currentPos = new THREE.Vector3();
+    const currentTime = performance.now() / 1000;
+    const {
+      currentPos,
+      dir,
+      camDir,
+      side,
+      camPos,
+      fallbackDir,
+      previousDir
+    } = this._tempVecs;
+
+    // 1. Record target position ONLY when moving
     this.target.getWorldPosition(currentPos);
-    this.history.push(currentPos.clone());
+    const lastPoint = this.history[this.history.length - 1];
 
-    if (this.history.length > this.length) {
+    if (!lastPoint || lastPoint.pos.distanceToSquared(currentPos) > 1e-4) {
+      this.history.push({
+        pos: currentPos.clone(),
+        time: currentTime
+      });
+    }
+
+    // Keep ring buffer bounded
+    if (this.history.length > this.maxHistory) {
       this.history.shift();
     }
 
-    const sampleCount = this.length;
-    const samplePoints = [];
-    const historyLength = this.history.length;
+    if (this.history.length < 2) return;
 
-    for (let i = 0; i < sampleCount; i++) {
-      const t = historyLength > 1 ? i / (sampleCount - 1) : 0;
-      const historyIndex = t * (historyLength - 1);
-      const lowerIndex = Math.floor(historyIndex);
-      const upperIndex = Math.min(historyLength - 1, lowerIndex + 1);
-      const alpha = historyIndex - lowerIndex;
-
-      const point = this.history[lowerIndex].clone();
-      if (lowerIndex !== upperIndex) {
-        point.lerp(this.history[upperIndex], alpha);
+    // 2. Filter duplicate/ultra-close points to prevent mesh clumping on tight turns
+    const uniqueHistory = [this.history[0]];
+    for (let i = 1; i < this.history.length; i++) {
+      if (this.history[i].pos.distanceToSquared(uniqueHistory[uniqueHistory.length - 1].pos) > 1e-4) {
+        uniqueHistory.push(this.history[i]);
       }
-
-      samplePoints.push(point);
     }
 
-    const dir = new THREE.Vector3();
-    const camDir = new THREE.Vector3();
-    const side = new THREE.Vector3();
-    const camPos = new THREE.Vector3();
-    const fallbackDir = new THREE.Vector3(0, 1, 0);
-    const previousDir = new THREE.Vector3();
-    let hasPreviousDir = false;
+    if (uniqueHistory.length < 2) return;
+
+    // 3. Generate Catmull-Rom curve over unique positions
+    const curvePositions = uniqueHistory.map(item => item.pos);
+    const curve = new THREE.CatmullRomCurve3(curvePositions);
+    curve.curveType = 'centripetal';
+
+    const samplePoints = curve.getPoints(this.sampleCount - 1);
 
     this.camera.getWorldPosition(camPos);
+    let hasPreviousDir = false;
 
-    for (let i = 0; i < sampleCount; i++) {
+    const historyCount = uniqueHistory.length;
+
+    // 4. Update vertex attributes
+    for (let i = 0; i < this.sampleCount; i++) {
       const p = samplePoints[i];
-      const progress = sampleCount > 1 ? i / (sampleCount - 1) : 0;
+      const progress = i / (this.sampleCount - 1); // 0 = tail end, 1 = head (target)
 
-      // Width tapering calculation
-      const widthFactor = Math.pow(progress, 2.0);
+      // Lerp timestamp along history to compute point age
+      const rawIndex = progress * (historyCount - 1);
+      const index0 = Math.floor(rawIndex);
+      const index1 = Math.min(index0 + 1, historyCount - 1);
+      const t = rawIndex - index0;
+
+      const sampleTime = THREE.MathUtils.lerp(uniqueHistory[index0].time, uniqueHistory[index1].time, t);
+      const age = currentTime - sampleTime;
+
+      // Smooth alpha decay over maxLifetime
+      const pointAlpha = THREE.MathUtils.clamp(1.0 - (age / this.maxLifetime), 0.0, 1.0);
+
+      // Width profile: Full width across body, tapering down ONLY at the very leading tip (progress > 0.85)
+      let widthFactor = Math.pow(progress, 0.5); // Maintains full body thickness
+      if (progress > 0.85) {
+        const headProgress = (1.0 - progress) / 0.15; // 1.0 -> 0.0 at leading tip
+        widthFactor *= Math.sin(headProgress * Math.PI * 0.5); // Smooth tip roundness
+      }
+
       const currentWidth = this.width * widthFactor;
 
-      if (i < sampleCount - 1) {
+      // Tangent vector
+      if (i < this.sampleCount - 1) {
         dir.subVectors(samplePoints[i + 1], p);
       } else {
-        dir.subVectors(p, samplePoints[Math.max(0, i - 1)]);
+        dir.subVectors(p, samplePoints[i - 1]);
       }
 
       if (dir.lengthSq() < 1e-6) {
-        if (hasPreviousDir) {
-          dir.copy(previousDir);
-        } else {
-          dir.copy(fallbackDir);
-        }
+        dir.copy(hasPreviousDir ? previousDir : fallbackDir);
       } else {
         dir.normalize();
         previousDir.copy(dir);
         hasPreviousDir = true;
       }
 
+      // Camera facing direction
       camDir.subVectors(camPos, p);
       if (camDir.lengthSq() < 1e-6) {
         camDir.copy(fallbackDir);
@@ -212,6 +240,7 @@ export class LightTrail {
         camDir.normalize();
       }
 
+      // Billboard side cross product
       side.crossVectors(dir, camDir);
       if (side.lengthSq() < 1e-6) {
         side.crossVectors(fallbackDir, camDir);
@@ -227,27 +256,28 @@ export class LightTrail {
 
       const vIdx = i * 2;
 
-      // Top vertex position
+      // Top ribbon position
       this.positions[vIdx * 3]     = p.x + side.x;
       this.positions[vIdx * 3 + 1] = p.y + side.y;
       this.positions[vIdx * 3 + 2] = p.z + side.z;
 
-      // Bottom vertex position
+      // Bottom ribbon position
       this.positions[(vIdx + 1) * 3]     = p.x - side.x;
       this.positions[(vIdx + 1) * 3 + 1] = p.y - side.y;
       this.positions[(vIdx + 1) * 3 + 2] = p.z - side.z;
 
-      this.progresses[vIdx] = progress;
-      this.progresses[vIdx + 1] = progress;
+      // Assign alpha values
+      this.alphas[vIdx]     = pointAlpha;
+      this.alphas[vIdx + 1] = pointAlpha;
     }
 
     this.geometry.attributes.position.needsUpdate = true;
-    this.geometry.attributes.progress.needsUpdate = true;
+    this.geometry.attributes.alpha.needsUpdate = true;
   }
 
   destroy() {
-    this.scene.remove(this.mesh);
-    this.geometry.dispose();
-    this.material.dispose();
+    if (this.mesh) this.scene.remove(this.mesh);
+    if (this.geometry) this.geometry.dispose();
+    if (this.material) this.material.dispose();
   }
 }
