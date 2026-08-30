@@ -7,9 +7,11 @@ import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
-import { LightTrail } from './trail.js';
+import { TrailManager } from './trail.js';
 import { DEFAULT_IBL_STATE, LOCAL_STORAGE_KEY, createLightConfigState } from './state.js';
 import { bindSliderAndInput, exposeAppApi, registerParentMessageBridge } from './uiBridge.js';
+import { ProceduralIBLEditor } from './ibl.js';
+import { setupIBLControls, applyIBLStateToUI } from './iblControls.js';
 
 const DB_NAME = 'TrailpadStudio';
 const DB_VERSION = 1;
@@ -433,156 +435,13 @@ const outputPass = new OutputPass();
 composer.addPass(outputPass);
 
 const iblState = { ...DEFAULT_IBL_STATE };
-
-class ProceduralIBLEditor {
-  constructor(renderer) {
-    this.pmremGenerator = new THREE.PMREMGenerator(renderer);
-    this.pmremGenerator.compileCubemapShader();
-    this.environmentScene = new THREE.Scene();
-    this.currentTarget = null;
-    this.skyUniforms = {
-      skyColor: { value: new THREE.Color() },
-      horizonColor: { value: new THREE.Color() },
-      groundColor: { value: new THREE.Color() },
-      skyLevel: { value: 0 },
-      horizonLevel: { value: 0 },
-      groundLevel: { value: 0 },
-      sun1Color: { value: new THREE.Color() },
-      sun1Position: { value: new THREE.Vector3() },
-      sun1Size: { value: 1 },
-      sun1Intensity: { value: 0 },
-      sun1Atmosphere: { value: 0 },
-      sun2Color: { value: new THREE.Color() },
-      sun2Position: { value: new THREE.Vector3() },
-      sun2Size: { value: 1.25 },
-      sun2Intensity: { value: 0 },
-      sun2Atmosphere: { value: 0.5 }
-    };
-
-    const material = new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      uniforms: this.skyUniforms,
-      vertexShader: `
-        varying vec3 vWorldPosition;
-        void main() {
-          vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }`,
-      fragmentShader: `
-        uniform vec3 skyColor, horizonColor, groundColor;
-        uniform float skyLevel, horizonLevel, groundLevel;
-        uniform vec3 sun1Color, sun1Position, sun2Color, sun2Position;
-        uniform float sun1Size, sun1Intensity, sun1Atmosphere;
-        uniform float sun2Size, sun2Intensity, sun2Atmosphere;
-        varying vec3 vWorldPosition;
-        vec3 sun(vec3 direction, vec3 position, vec3 color, float size, float intensity, float atmosphere) {
-          float alignment = dot(direction, normalize(position));
-          float exponent = mix(8000.0 / (size * size), 2.0 / size, clamp(atmosphere, 0.0, 1.0));
-          float glow = pow(max(alignment, 0.0), exponent);
-          float disk = step(1.0 - (0.0005 * size), alignment);
-          return color * intensity * mix(disk, glow * (1.0 + atmosphere * 3.0), atmosphere);
-        }
-        void main() {
-          vec3 direction = normalize(vWorldPosition);
-          float height = direction.y;
-          vec3 upper = mix(horizonColor, skyColor, smoothstep(horizonLevel, skyLevel, height));
-          vec3 lower = mix(horizonColor, groundColor, smoothstep(horizonLevel, groundLevel, height));
-          vec3 color = height >= horizonLevel ? upper : lower;
-          color += sun(direction, sun1Position, sun1Color, sun1Size, sun1Intensity, sun1Atmosphere);
-          color += sun(direction, sun2Position, sun2Color, sun2Size, sun2Intensity, sun2Atmosphere);
-          gl_FragColor = vec4(color, 1.0);
-        }`
-    });
-
-    this.environmentScene.add(new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), material));
-    this.ringGeometry = new THREE.TorusGeometry(1.5, 0.05, 16, 64);
-    this.ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    this.ringMesh = new THREE.Mesh(this.ringGeometry, this.ringMaterial);
-    this.ringMesh.rotation.x = Math.PI / 2;
-    this.environmentScene.add(this.ringMesh);
-  }
-
-  update(state) {
-    const u = this.skyUniforms;
-    u.skyColor.value.set(state.skyColor);
-    u.horizonColor.value.set(state.horizonColor);
-    u.groundColor.value.set(state.groundColor);
-    u.skyLevel.value = state.skyLevel;
-    u.horizonLevel.value = state.horizonLevel;
-    u.groundLevel.value = state.groundLevel;
-
-    [1, 2].forEach((index) => {
-      const elevation = THREE.MathUtils.degToRad(90 - state[`sun${index}Elevation`]);
-      const azimuth = THREE.MathUtils.degToRad(state[`sun${index}Azimuth`]);
-      u[`sun${index}Position`].value.setFromSphericalCoords(100, elevation, azimuth);
-      u[`sun${index}Color`].value.set(state[`sun${index}Color`]);
-      u[`sun${index}Size`].value = state[`sun${index}Size`] ?? (index === 1 ? 1 : 1.5);
-      u[`sun${index}Intensity`].value = state[`sun${index}Visible`] ? state[`sun${index}Intensity`] : 0;
-      u[`sun${index}Atmosphere`].value = state[`sun${index}Atmosphere`] ?? (index === 1 ? 0.5 : 0.7);
-    });
-
-    this.ringMesh.visible = state.ringVisible;
-    this.ringMesh.position.y = state.ringHeight;
-    this.ringMaterial.color.set(state.ringColor).multiplyScalar(state.ringIntensity);
-
-    const newTarget = this.pmremGenerator.fromScene(this.environmentScene);
-    if (this.currentTarget) this.currentTarget.dispose();
-    this.currentTarget = newTarget;
-
-    scene.environment = state.enabled ? newTarget.texture : null;
-    scene.environmentIntensity = state.enabled ? state.intensity : 0;
-    scene.background = state.enabled && state.background ? newTarget.texture : null;
-    this.renderPreview(state);
-  }
-
-  renderPreview(state) {
-    const canvas = document.querySelector('#iblPreview');
-    if (!canvas) return;
-    const context = canvas.getContext('2d');
-    const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, state.skyColor);
-    gradient.addColorStop(Math.max(0, Math.min(1, 0.5 - state.horizonLevel / 2)), state.horizonColor);
-    gradient.addColorStop(1, state.groundColor);
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-  }
-}
-
-const proceduralIBLEditor = new ProceduralIBLEditor(renderer);
+const proceduralIBLEditor = new ProceduralIBLEditor(renderer, scene);
 
 function updateIBL() {
   proceduralIBLEditor.update(iblState);
 }
 
-function bindIBLControl(id, key, type = 'float') {
-  const element = document.querySelector(`#${id}`);
-  const valueElement = document.querySelector(`#${id}Value`);
-  if (!element) return;
-  element.addEventListener(type === 'boolean' ? 'change' : 'input', () => {
-    iblState[key] = type === 'boolean' ? element.checked : (type === 'color' ? element.value : parseFloat(element.value));
-    if (valueElement) valueElement.textContent = type === 'integer' ? String(iblState[key]) : iblState[key].toFixed(type === 'float' ? 2 : 1);
-    updateIBL();
-  });
-}
-
-[
-  ['iblEnabled', 'enabled', 'boolean'], ['iblBackground', 'background', 'boolean'],
-  ['iblSkyColor', 'skyColor', 'color'], ['iblSkyLevel', 'skyLevel'],
-  ['iblHorizonColor', 'horizonColor', 'color'], ['iblHorizonLevel', 'horizonLevel'],
-  ['iblGroundColor', 'groundColor', 'color'], ['iblGroundLevel', 'groundLevel'],
-  ['iblSun1Visible', 'sun1Visible', 'boolean'], ['iblSun1Color', 'sun1Color', 'color'],
-  ['iblSun1Elevation', 'sun1Elevation', 'integer'], ['iblSun1Azimuth', 'sun1Azimuth', 'integer'],
-  ['iblSun1Size', 'sun1Size'], ['iblSun1Intensity', 'sun1Intensity'], ['iblSun1Atmosphere', 'sun1Atmosphere'],
-  ['iblSun2Visible', 'sun2Visible', 'boolean'], ['iblSun2Color', 'sun2Color', 'color'],
-  ['iblSun2Elevation', 'sun2Elevation', 'integer'], ['iblSun2Azimuth', 'sun2Azimuth', 'integer'],
-  ['iblSun2Size', 'sun2Size'], ['iblSun2Intensity', 'sun2Intensity'], ['iblSun2Atmosphere', 'sun2Atmosphere'],
-  ['iblRingVisible', 'ringVisible', 'boolean'], ['iblRingColor', 'ringColor', 'color'], ['iblRingHeight', 'ringHeight'], ['iblRingIntensity', 'ringIntensity']
-].forEach(([id, key, type]) => bindIBLControl(id, key, type));
-
-bindSliderAndInput('#iblIntensity', '#iblIntensityInput', (value) => {
-  iblState.intensity = value;
-  updateIBL();
-}, 2);
+setupIBLControls(iblState, updateIBL);
 
 function updateAntiAliasing() {
   const enabled = document.querySelector('#aaToggle').checked;
@@ -944,9 +803,7 @@ if (modelScale) modelScale.addEventListener('input', (e) => syncModelScale(e.tar
 if (modelScaleInput) modelScaleInput.addEventListener('input', (e) => syncModelScale(e.target.value));
 
 let buttonEmissionMultiplier = 1.0;
-let trailOffsetY = 1.8;
-let trail = null;
-let trailAnchor = null;
+const trailManager = new TrailManager(scene, camera);
 
 let buttonEmissionColor = new THREE.Color(0xffffff);
 const emissionColor = document.querySelector('#emissionColor');
@@ -954,47 +811,9 @@ if (emissionColor) emissionColor.addEventListener('input', (e) => {
   buttonEmissionColor.set(e.target.value);
 });
 
-function destroyTrail() {
-  if (!trail) return;
-  trail.destroy();
-  trail = null;
-  trailAnchor = null;
-}
-
-function syncTrailTarget() {
-  const target = leftStick3DGroup || null;
-
-  if (!target) {
-    destroyTrail();
-    return;
-  }
-
-  if (!trailAnchor) {
-    trailAnchor = new THREE.Object3D();
-    trailAnchor.position.set(0, trailOffsetY, 0);
-    trail = new LightTrail(trailAnchor, scene, {
-      camera,
-      length: 10,
-      width: 0.05,
-      colorStart: 0xaa0022,
-      colorEnd: 0x00aaaa
-    });
-  }
-
-  if (trailAnchor.parent !== target) {
-    if (trailAnchor.parent) trailAnchor.parent.remove(trailAnchor);
-    target.add(trailAnchor);
-  }
-
-  trailAnchor.position.set(0, trailOffsetY, 0);
-  trail.mesh.visible = true;
-}
-
 bindSliderAndInput('#trailOffset', '#trailOffsetInput', (val) => {
-  trailOffsetY = val;
-  if (trailAnchor) trailAnchor.position.y = trailOffsetY;
-  if (trail) trail.mesh.visible = !!leftStick3DGroup;
-  if (leftStick3DGroup) syncTrailTarget();
+  trailManager.setOffsetY(val);
+  trailManager.syncTarget(leftStick3DGroup);
 }, 2);
 
 const baseBtnMat = new THREE.MeshPhysicalMaterial({ color: 0x333333, roughness: 0.35, metalness: 0 });
@@ -1035,7 +854,7 @@ function register3DButton(index, node, parent = controllerGroup, isStick = false
 }
 
 function clearController3D() {
-  destroyTrail();
+  trailManager.destroy();
   boneHelpers.forEach((helper) => {
     controllerGroup.remove(helper);
     helper.geometry.dispose();
@@ -1121,7 +940,7 @@ function buildProceduralController() {
   registerMotionNode(leftStick3DGroup); registerMotionNode(rightStick3DGroup);
   register3DButton(10, lStick.cap, lStick.group, true);
   register3DButton(11, rStick.cap, rStick.group, true);
-  syncTrailTarget();
+  trailManager.syncTarget(leftStick3DGroup);
 
   const dpadBasePos = new THREE.Vector3(-1.1, 0.32, 0.2);
   dpadRockerPivot = new THREE.Group(); dpadRockerPivot.position.copy(dpadBasePos); dpadRockerPivot.position.y += 0.08;
@@ -1184,7 +1003,7 @@ function parseAndLoadGLTF(buffer, fileName = 'Model') {
     currentModel = gltf.scene;
     controllerGroup.add(currentModel);
     processModelNode(currentModel);
-    syncTrailTarget();
+    trailManager.syncTarget(leftStick3DGroup);
   }, (err) => {
     console.error('Error parsing GLB:', err);
   });
@@ -1434,7 +1253,7 @@ function loop() {
     setStatus(false);
   }
 
-  if (trail) trail.update();
+  trailManager.update();
   composer.render();
 }
 
@@ -1483,7 +1302,7 @@ function getSettingsState() {
     model: {
       scale: parseFloat(document.querySelector('#modelScale').value),
       emissionIntensity: parseFloat(document.querySelector('#emissionIntensity').value),
-      trailOffsetY,
+      trailOffsetY: trailManager.getOffsetY(),
       emissionColor: document.querySelector('#emissionColor').value
     },
     postProcessing: {
@@ -1523,38 +1342,10 @@ function getSettingsState() {
   };
 }
 
-function applyIBLState(state) {
-  Object.assign(iblState, DEFAULT_IBL_STATE, state || {});
-  Object.entries(iblState).forEach(([key, value]) => {
-    const elementMap = {
-      enabled: 'iblEnabled', background: 'iblBackground', intensity: 'iblIntensity',
-      skyColor: 'iblSkyColor', skyLevel: 'iblSkyLevel', horizonColor: 'iblHorizonColor',
-      horizonLevel: 'iblHorizonLevel', groundColor: 'iblGroundColor', groundLevel: 'iblGroundLevel',
-      sun1Visible: 'iblSun1Visible', sun1Color: 'iblSun1Color', sun1Elevation: 'iblSun1Elevation',
-      sun1Azimuth: 'iblSun1Azimuth', sun1Size: 'iblSun1Size', sun1Intensity: 'iblSun1Intensity',
-      sun1Atmosphere: 'iblSun1Atmosphere', sun2Visible: 'iblSun2Visible', sun2Color: 'iblSun2Color',
-      sun2Elevation: 'iblSun2Elevation', sun2Azimuth: 'iblSun2Azimuth', sun2Size: 'iblSun2Size',
-      sun2Intensity: 'iblSun2Intensity', sun2Atmosphere: 'iblSun2Atmosphere',
-      ringVisible: 'iblRingVisible', ringColor: 'iblRingColor', ringHeight: 'iblRingHeight', ringIntensity: 'iblRingIntensity'
-    };
-    const element = document.querySelector(`#${elementMap[key] || ''}`);
-    if (element) {
-      if (element.type === 'checkbox') element.checked = value;
-      else element.value = value;
-    }
-    const valueElement = document.querySelector(`#${elementMap[key] || ''}Value`);
-    if (valueElement && typeof value === 'number') valueElement.textContent = Number.isInteger(value) ? String(value) : value.toFixed(2);
-  });
-
-  const iblIntensityInput = document.querySelector('#iblIntensityInput');
-  if (iblIntensityInput) iblIntensityInput.value = iblState.intensity.toFixed(2);
-  updateIBL();
-}
-
 function applySettingsState(state) {
   if (!state) return;
 
-  if (state.ibl) applyIBLState(state.ibl);
+  if (state.ibl) applyIBLStateToUI(iblState, state.ibl, updateIBL);
 
   if (state.camera) {
     if (state.camera.fov !== undefined) syncFov(state.camera.fov, false);
@@ -1577,12 +1368,11 @@ function applySettingsState(state) {
       if (emissionIntensityInput) emissionIntensityInput.value = buttonEmissionMultiplier.toFixed(2);
     }
     if (state.model.trailOffsetY !== undefined) {
-      trailOffsetY = state.model.trailOffsetY;
+      trailManager.setOffsetY(state.model.trailOffsetY);
       const trailOffset = document.querySelector('#trailOffset');
       const trailOffsetInput = document.querySelector('#trailOffsetInput');
-      if (trailOffset) trailOffset.value = trailOffsetY;
-      if (trailOffsetInput) trailOffsetInput.value = trailOffsetY.toFixed(2);
-      if (trailAnchor) trailAnchor.position.y = trailOffsetY;
+      if (trailOffset) trailOffset.value = state.model.trailOffsetY;
+      if (trailOffsetInput) trailOffsetInput.value = state.model.trailOffsetY.toFixed(2);
     }
     if (state.model.emissionColor) {
       const emissionColorInput = document.querySelector('#emissionColor');

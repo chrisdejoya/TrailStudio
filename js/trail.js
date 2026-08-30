@@ -307,3 +307,68 @@ export class LightTrail {
     if (this.material) this.material.dispose();
   }
 }
+
+export class TrailManager {
+  constructor(scene, camera) {
+    this.scene = scene;
+    this.camera = camera;
+    this.trail = null;
+    this.anchor = null;
+    this.target = null;
+    this.offsetY = 1.8;
+  }
+
+  getOffsetY() {
+    return this.offsetY;
+  }
+
+  setOffsetY(val) {
+    this.offsetY = val;
+    if (this.anchor) {
+      this.anchor.position.y = this.offsetY;
+    }
+    if (this.trail && this.trail.mesh) {
+      this.trail.mesh.visible = !!this.target;
+    }
+  }
+
+  syncTarget(target) {
+    this.target = target || null;
+
+    if (!this.target) {
+      this.destroy();
+      return;
+    }
+
+    if (!this.anchor) {
+      this.anchor = new THREE.Object3D();
+      this.anchor.position.set(0, this.offsetY, 0);
+      this.trail = new LightTrail(this.anchor, this.scene, {
+        camera: this.camera,
+        length: 10,
+        width: 0.05,
+        colorStart: 0xaa0022,
+        colorEnd: 0x00aaaa
+      });
+    }
+
+    if (this.anchor.parent !== this.target) {
+      if (this.anchor.parent) this.anchor.parent.remove(this.anchor);
+      this.target.add(this.anchor);
+    }
+
+    this.anchor.position.set(0, this.offsetY, 0);
+    this.trail.mesh.visible = true;
+  }
+
+  update() {
+    if (this.trail) this.trail.update();
+  }
+
+  destroy() {
+    if (!this.trail) return;
+    this.trail.destroy();
+    this.trail = null;
+    this.anchor = null;
+  }
+}
