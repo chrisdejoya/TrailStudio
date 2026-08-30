@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TrailManager } from './trail.js';
 import { DEFAULT_IBL_STATE, LOCAL_STORAGE_KEY } from './state.js';
 import { bindSliderAndInput, exposeAppApi, registerParentMessageBridge } from './uiBridge.js';
@@ -9,6 +8,7 @@ import { createPostProcessing } from './postProcessing.js';
 import { GamepadManager } from './gamepadManager.js';
 import { LightingManager } from './lightingManager.js';
 import { DiagnosticsPanel } from './diagnosticsPanel.js';
+import { ModelManager } from './modelManager.js';
 
 // Import isolated camera module
 import {
@@ -186,14 +186,6 @@ if (toggleDockBtn) {
   });
 }
 
-const MESH_MAPPINGS = {
-  Btn_South: 0, Btn_A: 0, Btn_East: 1, Btn_B: 1,
-  Btn_West: 2, Btn_X: 2, Btn_North: 3, Btn_Y: 3,
-  Bumper_Left: 4, Bumper_Right: 5, Trigger_Left: 6, Trigger_Right: 7,
-  Btn_Select: 8, Btn_Start: 9, Btn_L3: 10, Btn_R3: 11,
-  DPad_Up: 12, DPad_Down: 13, DPad_Left: 14, DPad_Right: 15, Btn_Home: 16
-};
-
 // Instantiate the extracted DiagnosticsPanel
 const diagnosticsPanel = new DiagnosticsPanel();
 
@@ -324,6 +316,11 @@ if (modelScaleInput) modelScaleInput.addEventListener('input', (e) => syncModelS
 let buttonEmissionMultiplier = 1.0;
 const trailManager = new TrailManager(scene, camera);
 
+// Initialize ModelManager module
+const modelManager = new ModelManager(controllerGroup, trailManager, () => {
+  // Callback when model is loaded/rebuilt
+});
+
 let buttonEmissionColor = new THREE.Color(0xffffff);
 const emissionColor = document.querySelector('#emissionColor');
 if (emissionColor) emissionColor.addEventListener('input', (e) => {
@@ -332,199 +329,13 @@ if (emissionColor) emissionColor.addEventListener('input', (e) => {
 
 bindSliderAndInput('#trailOffset', '#trailOffsetInput', (val) => {
   trailManager.setOffsetY(val);
-  trailManager.syncTarget(leftStick3DGroup);
+  trailManager.syncTarget(modelManager.leftStick3DGroup);
 }, 2);
-
-const baseBtnMat = new THREE.MeshPhysicalMaterial({ color: 0x333333, roughness: 0.35, metalness: 0 });
-let buttons3D = [], basePositions = [], currentModel = null, leftStick3DGroup = null, rightStick3DGroup = null, dpadRockerPivot = null;
-const motionBaseQuaternions = new WeakMap();
-let boneHelpers = [];
-let showBones = false;
-
-function registerMotionNode(node) {
-  motionBaseQuaternions.set(node, node.quaternion.clone());
-}
-
-function cloneNodeMaterials(node) {
-  if (!node?.material) return [];
-
-  const materials = Array.isArray(node.material) ? node.material : [node.material];
-  const clonedMaterials = materials.map((material) => material.clone());
-  node.material = Array.isArray(node.material) ? clonedMaterials : clonedMaterials[0];
-  return clonedMaterials;
-}
-
-function findBoneEmissiveTargets(root, bone) {
-  const targets = [];
-  root.traverse((node) => {
-    if (node.isSkinnedMesh && node.skeleton?.bones.includes(bone)) {
-      targets.push(node);
-    }
-  });
-  return targets;
-}
-
-function register3DButton(index, node, parent = controllerGroup, isStick = false, emissiveTargets = null) {
-  const targets = emissiveTargets || (node.isMesh ? [node] : []);
-  const materials = targets.flatMap((target) => cloneNodeMaterials(target));
-
-  buttons3D[index] = { node, isStick, emissiveMaterials: materials };
-  basePositions[index] = node.position.clone();
-}
-
-function clearController3D() {
-  trailManager.destroy();
-  boneHelpers.forEach((helper) => {
-    controllerGroup.remove(helper);
-    helper.geometry.dispose();
-    helper.material.dispose();
-  });
-  boneHelpers = [];
-  if (currentModel) controllerGroup.remove(currentModel);
-  buttons3D = []; basePositions = []; leftStick3DGroup = null; rightStick3DGroup = null; dpadRockerPivot = null;
-}
-
-function addBoneHelper(skinnedMesh) {
-  if (!skinnedMesh.skeleton || boneHelpers.some((helper) => helper.userData.skeleton === skinnedMesh.skeleton)) return;
-  const helper = new THREE.SkeletonHelper(skinnedMesh);
-  helper.userData.skeleton = skinnedMesh.skeleton;
-  helper.material.color.set(0xffd166);
-  helper.material.depthTest = false;
-  helper.material.depthWrite = false;
-  helper.visible = showBones;
-  boneHelpers.push(helper);
-  controllerGroup.add(helper);
-}
 
 const boneVisibilityToggle = document.querySelector('#boneVisibilityToggle');
 if (boneVisibilityToggle) {
   boneVisibilityToggle.addEventListener('change', (e) => {
-    showBones = e.target.checked;
-    boneHelpers.forEach((helper) => { helper.visible = showBones; });
-  });
-}
-
-function buildProceduralController() {
-  clearController3D();
-  const proceduralGroup = new THREE.Group();
-  const bodyMat = new THREE.MeshPhysicalMaterial({ color: 0x1b202a, roughness: 0.35, metalness: 0.4 });
-  const rockerMat = new THREE.MeshPhysicalMaterial({ color: 0x222a36, roughness: 0.2, metalness: 0.6 });
-
-  const body = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.6, 2.2), bodyMat);
-  body.castShadow = true; body.receiveShadow = true;
-  proceduralGroup.add(body);
-
-  const leftHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 1.8), bodyMat);
-  leftHandle.position.set(-1.7, -0.4, 0.6); leftHandle.rotation.z = 0.4; leftHandle.rotation.x = 0.2;
-  leftHandle.castShadow = true; leftHandle.receiveShadow = true;
-  proceduralGroup.add(leftHandle);
-
-  const rightHandle = leftHandle.clone();
-  rightHandle.position.set(1.7, -0.4, 0.6); rightHandle.rotation.z = -0.4;
-  proceduralGroup.add(rightHandle);
-
-  function makeMesh(geo, pos, mat = baseBtnMat) {
-    const mesh = new THREE.Mesh(geo, mat.clone());
-    mesh.position.copy(pos); mesh.castShadow = true; mesh.receiveShadow = true;
-    proceduralGroup.add(mesh);
-    return mesh;
-  }
-
-  const faceCenter = new THREE.Vector3(1.1, 0.35, 0.2);
-  register3DButton(0, makeMesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 24), new THREE.Vector3(faceCenter.x, faceCenter.y, faceCenter.z + 0.28)));
-  register3DButton(1, makeMesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 24), new THREE.Vector3(faceCenter.x + 0.28, faceCenter.y, faceCenter.z)));
-  register3DButton(2, makeMesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 24), new THREE.Vector3(faceCenter.x - 0.28, faceCenter.y, faceCenter.z)));
-  register3DButton(3, makeMesh(new THREE.CylinderGeometry(0.12, 0.12, 0.1, 24), new THREE.Vector3(faceCenter.x, faceCenter.y, faceCenter.z - 0.28)));
-  register3DButton(4, makeMesh(new THREE.BoxGeometry(0.7, 0.18, 0.35), new THREE.Vector3(-1.1, 0.3, -0.95)));
-  register3DButton(5, makeMesh(new THREE.BoxGeometry(0.7, 0.18, 0.35), new THREE.Vector3(1.1, 0.3, -0.95)));
-  register3DButton(6, makeMesh(new THREE.BoxGeometry(0.65, 0.3, 0.45), new THREE.Vector3(-1.1, 0.1, -1.3)));
-  register3DButton(7, makeMesh(new THREE.BoxGeometry(0.65, 0.3, 0.45), new THREE.Vector3(1.1, 0.1, -1.3)));
-  register3DButton(8, makeMesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 16), new THREE.Vector3(-0.45, 0.33, -0.2)));
-  register3DButton(9, makeMesh(new THREE.CylinderGeometry(0.08, 0.08, 0.08, 16), new THREE.Vector3(0.45, 0.33, -0.2)));
-  register3DButton(16, makeMesh(new THREE.CylinderGeometry(0.16, 0.16, 0.08, 24), new THREE.Vector3(0, 0.33, -0.2)));
-
-  function createStick(x, z) {
-    const group = new THREE.Group();
-    group.position.set(x, 0.25, z);
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35, 16), new THREE.MeshPhysicalMaterial({ color: 0x505b6d, roughness: 0.5 }));
-    stem.position.y = 0.15; stem.castShadow = true; group.add(stem);
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.32, 0.1, 32), new THREE.MeshPhysicalMaterial({ color: 0x62d8ff, roughness: 0.3, metalness: 0.6 }));
-    cap.position.y = 0.32; cap.castShadow = true; group.add(cap);
-    proceduralGroup.add(group);
-    return { group, cap };
-  }
-
-  const lStick = createStick(-0.5, 0.45); const rStick = createStick(0.5, 0.45);
-  leftStick3DGroup = lStick.group; rightStick3DGroup = rStick.group;
-  registerMotionNode(leftStick3DGroup); registerMotionNode(rightStick3DGroup);
-  register3DButton(10, lStick.cap, lStick.group, true);
-  register3DButton(11, rStick.cap, rStick.group, true);
-  trailManager.syncTarget(leftStick3DGroup);
-
-  const dpadBasePos = new THREE.Vector3(-1.1, 0.32, 0.2);
-  dpadRockerPivot = new THREE.Group(); dpadRockerPivot.position.copy(dpadBasePos); dpadRockerPivot.position.y += 0.08;
-  registerMotionNode(dpadRockerPivot);
-  proceduralGroup.add(dpadRockerPivot);
-
-  const dpadCrossV = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.62), rockerMat);
-  const dpadCrossH = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.06, 0.22), rockerMat);
-  dpadCrossV.castShadow = true; dpadCrossH.castShadow = true;
-  dpadRockerPivot.add(dpadCrossV); dpadRockerPivot.add(dpadCrossH);
-
-  const btnDist = 0.22;
-  register3DButton(12, makeMesh(new THREE.BoxGeometry(0.18, 0.08, 0.18), new THREE.Vector3(dpadBasePos.x, dpadBasePos.y, dpadBasePos.z - btnDist)));
-  register3DButton(13, makeMesh(new THREE.BoxGeometry(0.18, 0.08, 0.18), new THREE.Vector3(dpadBasePos.x, dpadBasePos.y, dpadBasePos.z + btnDist)));
-  register3DButton(14, makeMesh(new THREE.BoxGeometry(0.18, 0.08, 0.18), new THREE.Vector3(dpadBasePos.x - btnDist, dpadBasePos.y, dpadBasePos.z)));
-  register3DButton(15, makeMesh(new THREE.BoxGeometry(0.18, 0.08, 0.18), new THREE.Vector3(dpadBasePos.x + btnDist, dpadBasePos.y, dpadBasePos.z)));
-
-  currentModel = proceduralGroup;
-  controllerGroup.add(currentModel);
-}
-
-function processModelNode(node, visited = new Set()) {
-  if (visited.has(node)) return;
-  visited.add(node);
-
-  if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; }
-  if (node.isSkinnedMesh) addBoneHelper(node);
-  if (node.isMesh || node.isBone || node.isGroup) {
-    const buttonIndex = MESH_MAPPINGS[node.name];
-    if (buttonIndex !== undefined) {
-      const isStick = (buttonIndex === 10 || buttonIndex === 11);
-      const emissiveTargets = node.isBone ? findBoneEmissiveTargets(currentModel, node) : [node];
-      register3DButton(buttonIndex, node, node.parent, isStick, emissiveTargets);
-    }
-
-    if (node.name === 'Stick_Left') {
-      leftStick3DGroup = node;
-      registerMotionNode(node);
-    }
-    if (node.name === 'Stick_Right') {
-      rightStick3DGroup = node;
-      registerMotionNode(node);
-    }
-    if (node.name === 'DPad_Rocker') {
-      dpadRockerPivot = node;
-      registerMotionNode(node);
-    }
-  }
-
-  node.children.forEach((child) => processModelNode(child, visited));
-  if (node.isSkinnedMesh && node.skeleton) {
-    node.skeleton.bones.forEach((bone) => processModelNode(bone, visited));
-  }
-}
-
-function parseAndLoadGLTF(buffer, fileName = 'Model') {
-  const loader = new GLTFLoader();
-  loader.parse(buffer, '', (gltf) => {
-    clearController3D();
-    currentModel = gltf.scene;
-    controllerGroup.add(currentModel);
-    processModelNode(currentModel);
-    trailManager.syncTarget(leftStick3DGroup);
-  }, (err) => {
-    console.error('Error parsing GLB:', err);
+    modelManager.setBoneVisibility(e.target.checked);
   });
 }
 
@@ -532,7 +343,7 @@ const loadDefaultBtn = document.querySelector('#loadDefaultBtn');
 if (loadDefaultBtn) {
   loadDefaultBtn.addEventListener('click', async () => {
     await clearStoredModel();
-    buildProceduralController();
+    modelManager.buildProceduralController();
   });
 }
 
@@ -545,7 +356,7 @@ if (fileInput) {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       const buffer = evt.target.result;
-      parseAndLoadGLTF(buffer, file.name);
+      modelManager.parseAndLoadGLTF(buffer);
       await saveBinaryModel(buffer, file.name);
     };
     reader.readAsArrayBuffer(file);
@@ -574,7 +385,7 @@ if (openPickerBtn) {
 
       const file = await handle.getFile();
       const buffer = await file.arrayBuffer();
-      parseAndLoadGLTF(buffer, file.name);
+      modelManager.parseAndLoadGLTF(buffer);
       await saveBinaryModel(buffer, file.name);
       await saveFileHandle(handle);
     } catch (err) {
@@ -590,7 +401,7 @@ async function initModelPersistence() {
       if (await verifyPermission(handle)) {
         const file = await handle.getFile();
         const buffer = await file.arrayBuffer();
-        parseAndLoadGLTF(buffer, file.name);
+        modelManager.parseAndLoadGLTF(buffer);
         return;
       }
     } catch (err) {
@@ -600,16 +411,16 @@ async function initModelPersistence() {
 
   const stored = await getStoredBinaryModel();
   if (stored && stored.buffer) {
-    parseAndLoadGLTF(stored.buffer, stored.name || 'Cached Model');
+    modelManager.parseAndLoadGLTF(stored.buffer);
     return;
   }
 
-  buildProceduralController();
+  modelManager.buildProceduralController();
 }
 
 const gamepadManager = new GamepadManager({
   hudUI: diagnosticsPanel.getHudUI(),
-  meshMappings: MESH_MAPPINGS,
+  meshMappings: modelManager.MESH_MAPPINGS,
   onPadChange: (padInfo) => {
     refreshPads();
     diagnosticsPanel.resetSnapshot();
@@ -646,14 +457,14 @@ function processPadTransforms(pad) {
   const maxTilt = 0.35;
   const leftStickRotation = new THREE.Euler(ly * maxTilt, 0, -lx * maxTilt);
   const rightStickRotation = new THREE.Euler(ry * maxTilt, 0, -rx * maxTilt);
-  if (leftStick3DGroup) {
-    leftStick3DGroup.quaternion.copy(motionBaseQuaternions.get(leftStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(leftStickRotation));
+  if (modelManager.leftStick3DGroup) {
+    modelManager.leftStick3DGroup.quaternion.copy(modelManager.motionBaseQuaternions.get(modelManager.leftStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(leftStickRotation));
   }
-  if (rightStick3DGroup) {
-    rightStick3DGroup.quaternion.copy(motionBaseQuaternions.get(rightStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(rightStickRotation));
+  if (modelManager.rightStick3DGroup) {
+    modelManager.rightStick3DGroup.quaternion.copy(modelManager.motionBaseQuaternions.get(modelManager.rightStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(rightStickRotation));
   }
 
-  if (dpadRockerPivot) {
+  if (modelManager.dpadRockerPivot) {
     const dpadUp = pad.buttons[12]?.value || 0;
     const dpadDown = pad.buttons[13]?.value || 0;
     const dpadLeft = pad.buttons[14]?.value || 0;
@@ -665,7 +476,7 @@ function processPadTransforms(pad) {
       0,
       (dpadLeft - dpadRight) * rockerTiltMax
     );
-    dpadRockerPivot.quaternion.copy(motionBaseQuaternions.get(dpadRockerPivot)).multiply(new THREE.Quaternion().setFromEuler(dpadRotation));
+    modelManager.dpadRockerPivot.quaternion.copy(modelManager.motionBaseQuaternions.get(modelManager.dpadRockerPivot)).multiply(new THREE.Quaternion().setFromEuler(dpadRotation));
   }
 }
 
@@ -674,7 +485,7 @@ function loop() {
   const pad = gamepadManager.getSelectedPad();
   if (pad) {
     diagnosticsPanel.setStatus(true);
-    diagnosticsPanel.update(pad, buttons3D, basePositions, buttonEmissionColor, buttonEmissionMultiplier);
+    diagnosticsPanel.update(pad, modelManager.buttons3D, modelManager.basePositions, buttonEmissionColor, buttonEmissionMultiplier);
     processPadTransforms(pad);
   } else if (gamepadManager.activePadIndex !== null) {
     diagnosticsPanel.setStatus(false);
@@ -979,7 +790,7 @@ const appApi = {
   },
   loadDefaultScene() {
     clearStoredModel();
-    buildProceduralController();
+    modelManager.buildProceduralController();
   },
   exportSettings() {
     const data = JSON.stringify(getSettingsState(), null, 2);
