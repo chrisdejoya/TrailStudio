@@ -6,8 +6,9 @@ import { bindSliderAndInput, exposeAppApi, registerParentMessageBridge } from '.
 import { ProceduralIBLEditor } from './ibl.js';
 import { setupIBLControls, applyIBLStateToUI } from './iblControls.js';
 import { createPostProcessing } from './postProcessing.js';
-import { GamepadManager, STANDARD_BUTTONS } from './gamepadManager.js';
+import { GamepadManager } from './gamepadManager.js';
 import { LightingManager } from './lightingManager.js';
+import { DiagnosticsPanel } from './diagnosticsPanel.js';
 
 // Import isolated camera module
 import {
@@ -193,26 +194,8 @@ const MESH_MAPPINGS = {
   DPad_Up: 12, DPad_Down: 13, DPad_Left: 14, DPad_Right: 15, Btn_Home: 16
 };
 
-function getButtonLabel(i) {
-  return STANDARD_BUTTONS[i] || `B${i}`;
-}
-
-const hudUI = {
-  mapping: document.querySelector('#mapping'),
-  axisCount: document.querySelector('#axisCount'),
-  buttonCount: document.querySelector('#buttonCount'),
-  leftValue: document.querySelector('#lx'),
-  rightValue: document.querySelector('#rx'),
-  leftBar: document.querySelector('#lxBar'),
-  rightBar: document.querySelector('#rxBar'),
-  leftDot: document.querySelector('#leftDot'),
-  rightDot: document.querySelector('#rightDot'),
-  status: document.querySelector('#status'),
-  buttons: document.querySelector('#buttons'),
-  buttonElements: [],
-  buttonValues: [],
-  buttonPressureBars: []
-};
+// Instantiate the extracted DiagnosticsPanel
+const diagnosticsPanel = new DiagnosticsPanel();
 
 const app = document.querySelector('#app');
 const scene = new THREE.Scene();
@@ -624,11 +607,13 @@ async function initModelPersistence() {
   buildProceduralController();
 }
 
-let lastSnapshot = null;
-
 const gamepadManager = new GamepadManager({
-  hudUI,
-  meshMappings: MESH_MAPPINGS
+  hudUI: diagnosticsPanel.getHudUI(),
+  meshMappings: MESH_MAPPINGS,
+  onPadChange: (padInfo) => {
+    refreshPads();
+    diagnosticsPanel.resetSnapshot();
+  }
 });
 
 function refreshPads() {
@@ -640,7 +625,7 @@ function refreshPads() {
   if (!pads.length) {
     sel.innerHTML = '<option>No controller detected</option>';
     gamepadManager.activePadIndex = null;
-    setStatus(false);
+    diagnosticsPanel.setStatus(false);
     return;
   }
   pads.forEach((pad) => {
@@ -651,68 +636,12 @@ function refreshPads() {
   const newIndex = pads.some((pad) => pad.index === old) ? old : pads[0].index;
   gamepadManager.selectPad(newIndex);
   sel.value = newIndex;
-  setStatus(true);
+  diagnosticsPanel.setStatus(true);
 }
 
-function setStatus(ok) {
-  const text = ok ? 'Connected' : 'Waiting';
-  const className = 'status ' + (ok ? 'connected' : '');
-  if (hudUI.status) {
-    hudUI.status.textContent = text;
-    hudUI.status.className = className;
-  }
-}
-
-function fmt(v) {
-  return Number(v || 0).toFixed(3);
-}
-
-function setDot(id, x, y) {
-  const dot = id === 'leftDot' ? hudUI.leftDot : hudUI.rightDot;
-  if (!dot) return;
-  dot.style.left = `${50 + Math.max(-1, Math.min(1, x)) * 45}%`;
-  dot.style.top = `${50 + Math.max(-1, Math.min(1, y)) * 45}%`;
-}
-
-function buildUI(pad) {
-  if (!hudUI.buttons) return;
-  hudUI.buttons.innerHTML = '';
-  hudUI.buttonElements = [];
-  hudUI.buttonValues = [];
-  hudUI.buttonPressureBars = [];
-
-  pad.buttons.forEach((button, i) => {
-    const el = document.createElement('div');
-    el.className = 'btn' + (button.pressed ? ' on' : '');
-    el.dataset.button = i;
-    el.innerHTML = `
-      <div class="btn-header"><span class="b-name">${getButtonLabel(i)}</span><span class="b-val">${fmt(button.value)}</span></div>
-      <div class="pressure-bar" style="width:${(button.value || 0) * 100}%"></div>
-    `;
-    hudUI.buttons.appendChild(el);
-    hudUI.buttonElements[i] = el;
-    hudUI.buttonValues[i] = el.querySelector('.b-val');
-    hudUI.buttonPressureBars[i] = el.querySelector('.pressure-bar');
-  });
-}
-
-function processPad(pad) {
-  if (!pad) return;
-
-  const mapping = pad.mapping || 'non-standard';
-  if (hudUI.mapping) hudUI.mapping.textContent = mapping;
-  if (hudUI.axisCount) hudUI.axisCount.textContent = String(pad.axes.length);
-  if (hudUI.buttonCount) hudUI.buttonCount.textContent = String(pad.buttons.length);
-
+function processPadTransforms(pad) {
   const ax = pad.axes;
   const lx = ax[0] || 0, ly = ax[1] || 0, rx = ax[2] || 0, ry = ax[3] || 0;
-
-  if (hudUI.leftValue) hudUI.leftValue.textContent = `${fmt(lx)}, ${fmt(ly)}`;
-  if (hudUI.rightValue) hudUI.rightValue.textContent = `${fmt(rx)}, ${fmt(ry)}`;
-  if (hudUI.leftBar) hudUI.leftBar.style.width = `${Math.min(100, Math.hypot(lx, ly) * 100)}%`;
-  if (hudUI.rightBar) hudUI.rightBar.style.width = `${Math.min(100, Math.hypot(rx, ry) * 100)}%`;
-
-  setDot('leftDot', lx, ly); setDot('rightDot', rx, ry);
 
   const maxTilt = 0.35;
   const leftStickRotation = new THREE.Euler(ly * maxTilt, 0, -lx * maxTilt);
@@ -738,58 +667,17 @@ function processPad(pad) {
     );
     dpadRockerPivot.quaternion.copy(motionBaseQuaternions.get(dpadRockerPivot)).multiply(new THREE.Quaternion().setFromEuler(dpadRotation));
   }
-
-  if (!lastSnapshot || lastSnapshot.id !== pad.id || lastSnapshot.buttons.length !== pad.buttons.length) {
-    buildUI(pad);
-    lastSnapshot = { id: pad.id, axes: [], buttons: pad.buttons.map((button) => button.value) };
-  }
-
-  pad.buttons.forEach((button, i) => {
-    const val = button.value;
-    const isPressed = button.pressed || val > 0.1;
-
-    const visual = hudUI.buttonElements[i];
-    if (visual) {
-      if (visual.classList.contains('on') !== isPressed) visual.classList.toggle('on', isPressed);
-      const valueText = fmt(val);
-      const pressureWidth = `${(val || 0) * 100}%`;
-      if (hudUI.buttonValues[i]) hudUI.buttonValues[i].textContent = valueText;
-      if (hudUI.buttonPressureBars[i]) hudUI.buttonPressureBars[i].style.width = pressureWidth;
-    }
-
-    if (buttons3D[i]) {
-      const { node, isStick, emissiveMaterials } = buttons3D[i];
-      const basePos = basePositions[i];
-      const maxTravel = isStick ? 0.04 : 0.03;
-      const pressDepth = isStick ? (isPressed ? maxTravel : 0) : val * maxTravel;
-
-      node.position.y = basePos.y - pressDepth;
-
-      emissiveMaterials.forEach((material) => {
-        if (!material.emissive) return;
-        if (isPressed) {
-          material.emissive.copy(buttonEmissionColor);
-          material.emissiveIntensity = 0.5 * val * buttonEmissionMultiplier;
-        } else {
-          material.emissive.setHex(0x000000);
-          material.emissiveIntensity = 0;
-        }
-      });
-    }
-  });
-
-  lastSnapshot.axes = pad.axes.slice();
-  lastSnapshot.buttons = pad.buttons.map((button) => button.value);
 }
 
 function loop() {
   requestAnimationFrame(loop);
   const pad = gamepadManager.getSelectedPad();
   if (pad) {
-    setStatus(true);
-    processPad(pad);
+    diagnosticsPanel.setStatus(true);
+    diagnosticsPanel.update(pad, buttons3D, basePositions, buttonEmissionColor, buttonEmissionMultiplier);
+    processPadTransforms(pad);
   } else if (gamepadManager.activePadIndex !== null) {
-    setStatus(false);
+    diagnosticsPanel.setStatus(false);
   }
 
   trailManager.update();
@@ -799,7 +687,7 @@ function loop() {
 const padSelect = document.querySelector('#padSelect');
 if (padSelect) padSelect.addEventListener('change', (e) => { 
   gamepadManager.selectPad(Number(e.target.value)); 
-  lastSnapshot = null; 
+  diagnosticsPanel.resetSnapshot(); 
 });
 
 const scanBtn = document.querySelector('#scan');

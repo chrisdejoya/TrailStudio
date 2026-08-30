@@ -13,6 +13,7 @@ export class GamepadManager {
     this.meshMappings = options.meshMappings || {};
     this.onButtonChange = options.onButtonChange || (() => {});
     this.onAxisChange = options.onAxisChange || (() => {});
+    this.onPadChange = options.onPadChange || (() => {}); // Added callback for pad selection/changes
     
     this.activePadIndex = null;
     this.rafId = null;
@@ -34,6 +35,7 @@ export class GamepadManager {
       if (this.activePadIndex === e.gamepad.index) {
         this.activePadIndex = null;
         this.stopPolling();
+        this.onPadChange(null); // Notify UI that controller was disconnected
       }
     });
   }
@@ -46,6 +48,16 @@ export class GamepadManager {
   selectPad(index) {
     this.activePadIndex = index;
     this.startPolling();
+    
+    const pad = this.getSelectedPad();
+    if (pad) {
+      // Pass the controller's browser ID (name) and details to the callback
+      this.onPadChange({ 
+        id: pad.id, 
+        index: pad.index, 
+        mapping: pad.mapping 
+      });
+    }
   }
 
   getSelectedPad() {
