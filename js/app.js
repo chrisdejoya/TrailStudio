@@ -7,6 +7,23 @@ import { ProceduralIBLEditor } from './ibl.js';
 import { setupIBLControls, applyIBLStateToUI } from './iblControls.js';
 import { createPostProcessing } from './postProcessing.js';
 
+// Import isolated camera module
+import {
+  camera,
+  cameraTarget,
+  getCameraState,
+  applyCameraState,
+  syncFov,
+  syncZoom,
+  updateCameraPosition,
+  setupCameraInputs,
+  handleCameraMouseDown,
+  handleCameraMouseMove,
+  handleCameraWheel,
+  handleCameraResize,
+  cameraApi
+} from './cameraControls.js';
+
 const DB_NAME = 'TrailpadStudio';
 const DB_VERSION = 1;
 const STORE_NAME = 'models';
@@ -209,139 +226,9 @@ const hudUI = {
 
 const app = document.querySelector('#app');
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 100);
-const cameraTarget = new THREE.Vector3(0, 0, 0);
-let radius = 6.5;
-let theta = 0;
-let phi = 0.85;
-let isUpdatingRotUI = false;
 
-function syncTargetInputs() {
-  const x = document.querySelector('#camTargetX');
-  const y = document.querySelector('#camTargetY');
-  const z = document.querySelector('#camTargetZ');
-  if (x) x.value = cameraTarget.x.toFixed(2);
-  if (y) y.value = cameraTarget.y.toFixed(2);
-  if (z) z.value = cameraTarget.z.toFixed(2);
-}
-
-function syncAnglesFromCameraPosition() {
-  const offset = new THREE.Vector3().subVectors(camera.position, cameraTarget);
-  radius = offset.length();
-  if (radius > 0) {
-    phi = Math.acos(Math.max(-1, Math.min(1, offset.y / radius)));
-    theta = Math.atan2(offset.x, offset.z);
-  }
-}
-
-function updateCameraPosition(skipRotationUpdate = false) {
-  phi = Math.max(0.01, Math.min(Math.PI - 0.01, phi));
-  camera.position.x = cameraTarget.x + radius * Math.sin(phi) * Math.sin(theta);
-  camera.position.y = cameraTarget.y + radius * Math.cos(phi);
-  camera.position.z = cameraTarget.z + radius * Math.sin(phi) * Math.cos(theta);
-  camera.lookAt(cameraTarget);
-
-  const camRadius = document.querySelector('#camRadius');
-  const camRadiusInput = document.querySelector('#camRadiusInput');
-  if (camRadius) camRadius.value = radius;
-  if (camRadiusInput) camRadiusInput.value = radius.toFixed(1);
-
-  if (!skipRotationUpdate) {
-    isUpdatingRotUI = true;
-    const rotX = document.querySelector('#camRotX');
-    const rotY = document.querySelector('#camRotY');
-    const rotZ = document.querySelector('#camRotZ');
-    if (rotX) rotX.value = (camera.rotation.x * (180 / Math.PI)).toFixed(1);
-    if (rotY) rotY.value = (camera.rotation.y * (180 / Math.PI)).toFixed(1);
-    if (rotZ) rotZ.value = (camera.rotation.z * (180 / Math.PI)).toFixed(1);
-    isUpdatingRotUI = false;
-  }
-}
-
-const syncFov = (val, compensate = true) => {
-  const oldFov = camera.fov;
-  const fovVal = Math.max(1, Math.min(170, parseFloat(val) || 50));
-
-  if (compensate && oldFov !== fovVal) {
-    const toRad = Math.PI / 180;
-    const oldHalfFovRad = (oldFov * 0.5) * toRad;
-    const newHalfFovRad = (fovVal * 0.5) * toRad;
-    radius = radius * (Math.tan(oldHalfFovRad) / Math.tan(newHalfFovRad));
-    radius = Math.max(0.5, Math.min(50, radius));
-    const camRadius = document.querySelector('#camRadius');
-    const camRadiusInput = document.querySelector('#camRadiusInput');
-    if (camRadius) camRadius.value = radius;
-    if (camRadiusInput) camRadiusInput.value = radius.toFixed(1);
-  }
-
-  camera.fov = fovVal;
-  camera.updateProjectionMatrix();
-  const camFov = document.querySelector('#camFov');
-  const camFovInput = document.querySelector('#camFovInput');
-  if (camFov) camFov.value = fovVal;
-  if (camFovInput) camFovInput.value = fovVal;
-
-  updateCameraPosition(true);
-};
-
-const camFov = document.querySelector('#camFov');
-const camFovInput = document.querySelector('#camFovInput');
-if (camFov) camFov.addEventListener('input', (e) => syncFov(e.target.value));
-if (camFovInput) camFovInput.addEventListener('input', (e) => syncFov(e.target.value));
-
-const syncZoom = (val) => {
-  radius = Math.max(0.5, Math.min(50, parseFloat(val) || 6.5));
-  updateCameraPosition();
-};
-
-const camRadius = document.querySelector('#camRadius');
-const camRadiusInput = document.querySelector('#camRadiusInput');
-if (camRadius) camRadius.addEventListener('input', (e) => syncZoom(e.target.value));
-if (camRadiusInput) camRadiusInput.addEventListener('input', (e) => syncZoom(e.target.value));
-
-const updateRotFromInputs = () => {
-  if (isUpdatingRotUI) return;
-  const rotX = (parseFloat(document.querySelector('#camRotX').value) || 0) * (Math.PI / 180);
-  const rotY = (parseFloat(document.querySelector('#camRotY').value) || 0) * (Math.PI / 180);
-  const rotZ = (parseFloat(document.querySelector('#camRotZ').value) || 0) * (Math.PI / 180);
-
-  const offset = new THREE.Vector3(0, 0, radius);
-  const euler = new THREE.Euler(rotX, rotY, rotZ, 'YXZ');
-  offset.applyEuler(euler);
-
-  camera.position.copy(cameraTarget).add(offset);
-  camera.lookAt(cameraTarget);
-  syncAnglesFromCameraPosition();
-};
-
-['X', 'Y', 'Z'].forEach((axis) => {
-  const input = document.querySelector(`#camRot${axis}`);
-  if (input) input.addEventListener('input', updateRotFromInputs);
-});
-
-const updateCamTarget = () => {
-  cameraTarget.x = parseFloat(document.querySelector('#camTargetX').value) || 0;
-  cameraTarget.y = parseFloat(document.querySelector('#camTargetY').value) || 0;
-  cameraTarget.z = parseFloat(document.querySelector('#camTargetZ').value) || 0;
-  updateCameraPosition();
-};
-
-['X', 'Y', 'Z'].forEach((axis) => {
-  const input = document.querySelector(`#camTarget${axis}`);
-  if (input) input.addEventListener('input', updateCamTarget);
-});
-
-const resetCamBtn = document.querySelector('#resetCamBtn');
-if (resetCamBtn) {
-  resetCamBtn.addEventListener('click', () => {
-    radius = 6.5; theta = 0; phi = 0.85;
-    cameraTarget.set(0, 0, 0);
-    syncFov(50);
-    syncTargetInputs();
-    updateCameraPosition();
-    saveToLocalStorage();
-  });
-}
+// Initialize Camera inputs/listeners from module
+setupCameraInputs(saveToLocalStorage);
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
@@ -432,81 +319,24 @@ bindSliderAndInput('#saturationRange', '#saturationInput', (val) => { postShader
 
 updateCameraPosition();
 
-let isMouseDown = false;
-let activeMouseButton = -1;
-let previousMousePosition = { x: 0, y: 0 };
 let activeLightId = null;
-const lightSpherical = new THREE.Spherical();
-const panRight = new THREE.Vector3();
-const panUp = new THREE.Vector3();
-const panForward = new THREE.Vector3();
 
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 renderer.domElement.addEventListener('mousedown', (e) => {
   setActiveLight(null);
-
-  isMouseDown = true;
-  activeMouseButton = e.button;
-  previousMousePosition = { x: e.clientX, y: e.clientY };
+  handleCameraMouseDown(e);
 });
 
 window.addEventListener('mouseup', () => {
-  if (isMouseDown) saveToLocalStorage();
-  isMouseDown = false;
-  activeMouseButton = -1;
+  saveToLocalStorage();
 });
 
 window.addEventListener('mousemove', (e) => {
-  if (!isMouseDown) return;
-  const deltaX = e.clientX - previousMousePosition.x;
-  const deltaY = e.clientY - previousMousePosition.y;
-
-  if (activeMouseButton === 0) {
-    if (activeLightId && lightsMap.has(activeLightId)) {
-      const entry = lightsMap.get(activeLightId);
-      const light = entry.instance;
-      const rotSpeed = 0.01;
-
-      lightSpherical.setFromVector3(light.position);
-      lightSpherical.theta -= deltaX * rotSpeed;
-      lightSpherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, lightSpherical.phi + deltaY * rotSpeed));
-      light.position.setFromSpherical(lightSpherical);
-
-      entry.config.pos = [light.position.x, light.position.y, light.position.z];
-      const card = document.querySelector(`#light-card-${activeLightId}`);
-      if (card) {
-        const posX = card.querySelector(`#${activeLightId}-pos-x`);
-        const posY = card.querySelector(`#${activeLightId}-pos-y`);
-        const posZ = card.querySelector(`#${activeLightId}-pos-z`);
-        if (posX) posX.value = light.position.x.toFixed(1);
-        if (posY) posY.value = light.position.y.toFixed(1);
-        if (posZ) posZ.value = light.position.z.toFixed(1);
-      }
-    } else {
-      theta -= deltaX * 0.008;
-      phi -= deltaY * 0.008;
-      updateCameraPosition();
-    }
-  } else if (activeMouseButton === 1) {
-    const panSpeed = radius * 0.0015;
-    camera.matrix.extractBasis(panRight, panUp, panForward);
-
-    panRight.multiplyScalar(-deltaX * panSpeed);
-    panUp.multiplyScalar(deltaY * panSpeed);
-
-    cameraTarget.add(panRight).add(panUp);
-    syncTargetInputs();
-    updateCameraPosition();
-  } else if (activeMouseButton === 2) {
-    syncFov(camera.fov + deltaY * 0.1);
-  }
-  previousMousePosition = { x: e.clientX, y: e.clientY };
+  handleCameraMouseMove(e, activeLightId, lightsMap);
 });
 
 renderer.domElement.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  syncZoom(radius + e.deltaY * 0.0075);
-  scheduleSave();
+  handleCameraWheel(e, scheduleSave);
 }, { passive: false });
 
 const lightsMap = new Map();
@@ -1203,21 +1033,14 @@ if (rumbleBtn) {
 window.addEventListener('gamepadconnected', () => refreshPads());
 window.addEventListener('gamepaddisconnected', () => refreshPads());
 window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
+  handleCameraResize();
   renderer.setSize(innerWidth, innerHeight);
   resizePostProcessing(innerWidth, innerHeight);
 });
 
 function getSettingsState() {
   return {
-    camera: {
-      fov: parseFloat(document.querySelector('#camFov').value),
-      radius,
-      theta,
-      phi,
-      target: [cameraTarget.x, cameraTarget.y, cameraTarget.z]
-    },
+    camera: getCameraState(),
     model: {
       scale: parseFloat(document.querySelector('#modelScale').value),
       emissionIntensity: parseFloat(document.querySelector('#emissionIntensity').value),
@@ -1265,17 +1088,7 @@ function applySettingsState(state) {
   if (!state) return;
 
   if (state.ibl) applyIBLStateToUI(iblState, state.ibl, updateIBL);
-
-  if (state.camera) {
-    if (state.camera.fov !== undefined) syncFov(state.camera.fov, false);
-    if (state.camera.radius !== undefined) radius = state.camera.radius;
-    if (state.camera.theta !== undefined) theta = state.camera.theta;
-    if (state.camera.phi !== undefined) phi = state.camera.phi;
-    if (state.camera.target) {
-      cameraTarget.set(...state.camera.target);
-      syncTargetInputs();
-    }
-  }
+  if (state.camera) applyCameraState(state.camera);
 
   if (state.model) {
     if (state.model.scale !== undefined) syncModelScale(state.model.scale);
@@ -1526,20 +1339,8 @@ const appApi = {
     a.click();
     URL.revokeObjectURL(url);
   },
-  resetCamera() {
-    radius = 6.5; theta = 0; phi = 0.85;
-    cameraTarget.set(0, 0, 0);
-    syncFov(50);
-    syncTargetInputs();
-    updateCameraPosition();
-    saveToLocalStorage();
-  },
-  updateCameraFromBridge(data) {
-    if (data.value !== undefined && typeof data.value === 'number') {
-      if (data.control === 'camera-fov') syncFov(data.value);
-      if (data.control === 'camera-zoom') syncZoom(data.value);
-    }
-  },
+  resetCamera: cameraApi.resetCamera,
+  updateCameraFromBridge: cameraApi.updateCameraFromBridge,
   updateLightFromBridge(data) {
     if (!data || data.lightIndex === undefined) return;
     const config = lightConfigs[data.lightIndex];
