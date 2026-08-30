@@ -11,7 +11,7 @@ const MESH_MAPPINGS = {
 
 const baseBtnMat = new THREE.MeshPhysicalMaterial({ color: 0x333333, roughness: 0.35, metalness: 0 });
 
-export class ModelLoaderManager {
+export class ModelManager {
   constructor(controllerGroup, trailManager, onModelLoaded) {
     this.controllerGroup = controllerGroup;
     this.trailManager = trailManager;
