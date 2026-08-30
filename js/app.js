@@ -6,6 +6,7 @@ import { bindSliderAndInput, exposeAppApi, registerParentMessageBridge } from '.
 import { ProceduralIBLEditor } from './ibl.js';
 import { setupIBLControls, applyIBLStateToUI } from './iblControls.js';
 import { createPostProcessing } from './postProcessing.js';
+import { GamepadManager, STANDARD_BUTTONS } from './gamepadManager.js';
 
 // Import isolated camera module
 import {
@@ -183,18 +184,6 @@ if (toggleDockBtn) {
   });
 }
 
-const STANDARD_BUTTONS = [
-  { id: 0, label: 'A / Cross' }, { id: 1, label: 'B / Circle' },
-  { id: 2, label: 'X / Square' }, { id: 3, label: 'Y / Triangle' },
-  { id: 4, label: 'L1 / LB' }, { id: 5, label: 'R1 / RB' },
-  { id: 6, label: 'L2 / LT' }, { id: 7, label: 'R2 / RT' },
-  { id: 8, label: 'Select' }, { id: 9, label: 'Start' },
-  { id: 10, label: 'L3' }, { id: 11, label: 'R3' },
-  { id: 12, label: 'D-Up' }, { id: 13, label: 'D-Down' },
-  { id: 14, label: 'D-Left' }, { id: 15, label: 'D-Right' },
-  { id: 16, label: 'Home' }
-];
-
 const MESH_MAPPINGS = {
   Btn_South: 0, Btn_A: 0, Btn_East: 1, Btn_B: 1,
   Btn_West: 2, Btn_X: 2, Btn_North: 3, Btn_Y: 3,
@@ -204,7 +193,7 @@ const MESH_MAPPINGS = {
 };
 
 function getButtonLabel(i) {
-  return STANDARD_BUTTONS[i]?.label || `B${i}`;
+  return STANDARD_BUTTONS[i] || `B${i}`;
 }
 
 const hudUI = {
@@ -316,8 +305,6 @@ document.querySelector('#toneMappingSelect').addEventListener('change', (e) => {
 bindSliderAndInput('#exposureRange', '#exposureInput', (val) => { renderer.toneMappingExposure = val; }, 2);
 bindSliderAndInput('#contrastRange', '#contrastInput', (val) => { postShaderPass.uniforms.contrast.value = val; }, 2);
 bindSliderAndInput('#saturationRange', '#saturationInput', (val) => { postShaderPass.uniforms.saturation.value = val; }, 2);
-
-updateCameraPosition();
 
 let activeLightId = null;
 
@@ -842,30 +829,34 @@ async function initModelPersistence() {
   buildProceduralController();
 }
 
-let pads = [], selectedIndex = null, lastSnapshot = null;
+let lastSnapshot = null;
+
+const gamepadManager = new GamepadManager({
+  hudUI,
+  meshMappings: MESH_MAPPINGS
+});
 
 function refreshPads() {
-  pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+  const pads = gamepadManager.refreshPads();
   const sel = document.querySelector('#padSelect');
-  const old = selectedIndex;
+  const old = gamepadManager.activePadIndex;
   if (!sel) return;
   sel.innerHTML = '';
   if (!pads.length) {
     sel.innerHTML = '<option>No controller detected</option>';
-    selectedIndex = null; setStatus(false); return;
+    gamepadManager.activePadIndex = null;
+    setStatus(false);
+    return;
   }
   pads.forEach((pad) => {
     const option = document.createElement('option');
     option.value = pad.index; option.textContent = `#${pad.index} — ${pad.id}`;
     sel.appendChild(option);
   });
-  selectedIndex = pads.some((pad) => pad.index === old) ? old : pads[0].index;
-  sel.value = selectedIndex;
+  const newIndex = pads.some((pad) => pad.index === old) ? old : pads[0].index;
+  gamepadManager.selectPad(newIndex);
+  sel.value = newIndex;
   setStatus(true);
-}
-
-function selectedPad() {
-  return navigator.getGamepads?.()[selectedIndex] || null;
 }
 
 function setStatus(ok) {
@@ -998,12 +989,11 @@ function processPad(pad) {
 
 function loop() {
   requestAnimationFrame(loop);
-  const gamepads = navigator.getGamepads?.() || [];
-  const pad = selectedIndex === null ? null : gamepads[selectedIndex] || null;
+  const pad = gamepadManager.getSelectedPad();
   if (pad) {
     setStatus(true);
     processPad(pad);
-  } else if (selectedIndex !== null) {
+  } else if (gamepadManager.activePadIndex !== null) {
     setStatus(false);
   }
 
@@ -1012,7 +1002,10 @@ function loop() {
 }
 
 const padSelect = document.querySelector('#padSelect');
-if (padSelect) padSelect.addEventListener('change', (e) => { selectedIndex = Number(e.target.value); lastSnapshot = null; });
+if (padSelect) padSelect.addEventListener('change', (e) => { 
+  gamepadManager.selectPad(Number(e.target.value)); 
+  lastSnapshot = null; 
+});
 
 const scanBtn = document.querySelector('#scan');
 if (scanBtn) scanBtn.onclick = refreshPads;
@@ -1020,7 +1013,7 @@ if (scanBtn) scanBtn.onclick = refreshPads;
 const rumbleBtn = document.querySelector('#rumble');
 if (rumbleBtn) {
   rumbleBtn.onclick = async () => {
-    const pad = selectedPad();
+    const pad = gamepadManager.getSelectedPad();
     if (!pad?.vibrationActuator) return;
     try {
       await pad.vibrationActuator.playEffect('dual-rumble', { duration: 180, strongMagnitude: 0.65, weakMagnitude: 0.35 });
@@ -1030,8 +1023,6 @@ if (rumbleBtn) {
   };
 }
 
-window.addEventListener('gamepadconnected', () => refreshPads());
-window.addEventListener('gamepaddisconnected', () => refreshPads());
 window.addEventListener('resize', () => {
   handleCameraResize();
   renderer.setSize(innerWidth, innerHeight);
