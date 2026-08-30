@@ -11,13 +11,41 @@ export class LightTrail {
     this.scene = scene;
     this.camera = options.camera;
 
-    this.length = options.length || 30;
-    this.width = options.width || 0.4;
+    this.length = options.length || 60;
+    this.width = options.width || 0.45;
     this.colorStart = new THREE.Color(options.colorStart ?? 0xff0055);
     this.colorEnd = new THREE.Color(options.colorEnd ?? 0x00ffff);
 
     this.history = [];
+    this.trailTexture = this._createTrailTexture();
     this._initMesh();
+  }
+
+  _createTrailTexture() {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, size, size);
+
+    const gradient = ctx.createRadialGradient(size * 0.5, size * 0.5, 0, size * 0.5, size * 0.5, size * 0.5);
+    gradient.addColorStop(0.0, 'rgba(255,255,255,1.0)');
+    gradient.addColorStop(0.22, 'rgba(255,255,255,0.95)');
+    gradient.addColorStop(0.56, 'rgba(255,255,255,0.35)');
+    gradient.addColorStop(1.0, 'rgba(255,255,255,0.0)');
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+    return texture;
   }
 
   _initMesh() {
@@ -64,11 +92,12 @@ export class LightTrail {
     this.geometry.setAttribute('uv', new THREE.BufferAttribute(this.uvs, 2));
     this.geometry.setAttribute('progress', new THREE.BufferAttribute(this.progresses, 1));
 
-    // Material with procedural edge-softening shader
+    // Material with a soft alpha texture to keep the ribbon smooth and glow-like.
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         uColorStart: { value: this.colorStart },
-        uColorEnd: { value: this.colorEnd }
+        uColorEnd: { value: this.colorEnd },
+        uTrailTexture: { value: this.trailTexture }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -84,33 +113,23 @@ export class LightTrail {
       fragmentShader: `
         uniform vec3 uColorStart;
         uniform vec3 uColorEnd;
+        uniform sampler2D uTrailTexture;
         varying vec2 vUv;
         varying float vProgress;
 
         void main() {
-          // 1. PROCEDURAL SOFT EDGES across ribbon width (vUv.y: 0.0 to 1.0)
-          // Sine curve yields 1.0 at center (0.5) and 0.0 at borders (0.0 & 1.0)
-          float edgeFade = sin(vUv.y * 3.14159265);
-
-          // Sharpen the core slightly for a brighter central beam with soft outer glow
-          float softGlow = pow(edgeFade, 1.5);
-
-          // 2. TAIL FADE along ribbon length
-          float tailFade = pow(vProgress, 2.0);
-
-          // 3. COLOR INTERPOLATION
+          float texAlpha = texture2D(uTrailTexture, vUv).r;
+          float tailFade = smoothstep(0.0, 1.0, vProgress);
           vec3 baseColor = mix(uColorStart, uColorEnd, vProgress);
-
-          // Multiply color by core brightness boost
-          vec3 finalColor = baseColor * (softGlow * 1.2);
-          float finalAlpha = softGlow * tailFade;
+          vec3 finalColor = baseColor * (0.9 + texAlpha * 1.6);
+          float finalAlpha = texAlpha * tailFade;
 
           gl_FragColor = vec4(finalColor, finalAlpha);
         }
       `,
       transparent: true,
-      depthTest: false,   // Render over all scene geometry
-      depthWrite: false,  // Prevent self-clipping
+      depthTest: false,
+      depthWrite: false,
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide
     });

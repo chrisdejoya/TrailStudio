@@ -383,8 +383,8 @@
         </div>
         <div class="control-row" style="margin-top:6px;">
           <label style="width:75px;">Glow Intensity</label>
-          <input type="range" id="emissionIntensity" min="0" max="3" step="0.05" value="1.0">
-          <input type="number" id="emissionIntensityInput" min="0" max="5" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
+          <input type="range" id="emissionIntensity" min="0" max="100" step="0.05" value="1.0">
+          <input type="number" id="emissionIntensityInput" min="0" max="100" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
         </div>
         <div class="control-row" style="margin-top:6px;">
           <label style="width:75px;">Trail Offset</label>
@@ -1581,10 +1581,10 @@ function syncTrailTarget() {
     trailAnchor.position.set(0, trailOffsetY, 0);
     trail = new LightTrail(trailAnchor, scene, {
       camera,
-      length: 20,
+      length: 15,
       width: 0.1,
-      colorStart: 0xff0055,
-      colorEnd: 0x00ffff
+      colorStart: 0xaa0022,
+      colorEnd: 0x00aaaa
     });
   }
 
@@ -1604,7 +1604,7 @@ bindSliderAndInput('#trailOffset', '#trailOffsetInput', (val) => {
   if (leftStick3DGroup) syncTrailTarget();
 }, 2);
 
-const baseBtnMat = new THREE.MeshStandardMaterial({color:0x3a4454, roughness:0.25, metalness:0.5});
+const baseBtnMat = new THREE.MeshPhysicalMaterial({color:0x3a4454, roughness:0.25, metalness:0.5});
 let buttons3D = [], basePositions = [], currentModel = null, leftStick3DGroup = null, rightStick3DGroup = null, dpadRockerPivot = null;
 const motionBaseQuaternions = new WeakMap();
 let boneHelpers = [];
@@ -1673,8 +1673,8 @@ document.querySelector('#boneVisibilityToggle').addEventListener('change', (e) =
 function buildProceduralController() {
   clearController3D();
   const proceduralGroup = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({color:0x1b202a, roughness:0.35, metalness:0.4});
-  const rockerMat = new THREE.MeshStandardMaterial({color:0x222a36, roughness:0.2, metalness:0.6});
+  const bodyMat = new THREE.MeshPhysicalMaterial({color:0x1b202a, roughness:0.35, metalness:0.4});
+  const rockerMat = new THREE.MeshPhysicalMaterial({color:0x222a36, roughness:0.2, metalness:0.6});
 
   const body = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.6, 2.2), bodyMat);
   body.castShadow = true; body.receiveShadow = true;
@@ -1712,9 +1712,9 @@ function buildProceduralController() {
 
   function createStick(x, z) {
     const group = new THREE.Group(); group.position.set(x, 0.25, z);
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35, 16), new THREE.MeshStandardMaterial({color:0x505b6d, roughness:0.5}));
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35, 16), new THREE.MeshPhysicalMaterial({color:0x505b6d, roughness:0.5}));
     stem.position.y = 0.15; stem.castShadow = true; group.add(stem);
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.32, 0.1, 32), new THREE.MeshStandardMaterial({color:0x62d8ff, roughness:0.3, metalness:0.6}));
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.32, 0.1, 32), new THREE.MeshPhysicalMaterial({color:0x62d8ff, roughness:0.3, metalness:0.6}));
     cap.position.y = 0.32; cap.castShadow = true; group.add(cap);
     proceduralGroup.add(group);
     return { group, cap };
