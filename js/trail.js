@@ -316,6 +316,8 @@ export class TrailManager {
     this.anchor = null;
     this.target = null;
     this.offsetY = 1.8;
+    this.dragging = false;
+    this.leftStickActive = false;
   }
 
   getOffsetY() {
@@ -328,8 +330,43 @@ export class TrailManager {
       this.anchor.position.y = this.offsetY;
     }
     if (this.trail && this.trail.mesh) {
-      this.trail.mesh.visible = !!this.target;
+      this._applyVisibility();
     }
+  }
+
+  // The trail is suppressed only while the user is dragging the model AND the
+  // left stick is idle. If the left stick is being moved, keep the trail alive.
+  _isPaused() {
+    return this.dragging && !this.leftStickActive;
+  }
+
+  _applyVisibility() {
+    if (!this.trail) return;
+    this.trail.mesh.visible = !!this.target && !this._isPaused();
+  }
+
+  setDragging(dragging) {
+    const wasPaused = this._isPaused();
+    this.dragging = dragging;
+    const nowPaused = this._isPaused();
+
+    if (this.trail && !nowPaused && wasPaused) {
+      this.trail.rawHistory.length = 0;
+    }
+
+    this._applyVisibility();
+  }
+
+  setLeftStickActive(active) {
+    const wasPaused = this._isPaused();
+    this.leftStickActive = active;
+    const nowPaused = this._isPaused();
+
+    if (this.trail && !nowPaused && wasPaused) {
+      this.trail.rawHistory.length = 0;
+    }
+
+    this._applyVisibility();
   }
 
   syncTarget(target) {
@@ -358,11 +395,12 @@ export class TrailManager {
     }
 
     this.anchor.position.set(0, this.offsetY, 0);
-    this.trail.mesh.visible = true;
+    this._applyVisibility();
   }
 
   update() {
-    if (this.trail) this.trail.update();
+    if (this._isPaused() || !this.trail) return;
+    this.trail.update();
   }
 
   destroy() {

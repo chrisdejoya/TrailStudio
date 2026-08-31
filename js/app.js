@@ -266,9 +266,11 @@ window.addEventListener('contextmenu', (e) => e.preventDefault());
 renderer.domElement.addEventListener('mousedown', (e) => {
   lightingManager.setActiveLight(null);
   handleCameraMouseDown(e);
+  trailManager.setDragging(true);
 });
 
 window.addEventListener('mouseup', () => {
+  trailManager.setDragging(false);
   saveToLocalStorage();
 });
 
@@ -742,8 +744,13 @@ function loop() {
     diagnosticsPanel.setStatus(true);
     diagnosticsPanel.update(pad);
     modelManager.applyGamepadInput(pad, buttonEmissionColor, buttonEmissionMultiplier);
+
+    const ax = pad.axes || [];
+    const stickMag = Math.hypot(ax[0] || 0, ax[1] || 0);
+    trailManager.setLeftStickActive(stickMag > 0.1);
   } else if (gamepadManager.activePadIndex !== null) {
     diagnosticsPanel.setStatus(false);
+    trailManager.setLeftStickActive(false);
   }
 
   trailManager.update();
