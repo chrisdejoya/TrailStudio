@@ -332,6 +332,39 @@ bindSliderAndInput('#trailOffset', '#trailOffsetInput', (val) => {
   trailManager.syncTarget(modelManager.leftStick3DGroup);
 }, 2);
 
+bindSliderAndInput('#trailIntensity', '#trailIntensityInput', (val) => {
+  trailManager.setIntensity(val);
+}, 2);
+
+bindSliderAndInput('#trailWidth', '#trailWidthInput', (val) => {
+  trailManager.setWidth(val);
+}, 3);
+
+bindSliderAndInput('#trailLength', '#trailLengthInput', (val) => {
+  trailManager.setLength(val);
+}, 2);
+
+const trailColorStart = document.querySelector('#trailColorStart');
+if (trailColorStart) {
+  trailColorStart.addEventListener('input', (e) => {
+    trailManager.setColorStart(e.target.value);
+  });
+}
+
+const trailColorEnd = document.querySelector('#trailColorEnd');
+if (trailColorEnd) {
+  trailColorEnd.addEventListener('input', (e) => {
+    trailManager.setColorEnd(e.target.value);
+  });
+}
+
+const trailEnabled = document.querySelector('#trailEnabled');
+if (trailEnabled) {
+  trailEnabled.addEventListener('change', (e) => {
+    trailManager.setEnabled(e.target.checked);
+  });
+}
+
 bindSliderAndInput('#emissionIntensity', '#emissionIntensityInput', (val) => {
   buttonEmissionMultiplier = val;
 }, 2);
@@ -481,6 +514,13 @@ function refreshPads() {
 
 /* ================================================================= State Serialization & Persistence ================================================================= */
 function getSettingsState() {
+  const trailConfig = trailManager.getTrailConfig ? trailManager.getTrailConfig() : {
+    colorStart: 0xaa0022,
+    colorEnd: 0x00aaaa,
+    intensity: 1.25,
+    width: 0.05,
+    length: 10
+  };
   return {
     camera: getCameraState(),
     model: {
@@ -488,6 +528,14 @@ function getSettingsState() {
       emissionIntensity: parseFloat(document.querySelector('#emissionIntensity').value),
       trailOffsetY: trailManager.getOffsetY(),
       emissionColor: document.querySelector('#emissionColor').value
+    },
+    trail: {
+      enabled: document.querySelector('#trailEnabled')?.checked ?? true,
+      colorStart: '#' + trailConfig.colorStart.toString(16).padStart(6, '0'),
+      colorEnd: '#' + trailConfig.colorEnd.toString(16).padStart(6, '0'),
+      intensity: trailConfig.intensity,
+      width: trailConfig.width,
+      length: trailConfig.length
     },
     postProcessing: {
       aaEnabled: document.querySelector('#aaToggle').checked,
@@ -523,7 +571,7 @@ function applySettingsState(state) {
   if (state.ibl) applyIBLStateToUI(iblState, state.ibl, updateIBL);
   if (state.camera) applyCameraState(state.camera);
 
-  if (state.model) {
+if (state.model) {
     if (state.model.scale !== undefined) syncModelScale(state.model.scale);
     if (state.model.emissionIntensity !== undefined) {
       buttonEmissionMultiplier = state.model.emissionIntensity;
@@ -543,6 +591,45 @@ function applySettingsState(state) {
       const emissionColorInput = document.querySelector('#emissionColor');
       if (emissionColorInput) emissionColorInput.value = state.model.emissionColor;
       buttonEmissionColor.set(state.model.emissionColor);
+    }
+  }
+
+  if (state.trail) {
+    const t = state.trail;
+    const trailEnabled = document.querySelector('#trailEnabled');
+    if (trailEnabled) trailEnabled.checked = t.enabled;
+    trailManager.setEnabled(t.enabled);
+
+    if (t.colorStart) {
+      trailManager.setColorStart(t.colorStart);
+      const trailColorStart = document.querySelector('#trailColorStart');
+      if (trailColorStart) trailColorStart.value = t.colorStart;
+    }
+    if (t.colorEnd) {
+      trailManager.setColorEnd(t.colorEnd);
+      const trailColorEnd = document.querySelector('#trailColorEnd');
+      if (trailColorEnd) trailColorEnd.value = t.colorEnd;
+    }
+    if (t.intensity !== undefined) {
+      trailManager.setIntensity(t.intensity);
+      const trailIntensity = document.querySelector('#trailIntensity');
+      const trailIntensityInput = document.querySelector('#trailIntensityInput');
+      if (trailIntensity) trailIntensity.value = t.intensity;
+      if (trailIntensityInput) trailIntensityInput.value = t.intensity.toFixed(2);
+    }
+    if (t.width !== undefined) {
+      trailManager.setWidth(t.width);
+      const trailWidth = document.querySelector('#trailWidth');
+      const trailWidthInput = document.querySelector('#trailWidthInput');
+      if (trailWidth) trailWidth.value = t.width;
+      if (trailWidthInput) trailWidthInput.value = t.width.toFixed(3);
+    }
+    if (t.length !== undefined) {
+      trailManager.setLength(t.length);
+      const trailLength = document.querySelector('#trailLength');
+      const trailLengthInput = document.querySelector('#trailLengthInput');
+      if (trailLength) trailLength.value = t.length;
+      if (trailLengthInput) trailLengthInput.value = t.length.toFixed(1);
     }
   }
 

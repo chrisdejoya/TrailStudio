@@ -318,6 +318,15 @@ export class TrailManager {
     this.offsetY = 1.8;
     this.dragging = false;
     this.leftStickActive = false;
+    this._enabled = true;
+
+    this._trailConfig = {
+      length: 10,
+      width: 0.05,
+      colorStart: 0xaa0022,
+      colorEnd: 0x00aaaa,
+      intensity: 1.25
+    };
   }
 
   getOffsetY() {
@@ -342,7 +351,7 @@ export class TrailManager {
 
   _applyVisibility() {
     if (!this.trail) return;
-    this.trail.mesh.visible = !!this.target && !this._isPaused();
+    this.trail.mesh.visible = !!this.target && this._enabled && !this._isPaused();
   }
 
   setDragging(dragging) {
@@ -382,10 +391,11 @@ export class TrailManager {
       this.anchor.position.set(0, this.offsetY, 0);
       this.trail = new LightTrail(this.anchor, this.scene, {
         camera: this.camera,
-        length: 10,
-        width: 0.05,
-        colorStart: 0xaa0022,
-        colorEnd: 0x00aaaa
+        length: this._trailConfig.length,
+        width: this._trailConfig.width,
+        colorStart: this._trailConfig.colorStart,
+        colorEnd: this._trailConfig.colorEnd,
+        emissiveIntensity: this._trailConfig.intensity
       });
     }
 
@@ -408,5 +418,57 @@ export class TrailManager {
     this.trail.destroy();
     this.trail = null;
     this.anchor = null;
+  }
+
+  setEnabled(enabled) {
+    this._enabled = enabled;
+    this._applyVisibility();
+  }
+
+  isEnabled() {
+    return this._enabled !== false;
+  }
+
+  setColorStart(color) {
+    this._trailConfig.colorStart = color;
+    if (this.trail) {
+      this.trail.colorStart.set(color);
+      this.trail.material.uniforms.uColorStart.value.copy(this.trail.colorStart);
+    }
+  }
+
+  setColorEnd(color) {
+    this._trailConfig.colorEnd = color;
+    if (this.trail) {
+      this.trail.colorEnd.set(color);
+      this.trail.material.uniforms.uColorEnd.value.copy(this.trail.colorEnd);
+    }
+  }
+
+  setIntensity(intensity) {
+    this._trailConfig.intensity = intensity;
+    if (this.trail) {
+      this.trail.material.uniforms.uEmissiveIntensity.value = intensity;
+    }
+  }
+
+  setWidth(width) {
+    this._trailConfig.width = width;
+    if (this.trail) {
+      this.trail.width = width;
+      this.trail.material.uniforms.uWidth.value = width;
+    }
+  }
+
+  setLength(length) {
+    this._trailConfig.length = length;
+    if (this.trail) {
+      this.trail.maxLifetime = length;
+      this.trail.material.uniforms.uMaxLifetime.value = length;
+    }
+  }
+
+  getTrailConfig() {
+    return { ...this._trailConfig };
   }
 }
