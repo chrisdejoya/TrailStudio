@@ -8,6 +8,10 @@ export class ProceduralIBLEditor {
     this.environmentScene = new THREE.Scene();
     this.currentTarget = null;
 
+    // Cache preview canvas and context to avoid DOM lookups every frame
+    this.previewCanvas = document.querySelector('#iblPreview');
+    this.previewContext = this.previewCanvas ? this.previewCanvas.getContext('2d') : null;
+
     this.skyUniforms = {
       skyColor: { value: new THREE.Color() },
       horizonColor: { value: new THREE.Color() },
@@ -31,18 +35,21 @@ export class ProceduralIBLEditor {
       side: THREE.BackSide,
       uniforms: this.skyUniforms,
       vertexShader: `
+        precision highp float;
         varying vec3 vWorldPosition;
         void main() {
           vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }`,
       fragmentShader: `
+        precision highp float;
         uniform vec3 skyColor, horizonColor, groundColor;
         uniform float skyLevel, horizonLevel, groundLevel;
         uniform vec3 sun1Color, sun1Position, sun2Color, sun2Position;
         uniform float sun1Size, sun1Intensity, sun1Atmosphere;
         uniform float sun2Size, sun2Intensity, sun2Atmosphere;
         varying vec3 vWorldPosition;
+
         vec3 sun(vec3 direction, vec3 position, vec3 color, float size, float intensity, float atmosphere) {
           float alignment = dot(direction, normalize(position));
           float exponent = mix(8000.0 / (size * size), 2.0 / size, clamp(atmosphere, 0.0, 1.0));
@@ -50,6 +57,7 @@ export class ProceduralIBLEditor {
           float disk = step(1.0 - (0.0005 * size), alignment);
           return color * intensity * mix(disk, glow * (1.0 + atmosphere * 3.0), atmosphere);
         }
+
         void main() {
           vec3 direction = normalize(vWorldPosition);
           float height = direction.y;
@@ -62,8 +70,10 @@ export class ProceduralIBLEditor {
         }`
     });
 
-    this.environmentScene.add(new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), material));
-    this.ringGeometry = new THREE.TorusGeometry(1.5, 0.05, 16, 64);
+    this.environmentScene.add(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), material));
+
+    // Scaled down to fit properly inside the unit sphere (radius 1)
+    this.ringGeometry = new THREE.TorusGeometry(0.5, 0.02, 16, 64);
     this.ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
     this.ringMesh = new THREE.Mesh(this.ringGeometry, this.ringMaterial);
     this.ringMesh.rotation.x = Math.PI / 2;
@@ -89,34 +99,40 @@ export class ProceduralIBLEditor {
       u[`sun${index}Atmosphere`].value = state[`sun${index}Atmosphere`] ?? (index === 1 ? 0.5 : 0.7);
     });
 
-    this.ringMesh.visible = state.ringVisible;
-    this.ringMesh.position.y = state.ringHeight;
-    this.ringMaterial.color.set(state.ringColor).multiplyScalar(state.ringIntensity);
+    this.ringMesh.visible = state.ringVisible ?? true;
+    this.ringMesh.position.y = state.ringHeight ?? 0;
+    this.ringMaterial.color.set(state.ringColor).multiplyScalar(state.ringIntensity ?? 1);
 
-    const newTarget = this.pmremGenerator.fromScene(this.environmentScene);
-    if (this.currentTarget) this.currentTarget.dispose();
-    this.currentTarget = newTarget;
+    if (state.enabled) {
+      const newTarget = this.pmremGenerator.fromScene(this.environmentScene);
+      if (this.currentTarget) this.currentTarget.dispose();
+      this.currentTarget = newTarget;
 
-    this.mainScene.environment = state.enabled ? newTarget.texture : null;
-    this.mainScene.environmentIntensity = state.enabled ? state.intensity : 0;
-    this.mainScene.background = state.enabled && state.background ? newTarget.texture : null;
+      this.mainScene.environment = newTarget.texture;
+      this.mainScene.environmentIntensity = state.intensity;
+      this.mainScene.background = state.background ? newTarget.texture : null;
+    } else {
+      this.mainScene.environment = null;
+      this.mainScene.background = null;
+    }
+
     this.renderPreview(state);
   }
 
   renderPreview(state) {
-    const canvas = document.querySelector('#iblPreview');
-    if (!canvas) return;
-    const context = canvas.getContext('2d');
-    const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+    if (!this.previewCanvas || !this.previewContext) return;
+    const gradient = this.previewContext.createLinearGradient(0, 0, 0, this.previewCanvas.height);
     gradient.addColorStop(0, state.skyColor);
     gradient.addColorStop(Math.max(0, Math.min(1, 0.5 - state.horizonLevel / 2)), state.horizonColor);
     gradient.addColorStop(1, state.groundColor);
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    this.previewContext.fillStyle = gradient;
+    this.previewContext.fillRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
   }
 
   dispose() {
     if (this.currentTarget) this.currentTarget.dispose();
     this.pmremGenerator.dispose();
+    this.ringGeometry.dispose();
+    this.ringMaterial.dispose();
   }
 }
