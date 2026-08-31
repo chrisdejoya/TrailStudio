@@ -13,12 +13,33 @@ let isMouseDown = false;
 let activeMouseButton = -1;
 let previousMousePosition = { x: 0, y: 0 };
 
+// Frame rate capping states
+let fpsLimitEnabled = false;
+let targetFps = 60;
+
+export function setFpsLimitState(enabled, fps) {
+  fpsLimitEnabled = enabled;
+  targetFps = parseInt(fps, 10) || 60;
+}
+
+export function getFpsLimitState() {
+  return {
+    enabled: fpsLimitEnabled,
+    fps: targetFps
+  };
+}
+
+// Accumulators for high-performance rAF smoothing
+let accumulatedDeltaX = 0;
+let accumulatedDeltaY = 0;
+let isRafPending = false;
+let activeLightIdRef = null;
+
 const panRight = new THREE.Vector3();
 const panUp = new THREE.Vector3();
 const panForward = new THREE.Vector3();
 
 // Snap thresholds stored in radians for high-performance drag checks
-// Default: Y snaps to 0 within ±1°; X snaps to 80° within ±1°
 const DEG2RAD = Math.PI / 180;
 export let rotationSnapThresholdY = 1.0 * DEG2RAD; 
 export let rotationSnapThresholdX = 1.0 * DEG2RAD;
@@ -36,35 +57,60 @@ export function setTargetModelGroup(group) {
 }
 
 // -----------------------------------------------------------------------------
+// DOM CACHING FOR PERFORMANCE
+// -----------------------------------------------------------------------------
+let domElements = {};
+let uiUpdateScheduled = false;
+
+function cacheDomElements() {
+  domElements = {
+    camTargetX: document.querySelector('#camTargetX'),
+    camTargetY: document.querySelector('#camTargetY'),
+    camTargetZ: document.querySelector('#camTargetZ'),
+    camRadius: document.querySelector('#camRadius'),
+    camRadiusInput: document.querySelector('#camRadiusInput'),
+    camRotX: document.querySelector('#camRotX'),
+    camRotY: document.querySelector('#camRotY'),
+    camRotZ: document.querySelector('#camRotZ'),
+    camFov: document.querySelector('#camFov'),
+    camFovInput: document.querySelector('#camFovInput'),
+    fpsToggle: document.querySelector('#fpsToggle'),
+    fpsSelect: document.querySelector('#fpsSelect')
+  };
+}
+
+// -----------------------------------------------------------------------------
 // UTILITY & SYNC FUNCTIONS
 // -----------------------------------------------------------------------------
 export function syncTargetInputs() {
-  const x = document.querySelector('#camTargetX');
-  const y = document.querySelector('#camTargetY');
-  const z = document.querySelector('#camTargetZ');
-  if (x) x.value = cameraTarget.x.toFixed(2);
-  if (y) y.value = cameraTarget.y.toFixed(2);
-  if (z) z.value = cameraTarget.z.toFixed(2);
+  if (!domElements.camTargetX) cacheDomElements();
+  if (domElements.camTargetX) domElements.camTargetX.value = cameraTarget.x.toFixed(2);
+  if (domElements.camTargetY) domElements.camTargetY.value = cameraTarget.y.toFixed(2);
+  if (domElements.camTargetZ) domElements.camTargetZ.value = cameraTarget.z.toFixed(2);
 }
 
 export function updateCameraPosition(skipRotationUpdate = false) {
   camera.position.set(cameraTarget.x, cameraTarget.y + 1.2, cameraTarget.z + radius);
   camera.lookAt(cameraTarget);
 
-  const camRadius = document.querySelector('#camRadius');
-  const camRadiusInput = document.querySelector('#camRadiusInput');
-  if (camRadius) camRadius.value = radius;
-  if (camRadiusInput) camRadiusInput.value = radius.toFixed(1);
+  if (!domElements.camRadius) cacheDomElements();
+  if (domElements.camRadius) domElements.camRadius.value = radius;
+  if (domElements.camRadiusInput) domElements.camRadiusInput.value = radius.toFixed(1);
 
   if (!skipRotationUpdate && targetModelGroup) {
-    isUpdatingRotUI = true;
-    const rotX = document.querySelector('#camRotX');
-    const rotY = document.querySelector('#camRotY');
-    const rotZ = document.querySelector('#camRotZ');
-    if (rotX) rotX.value = (targetModelGroup.rotation.x / DEG2RAD).toFixed(1);
-    if (rotY) rotY.value = (targetModelGroup.rotation.y / DEG2RAD).toFixed(1);
-    if (rotZ) rotZ.value = (targetModelGroup.rotation.z / DEG2RAD).toFixed(1);
-    isUpdatingRotUI = false;
+    if (!uiUpdateScheduled) {
+      uiUpdateScheduled = true;
+      requestAnimationFrame(() => {
+        if (!isUpdatingRotUI && targetModelGroup) {
+          isUpdatingRotUI = true;
+          if (domElements.camRotX) domElements.camRotX.value = (targetModelGroup.rotation.x / DEG2RAD).toFixed(1);
+          if (domElements.camRotY) domElements.camRotY.value = (targetModelGroup.rotation.y / DEG2RAD).toFixed(1);
+          if (domElements.camRotZ) domElements.camRotZ.value = (targetModelGroup.rotation.z / DEG2RAD).toFixed(1);
+          isUpdatingRotUI = false;
+        }
+        uiUpdateScheduled = false;
+      });
+    }
   }
 }
 
@@ -77,18 +123,16 @@ export const syncFov = (val, compensate = true) => {
     const newHalfFovRad = (fovVal * 0.5) * DEG2RAD;
     radius = radius * (Math.tan(oldHalfFovRad) / Math.tan(newHalfFovRad));
     radius = Math.max(0.5, Math.min(50, radius));
-    const camRadius = document.querySelector('#camRadius');
-    const camRadiusInput = document.querySelector('#camRadiusInput');
-    if (camRadius) camRadius.value = radius;
-    if (camRadiusInput) camRadiusInput.value = radius.toFixed(1);
+    if (!domElements.camRadius) cacheDomElements();
+    if (domElements.camRadius) domElements.camRadius.value = radius;
+    if (domElements.camRadiusInput) domElements.camRadiusInput.value = radius.toFixed(1);
   }
 
   camera.fov = fovVal;
   camera.updateProjectionMatrix();
-  const camFov = document.querySelector('#camFov');
-  const camFovInput = document.querySelector('#camFovInput');
-  if (camFov) camFov.value = fovVal;
-  if (camFovInput) camFovInput.value = fovVal;
+  if (!domElements.camFov) cacheDomElements();
+  if (domElements.camFov) domElements.camFov.value = fovVal;
+  if (domElements.camFovInput) domElements.camFovInput.value = fovVal;
 
   updateCameraPosition(true);
 };
@@ -100,17 +144,19 @@ export const syncZoom = (val) => {
 
 export const updateRotFromInputs = () => {
   if (isUpdatingRotUI || !targetModelGroup) return;
-  const rotX = (parseFloat(document.querySelector('#camRotX')?.value) || 0) * DEG2RAD;
-  const rotY = (parseFloat(document.querySelector('#camRotY')?.value) || 0) * DEG2RAD;
-  const rotZ = (parseFloat(document.querySelector('#camRotZ')?.value) || 0) * DEG2RAD;
+  if (!domElements.camRotX) cacheDomElements();
+  const rotX = (parseFloat(domElements.camRotX?.value) || 0) * DEG2RAD;
+  const rotY = (parseFloat(domElements.camRotY?.value) || 0) * DEG2RAD;
+  const rotZ = (parseFloat(domElements.camRotZ?.value) || 0) * DEG2RAD;
 
   targetModelGroup.rotation.set(rotX, rotY, rotZ);
 };
 
 export const updateCamTarget = () => {
-  cameraTarget.x = parseFloat(document.querySelector('#camTargetX')?.value) || 0;
-  cameraTarget.y = parseFloat(document.querySelector('#camTargetY')?.value) || 0;
-  cameraTarget.z = parseFloat(document.querySelector('#camTargetZ')?.value) || 0;
+  if (!domElements.camTargetX) cacheDomElements();
+  cameraTarget.x = parseFloat(domElements.camTargetX?.value) || 0;
+  cameraTarget.y = parseFloat(domElements.camTargetY?.value) || 0;
+  cameraTarget.z = parseFloat(domElements.camTargetZ?.value) || 0;
   updateCameraPosition();
 };
 
@@ -118,15 +164,27 @@ export const updateCamTarget = () => {
 // UI BINDINGS & INPUT LISTENERS
 // -----------------------------------------------------------------------------
 export function setupCameraInputs(onSaveCallback) {
-  const camFov = document.querySelector('#camFov');
-  const camFovInput = document.querySelector('#camFovInput');
-  if (camFov) camFov.addEventListener('input', (e) => syncFov(e.target.value));
-  if (camFovInput) camFovInput.addEventListener('input', (e) => syncFov(e.target.value));
+  cacheDomElements();
 
-  const camRadius = document.querySelector('#camRadius');
-  const camRadiusInput = document.querySelector('#camRadiusInput');
-  if (camRadius) camRadius.addEventListener('input', (e) => syncZoom(e.target.value));
-  if (camRadiusInput) camRadiusInput.addEventListener('input', (e) => syncZoom(e.target.value));
+  if (domElements.camFov) domElements.camFov.addEventListener('input', (e) => syncFov(e.target.value));
+  if (domElements.camFovInput) domElements.camFovInput.addEventListener('input', (e) => syncFov(e.target.value));
+
+  if (domElements.camRadius) domElements.camRadius.addEventListener('input', (e) => syncZoom(e.target.value));
+  if (domElements.camRadiusInput) domElements.camRadiusInput.addEventListener('input', (e) => syncZoom(e.target.value));
+
+  if (domElements.fpsToggle) {
+    domElements.fpsToggle.addEventListener('change', (e) => {
+      fpsLimitEnabled = e.target.checked;
+      if (onSaveCallback) onSaveCallback();
+    });
+  }
+
+  if (domElements.fpsSelect) {
+    domElements.fpsSelect.addEventListener('change', (e) => {
+      targetFps = parseInt(e.target.value, 10);
+      if (onSaveCallback) onSaveCallback();
+    });
+  }
 
   ['X', 'Y', 'Z'].forEach((axis) => {
     const input = document.querySelector(`#camRot${axis}`);
@@ -157,7 +215,7 @@ export function setupCameraInputs(onSaveCallback) {
 }
 
 // -----------------------------------------------------------------------------
-// EVENT HANDLERS (Rotating the Object instead of the Camera)
+// EVENT HANDLERS (Throttled via requestAnimationFrame)
 // -----------------------------------------------------------------------------
 export function handleCameraMouseDown(e) {
   isMouseDown = true;
@@ -167,15 +225,36 @@ export function handleCameraMouseDown(e) {
 
 export function handleCameraMouseMove(e, activeLightId = null, lightsMap = new Map()) {
   if (!isMouseDown) return;
-  const deltaX = e.clientX - previousMousePosition.x;
-  const deltaY = e.clientY - previousMousePosition.y;
+
+  accumulatedDeltaX += e.clientX - previousMousePosition.x;
+  accumulatedDeltaY += e.clientY - previousMousePosition.y;
+  previousMousePosition = { x: e.clientX, y: e.clientY };
+  activeLightIdRef = activeLightId;
+
+  if (!isRafPending) {
+    isRafPending = true;
+    requestAnimationFrame(processMouseMovement);
+  }
+}
+
+function processMouseMovement() {
+  isRafPending = false;
+  if (!isMouseDown) {
+    accumulatedDeltaX = 0;
+    accumulatedDeltaY = 0;
+    return;
+  }
+
+  const deltaX = accumulatedDeltaX;
+  const deltaY = accumulatedDeltaY;
+  accumulatedDeltaX = 0;
+  accumulatedDeltaY = 0;
 
   if (activeMouseButton === 0) {
-    if (!activeLightId && targetModelGroup) {
+    if (!activeLightIdRef && targetModelGroup) {
       targetModelGroup.rotation.y += deltaX * 0.008;
       targetModelGroup.rotation.x += deltaY * 0.008;
 
-      // Direct radian-based snapping to eliminate per-frame math conversions
       if (Math.abs(targetModelGroup.rotation.y) <= rotationSnapThresholdY) {
         targetModelGroup.rotation.y = 0;
       }
@@ -200,7 +279,6 @@ export function handleCameraMouseMove(e, activeLightId = null, lightsMap = new M
   } else if (activeMouseButton === 2) {
     syncFov(camera.fov + deltaY * 0.1);
   }
-  previousMousePosition = { x: e.clientX, y: e.clientY };
 }
 
 export function handleCameraWheel(e, scheduleSaveCallback) {
@@ -222,7 +300,8 @@ export function getCameraState() {
     fov: camera.fov,
     radius,
     target: [cameraTarget.x, cameraTarget.y, cameraTarget.z],
-    rotation: targetModelGroup ? [targetModelGroup.rotation.x, targetModelGroup.rotation.y, targetModelGroup.rotation.z] : [0, 0, 0]
+    rotation: targetModelGroup ? [targetModelGroup.rotation.x, targetModelGroup.rotation.y, targetModelGroup.rotation.z] : [0, 0, 0],
+    fpsLimit: getFpsLimitState()
   };
 }
 
@@ -236,6 +315,13 @@ export function applyCameraState(state) {
   if (state.radius !== undefined) syncZoom(state.radius);
   if (state.rotation && Array.isArray(state.rotation) && targetModelGroup) {
     targetModelGroup.rotation.set(...state.rotation);
+  }
+  if (state.fpsLimit) {
+    fpsLimitEnabled = state.fpsLimit.enabled;
+    targetFps = state.fpsLimit.fps;
+    if (!domElements.fpsToggle) cacheDomElements();
+    if (domElements.fpsToggle) domElements.fpsToggle.checked = fpsLimitEnabled;
+    if (domElements.fpsSelect) domElements.fpsSelect.value = targetFps;
   }
   updateCameraPosition();
 }

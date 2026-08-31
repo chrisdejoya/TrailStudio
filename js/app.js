@@ -25,7 +25,8 @@ import {
   handleCameraWheel,
   handleCameraResize,
   cameraApi,
-  setTargetModelGroup
+  setTargetModelGroup,
+  getFpsLimitState
 } from './cameraControls.js';
 
 /* ================================================================= IndexedDB Storage ================================================================= */
@@ -754,9 +755,22 @@ async function initModelPersistence() {
 }
 
 /* ================================================================= Main Execution Loop & App API ================================================================= */
+let lastFrameTime = performance.now();
+
 function loop() {
   requestAnimationFrame(loop);
-  
+
+  const { enabled, fps } = getFpsLimitState();
+
+  if (enabled) {
+    const now = performance.now();
+    const interval = 1000 / fps;
+    const delta = now - lastFrameTime;
+
+    if (delta < interval) return;
+    lastFrameTime = now - (delta % interval);
+  }
+
   const pad = gamepadManager.getSelectedPad();
   if (pad) {
     diagnosticsPanel.setStatus(true);
