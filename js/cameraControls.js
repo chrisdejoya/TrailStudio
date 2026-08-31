@@ -17,13 +17,15 @@ const panRight = new THREE.Vector3();
 const panUp = new THREE.Vector3();
 const panForward = new THREE.Vector3();
 
-// Adjustable snap thresholds in degrees
-export let rotationSnapThresholdY = 1.0; // Snaps to 0 when between -1 and 1
-export let rotationSnapThresholdX = 1.0; // Snaps to 80 when within 1 degree of 80
+// Snap thresholds stored in radians for high-performance drag checks
+// Default: Y snaps to 0 within ±1°; X snaps to 80° within ±1°
+const DEG2RAD = Math.PI / 180;
+export let rotationSnapThresholdY = 1.0 * DEG2RAD; 
+export let rotationSnapThresholdX = 1.0 * DEG2RAD;
 
-export function setRotationSnapThresholds(yThreshold, xThreshold) {
-  if (yThreshold !== undefined) rotationSnapThresholdY = yThreshold;
-  if (xThreshold !== undefined) rotationSnapThresholdX = xThreshold;
+export function setRotationSnapThresholds(yThresholdDeg, xThresholdDeg) {
+  if (yThresholdDeg !== undefined) rotationSnapThresholdY = yThresholdDeg * DEG2RAD;
+  if (xThresholdDeg !== undefined) rotationSnapThresholdX = xThresholdDeg * DEG2RAD;
 }
 
 // Reference to the object group being rotated instead of the camera
@@ -46,7 +48,6 @@ export function syncTargetInputs() {
 }
 
 export function updateCameraPosition(skipRotationUpdate = false) {
-  // Position the camera slightly elevated and looking forward/down at the target
   camera.position.set(cameraTarget.x, cameraTarget.y + 1.2, cameraTarget.z + radius);
   camera.lookAt(cameraTarget);
 
@@ -60,9 +61,9 @@ export function updateCameraPosition(skipRotationUpdate = false) {
     const rotX = document.querySelector('#camRotX');
     const rotY = document.querySelector('#camRotY');
     const rotZ = document.querySelector('#camRotZ');
-    if (rotX) rotX.value = (targetModelGroup.rotation.x * (180 / Math.PI)).toFixed(1);
-    if (rotY) rotY.value = (targetModelGroup.rotation.y * (180 / Math.PI)).toFixed(1);
-    if (rotZ) rotZ.value = (targetModelGroup.rotation.z * (180 / Math.PI)).toFixed(1);
+    if (rotX) rotX.value = (targetModelGroup.rotation.x / DEG2RAD).toFixed(1);
+    if (rotY) rotY.value = (targetModelGroup.rotation.y / DEG2RAD).toFixed(1);
+    if (rotZ) rotZ.value = (targetModelGroup.rotation.z / DEG2RAD).toFixed(1);
     isUpdatingRotUI = false;
   }
 }
@@ -72,9 +73,8 @@ export const syncFov = (val, compensate = true) => {
   const fovVal = Math.max(1, Math.min(170, parseFloat(val) || 50));
 
   if (compensate && oldFov !== fovVal) {
-    const toRad = Math.PI / 180;
-    const oldHalfFovRad = (oldFov * 0.5) * toRad;
-    const newHalfFovRad = (fovVal * 0.5) * toRad;
+    const oldHalfFovRad = (oldFov * 0.5) * DEG2RAD;
+    const newHalfFovRad = (fovVal * 0.5) * DEG2RAD;
     radius = radius * (Math.tan(oldHalfFovRad) / Math.tan(newHalfFovRad));
     radius = Math.max(0.5, Math.min(50, radius));
     const camRadius = document.querySelector('#camRadius');
@@ -100,9 +100,9 @@ export const syncZoom = (val) => {
 
 export const updateRotFromInputs = () => {
   if (isUpdatingRotUI || !targetModelGroup) return;
-  const rotX = (parseFloat(document.querySelector('#camRotX')?.value) || 0) * (Math.PI / 180);
-  const rotY = (parseFloat(document.querySelector('#camRotY')?.value) || 0) * (Math.PI / 180);
-  const rotZ = (parseFloat(document.querySelector('#camRotZ')?.value) || 0) * (Math.PI / 180);
+  const rotX = (parseFloat(document.querySelector('#camRotX')?.value) || 0) * DEG2RAD;
+  const rotY = (parseFloat(document.querySelector('#camRotY')?.value) || 0) * DEG2RAD;
+  const rotZ = (parseFloat(document.querySelector('#camRotZ')?.value) || 0) * DEG2RAD;
 
   targetModelGroup.rotation.set(rotX, rotY, rotZ);
 };
@@ -172,22 +172,17 @@ export function handleCameraMouseMove(e, activeLightId = null, lightsMap = new M
 
   if (activeMouseButton === 0) {
     if (!activeLightId && targetModelGroup) {
-      // Rotate the object group instead of orbital camera angles
       targetModelGroup.rotation.y += deltaX * 0.008;
       targetModelGroup.rotation.x += deltaY * 0.008;
 
-      // Convert current rotations to degrees for threshold checks
-      let rotYDeg = targetModelGroup.rotation.y * (180 / Math.PI);
-      let rotXDeg = targetModelGroup.rotation.x * (180 / Math.PI);
-
-      // Snap Y rotation to 0 if within threshold
-      if (Math.abs(rotYDeg) <= rotationSnapThresholdY) {
+      // Direct radian-based snapping to eliminate per-frame math conversions
+      if (Math.abs(targetModelGroup.rotation.y) <= rotationSnapThresholdY) {
         targetModelGroup.rotation.y = 0;
       }
 
-      // Snap X rotation to 80 if within threshold
-      if (Math.abs(rotXDeg - 80) <= rotationSnapThresholdX) {
-        targetModelGroup.rotation.x = 80 * (Math.PI / 180);
+      const targetXRad = 80 * DEG2RAD;
+      if (Math.abs(targetModelGroup.rotation.x - targetXRad) <= rotationSnapThresholdX) {
+        targetModelGroup.rotation.x = targetXRad;
       }
 
       updateCameraPosition();
