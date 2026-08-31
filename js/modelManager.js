@@ -26,6 +26,11 @@ export class ModelManager {
     this.motionBaseQuaternions = new WeakMap();
     this.boneHelpers = [];
     this.showBones = false;
+    this.syncLeftStickDpad = false;
+  }
+
+  setSyncLeftStickDpad(enabled) {
+    this.syncLeftStickDpad = enabled;
   }
 
   setBoneVisibility(visible) {
@@ -66,14 +71,35 @@ export class ModelManager {
   updateButtonStates(pad, buttonEmissionColor, buttonEmissionMultiplier = 1.0) {
     if (!pad) return;
 
+    const ax = pad.axes;
+    const lx = ax[0] || 0;
+    const ly = ax[1] || 0;
+    const stickThreshold = 0.3;
+
     pad.buttons.forEach((button, i) => {
       const entry = this.buttons3D[i];
       if (!entry) return;
 
       const { node, isStick, emissiveMaterials } = entry;
       const basePos = this.basePositions[i];
-      const val = button.value;
-      const isPressed = button.pressed || val > 0.1;
+
+      // For DPad buttons (12-15), also check left stick direction when sync is enabled
+      let val = button.value;
+      let isPressed = button.pressed || val > 0.1;
+
+      if (this.syncLeftStickDpad && i >= 12 && i <= 15) {
+        // DPad_Up: 12, DPad_Down: 13, DPad_Left: 14, DPad_Right: 15
+        let stickPressed = false;
+        if (i === 12 && ly < -stickThreshold) stickPressed = true;      // Up
+        if (i === 13 && ly > stickThreshold) stickPressed = true;       // Down
+        if (i === 14 && lx < -stickThreshold) stickPressed = true;      // Left
+        if (i === 15 && lx > stickThreshold) stickPressed = true;       // Right
+
+        if (stickPressed) {
+          isPressed = true;
+          val = Math.max(val, Math.abs(i <= 13 ? ly : lx));
+        }
+      }
 
       const maxTravel = isStick ? 0.04 : 0.03;
       const pressDepth = isStick ? (isPressed ? maxTravel : 0) : val * maxTravel;
@@ -123,6 +149,41 @@ export class ModelManager {
         (dpadLeft - dpadRight) * rockerTiltMax
       );
       this.dpadRockerPivot.quaternion.copy(this.motionBaseQuaternions.get(this.dpadRockerPivot)).multiply(new THREE.Quaternion().setFromEuler(dpadRotation));
+    }
+
+    // Sync left stick and dpad: both respond to both input sources
+    if (this.syncLeftStickDpad) {
+      // Combine left stick axes with dpad buttons for left stick
+      if (this.leftStick3DGroup) {
+        const dpadUp = pad.buttons[12]?.value || 0;
+        const dpadDown = pad.buttons[13]?.value || 0;
+        const dpadLeft = pad.buttons[14]?.value || 0;
+        const dpadRight = pad.buttons[15]?.value || 0;
+
+        const combinedLx = lx + (dpadRight - dpadLeft);
+        const combinedLy = ly + (dpadDown - dpadUp);
+
+        const combinedLeftStickRotation = new THREE.Euler(
+          Math.max(-1, Math.min(1, combinedLy)) * maxTilt,
+          0,
+          Math.max(-1, Math.min(1, -combinedLx)) * maxTilt
+        );
+        this.leftStick3DGroup.quaternion.copy(this.motionBaseQuaternions.get(this.leftStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(combinedLeftStickRotation));
+      }
+
+      // Combine dpad buttons with left stick axes for dpad rocker
+      if (this.dpadRockerPivot) {
+        const combinedDpadX = (pad.buttons[14]?.value || 0) - (pad.buttons[15]?.value || 0) - lx;
+        const combinedDpadY = (pad.buttons[13]?.value || 0) - (pad.buttons[12]?.value || 0) + ly;
+
+        const rockerTiltMax = 0.22;
+        const combinedDpadRotation = new THREE.Euler(
+          Math.max(-1, Math.min(1, combinedDpadY)) * rockerTiltMax,
+          0,
+          Math.max(-1, Math.min(1, combinedDpadX)) * rockerTiltMax
+        );
+        this.dpadRockerPivot.quaternion.copy(this.motionBaseQuaternions.get(this.dpadRockerPivot)).multiply(new THREE.Quaternion().setFromEuler(combinedDpadRotation));
+      }
     }
   }
 

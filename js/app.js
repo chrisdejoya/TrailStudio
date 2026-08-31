@@ -376,6 +376,13 @@ if (boneVisibilityToggle) {
   });
 }
 
+const syncLeftStickDpadToggle = document.querySelector('#syncLeftStickDpadToggle');
+if (syncLeftStickDpadToggle) {
+  syncLeftStickDpadToggle.addEventListener('change', (e) => {
+    modelManager.setSyncLeftStickDpad(e.target.checked);
+  });
+}
+
 // File I/O Actions
 const loadDefaultBtn = document.querySelector('#loadDefaultBtn');
 if (loadDefaultBtn) {
@@ -527,7 +534,8 @@ function getSettingsState() {
       scale: parseFloat(document.querySelector('#modelScale').value),
       emissionIntensity: parseFloat(document.querySelector('#emissionIntensity').value),
       trailOffsetY: trailManager.getOffsetY(),
-      emissionColor: document.querySelector('#emissionColor').value
+      emissionColor: document.querySelector('#emissionColor').value,
+      syncLeftStickDpad: document.querySelector('#syncLeftStickDpadToggle')?.checked ?? false
     },
     trail: {
       enabled: document.querySelector('#trailEnabled')?.checked ?? true,
@@ -591,6 +599,11 @@ if (state.model) {
       const emissionColorInput = document.querySelector('#emissionColor');
       if (emissionColorInput) emissionColorInput.value = state.model.emissionColor;
       buttonEmissionColor.set(state.model.emissionColor);
+    }
+    if (state.model.syncLeftStickDpad !== undefined) {
+      const toggle = document.querySelector('#syncLeftStickDpadToggle');
+      if (toggle) toggle.checked = state.model.syncLeftStickDpad;
+      modelManager.setSyncLeftStickDpad(state.model.syncLeftStickDpad);
     }
   }
 
