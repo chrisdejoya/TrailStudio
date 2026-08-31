@@ -219,33 +219,7 @@ window.addEventListener('mouseup', () => {
   scrubInput = null;
 });
 
-/* ================================================================= UI & Dock Event Bindings ================================================================= */
-document.querySelectorAll('.dock-tab-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.dock-tab-btn').forEach((b) => b.classList.remove('active'));
-    document.querySelectorAll('.dock-tab-content').forEach((c) => c.classList.remove('active'));
-
-    btn.classList.add('active');
-    const target = document.getElementById(btn.dataset.tab);
-    if (target) target.classList.add('active');
-
-    const dock = document.querySelector('#bottom-dock');
-    if (dock) {
-      dock.classList.remove('collapsed');
-      const toggle = document.querySelector('#toggleDockBtn');
-      if (toggle) toggle.textContent = 'Collapse Dock';
-    }
-  });
-});
-
-const toggleDockBtn = document.querySelector('#toggleDockBtn');
-if (toggleDockBtn) {
-  toggleDockBtn.addEventListener('click', () => {
-    const dock = document.querySelector('#bottom-dock');
-    dock.classList.toggle('collapsed');
-    toggleDockBtn.textContent = dock.classList.contains('collapsed') ? 'Expand Dock' : 'Collapse Dock';
-  });
-}
+/* ================================================================= UI & Inspector Event Bindings ================================================================= */
 
 // Shortcut Listeners
 window.addEventListener('keydown', (e) => {
@@ -254,10 +228,10 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === 'Tab') {
     e.preventDefault();
     const hud = document.querySelector('#hud');
-    const bottomDock = document.querySelector('#bottom-dock');
+    const inspector = document.querySelector('#inspector-shell');
     const isHidden = (hud && hud.style.display === 'none');
     if (hud) hud.style.display = isHidden ? 'flex' : 'none';
-    if (bottomDock) bottomDock.style.display = isHidden ? 'flex' : 'none';
+    if (inspector) inspector.style.display = isHidden ? 'flex' : 'none';
   }
 });
 
@@ -289,10 +263,10 @@ window.addEventListener('resize', () => {
 });
 
 // Settings / LocalStorage Triggers
-const bottomDockElem = document.querySelector('#bottom-dock');
-if (bottomDockElem) {
-  bottomDockElem.addEventListener('input', scheduleSave);
-  bottomDockElem.addEventListener('change', scheduleSave);
+const inspectorShellElem = document.querySelector('#inspector-shell');
+if (inspectorShellElem) {
+  inspectorShellElem.addEventListener('input', scheduleSave);
+  inspectorShellElem.addEventListener('change', scheduleSave);
 }
 
 /* ================================================================= Control Wiring & Configuration ================================================================= */

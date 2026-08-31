@@ -127,7 +127,7 @@ export class LightingManager {
     this.lightConfigs.forEach((cfg) => {
       const entry = this.lightsMap.get(cfg.id);
       const card = document.createElement('div');
-      card.className = 'light-card';
+      card.className = 'panel light-card';
       card.id = `light-card-${cfg.id}`;
 
       card.addEventListener('mousedown', (e) => {
@@ -142,9 +142,14 @@ export class LightingManager {
       const supportsShadow = !isHemisphere;
 
       card.innerHTML = `
-        <div class="light-card-header" style="cursor:pointer;">
-          <label><input type="checkbox" id="${cfg.id}-toggle" checked> ${cfg.name}</label>
+        <div class="panel-header" onclick="togglePanel(this)">
+          <div class="panel-header-left">
+            <input type="checkbox" id="${cfg.id}-toggle" checked onclick="event.stopPropagation()">
+            <label for="${cfg.id}-toggle" onclick="event.stopPropagation()">${cfg.name}</label>
+          </div>
+          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
+        <div class="panel-body"><div class="panel-body-content">
         <div class="control-row">
           <label>Type</label>
           <select id="${cfg.id}-type" class="light-type-select">
@@ -157,7 +162,7 @@ export class LightingManager {
         <div class="control-row">
           <label>Intensity</label>
           <input type="range" id="${cfg.id}-intensity" min="0" max="5" step="0.1" value="${cfg.intensity}">
-          <input type="number" id="${cfg.id}-intensity-input" min="0" max="10" step="0.1" value="${cfg.intensity.toFixed(1)}" style="width:50px; text-align:right; cursor:ew-resize;">
+          <input type="number" id="${cfg.id}-intensity-input" min="0" max="10" step="0.1" value="${cfg.intensity.toFixed(1)}">
         </div>
         
         <div class="control-row">
@@ -213,7 +218,7 @@ export class LightingManager {
         ` : ''}
 
         ${supportsShadow ? `
-        <div class="control-row" style="margin-top:4px; border-top: 1px solid #1a202a; padding-top:4px;">
+        <div class="control-row" style="margin-top:4px; border-top: 1px solid #222226; padding-top:8px;">
           <label>Shadows</label>
           <input type="checkbox" id="${cfg.id}-shadow" ${cfg.castShadow ? 'checked' : ''}>
         </div>
@@ -222,12 +227,13 @@ export class LightingManager {
           <input type="checkbox" id="${cfg.id}-soft-shadow" ${cfg.softShadow ? 'checked' : ''} ${!cfg.castShadow ? 'disabled' : ''}>
         </div>
         ` : ''}
+      </div></div>
       `;
 
       container.appendChild(card);
 
       // Event Bindings
-      card.querySelector('.light-card-header').addEventListener('click', () => this.setActiveLight(cfg.id));
+      card.querySelector('.panel-header').addEventListener('click', () => this.setActiveLight(cfg.id));
       card.querySelector(`#${cfg.id}-toggle`).addEventListener('change', (e) => { entry.instance.visible = e.target.checked; });
 
       const intRange = card.querySelector(`#${cfg.id}-intensity`);
