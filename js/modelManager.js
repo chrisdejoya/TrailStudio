@@ -63,6 +63,75 @@ export class ModelManager {
     this.basePositions[index] = node.position.clone();
   }
 
+  updateButtonStates(pad, buttonEmissionColor, buttonEmissionMultiplier = 1.0) {
+    if (!pad) return;
+
+    pad.buttons.forEach((button, i) => {
+      const entry = this.buttons3D[i];
+      if (!entry) return;
+
+      const { node, isStick, emissiveMaterials } = entry;
+      const basePos = this.basePositions[i];
+      const val = button.value;
+      const isPressed = button.pressed || val > 0.1;
+
+      const maxTravel = isStick ? 0.04 : 0.03;
+      const pressDepth = isStick ? (isPressed ? maxTravel : 0) : val * maxTravel;
+      if (basePos) node.position.y = basePos.y - pressDepth;
+
+      emissiveMaterials.forEach((material) => {
+        if (!material.emissive) return;
+        if (isPressed) {
+          material.emissive.copy(buttonEmissionColor);
+          material.emissiveIntensity = 0.5 * val * buttonEmissionMultiplier;
+        } else {
+          material.emissive.setHex(0x000000);
+          material.emissiveIntensity = 0;
+        }
+      });
+    });
+  }
+
+  updateMotionTransforms(pad) {
+    const ax = pad.axes;
+    const lx = ax[0] || 0;
+    const ly = ax[1] || 0;
+    const rx = ax[2] || 0;
+    const ry = ax[3] || 0;
+
+    const maxTilt = 0.35;
+    const leftStickRotation = new THREE.Euler(ly * maxTilt, 0, -lx * maxTilt);
+    const rightStickRotation = new THREE.Euler(ry * maxTilt, 0, -rx * maxTilt);
+
+    if (this.leftStick3DGroup) {
+      this.leftStick3DGroup.quaternion.copy(this.motionBaseQuaternions.get(this.leftStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(leftStickRotation));
+    }
+    if (this.rightStick3DGroup) {
+      this.rightStick3DGroup.quaternion.copy(this.motionBaseQuaternions.get(this.rightStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(rightStickRotation));
+    }
+
+    if (this.dpadRockerPivot) {
+      const dpadUp = pad.buttons[12]?.value || 0;
+      const dpadDown = pad.buttons[13]?.value || 0;
+      const dpadLeft = pad.buttons[14]?.value || 0;
+      const dpadRight = pad.buttons[15]?.value || 0;
+
+      const rockerTiltMax = 0.22;
+      const dpadRotation = new THREE.Euler(
+        (dpadDown - dpadUp) * rockerTiltMax,
+        0,
+        (dpadLeft - dpadRight) * rockerTiltMax
+      );
+      this.dpadRockerPivot.quaternion.copy(this.motionBaseQuaternions.get(this.dpadRockerPivot)).multiply(new THREE.Quaternion().setFromEuler(dpadRotation));
+    }
+  }
+
+  applyGamepadInput(pad, buttonEmissionColor, buttonEmissionMultiplier = 1.0) {
+    if (!pad) return;
+    this.updateButtonStates(pad, buttonEmissionColor, buttonEmissionMultiplier);
+    this.updateMotionTransforms(pad);
+  }
+
   clearController3D() {
     this.trailManager.destroy();
     this.boneHelpers.forEach((helper) => {

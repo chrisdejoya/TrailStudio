@@ -503,40 +503,6 @@ function refreshPads() {
   diagnosticsPanel.setStatus(true);
 }
 
-function processPadTransforms(pad) {
-  const ax = pad.axes;
-  const lx = ax[0] || 0;
-  const ly = ax[1] || 0;
-  const rx = ax[2] || 0;
-  const ry = ax[3] || 0;
-
-  const maxTilt = 0.35;
-  const leftStickRotation = new THREE.Euler(ly * maxTilt, 0, -lx * maxTilt);
-  const rightStickRotation = new THREE.Euler(ry * maxTilt, 0, -rx * maxTilt);
-
-  if (modelManager.leftStick3DGroup) {
-    modelManager.leftStick3DGroup.quaternion.copy(modelManager.motionBaseQuaternions.get(modelManager.leftStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(leftStickRotation));
-  }
-  if (modelManager.rightStick3DGroup) {
-    modelManager.rightStick3DGroup.quaternion.copy(modelManager.motionBaseQuaternions.get(modelManager.rightStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(rightStickRotation));
-  }
-
-  if (modelManager.dpadRockerPivot) {
-    const dpadUp = pad.buttons[12]?.value || 0;
-    const dpadDown = pad.buttons[13]?.value || 0;
-    const dpadLeft = pad.buttons[14]?.value || 0;
-    const dpadRight = pad.buttons[15]?.value || 0;
-
-    const rockerTiltMax = 0.22;
-    const dpadRotation = new THREE.Euler(
-      (dpadDown - dpadUp) * rockerTiltMax,
-      0,
-      (dpadLeft - dpadRight) * rockerTiltMax
-    );
-    modelManager.dpadRockerPivot.quaternion.copy(modelManager.motionBaseQuaternions.get(modelManager.dpadRockerPivot)).multiply(new THREE.Quaternion().setFromEuler(dpadRotation));
-  }
-}
-
 /* ================================================================= State Serialization & Persistence ================================================================= */
 function getSettingsState() {
   return {
@@ -774,8 +740,8 @@ function loop() {
   const pad = gamepadManager.getSelectedPad();
   if (pad) {
     diagnosticsPanel.setStatus(true);
-    diagnosticsPanel.update(pad, modelManager.buttons3D, modelManager.basePositions, buttonEmissionColor, buttonEmissionMultiplier);
-    processPadTransforms(pad);
+    diagnosticsPanel.update(pad);
+    modelManager.applyGamepadInput(pad, buttonEmissionColor, buttonEmissionMultiplier);
   } else if (gamepadManager.activePadIndex !== null) {
     diagnosticsPanel.setStatus(false);
   }
