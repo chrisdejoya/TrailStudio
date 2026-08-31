@@ -50,7 +50,6 @@ export class ProceduralIBLEditor {
         uniform float sun2Size, sun2Intensity, sun2Atmosphere;
         varying vec3 vWorldPosition;
 
-        // Circular sun / soft disk function
         vec3 sun(vec3 direction, vec3 position, vec3 color, float size, float intensity, float atmosphere) {
           float alignment = dot(direction, normalize(position));
           float exponent = mix(8000.0 / (size * size), 2.0 / size, clamp(atmosphere, 0.0, 1.0));
@@ -59,46 +58,44 @@ export class ProceduralIBLEditor {
           return color * intensity * mix(disk, glow * (1.0 + atmosphere * 3.0), atmosphere);
         }
 
-        // Rectangular studio softbox / panel highlight function
         vec3 rectLight(vec3 direction, vec3 position, vec3 color, float size, float intensity) {
           vec3 lightDir = normalize(position);
-          
           vec3 up = abs(lightDir.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
           vec3 tangent = normalize(cross(up, lightDir));
           vec3 bitangent = cross(lightDir, tangent);
-
           vec3 relDir = direction - lightDir * dot(direction, lightDir);
           float xCoord = dot(relDir, tangent);
           float yCoord = dot(relDir, bitangent);
-
           float halfWidth = 0.05 * size;
-          float halfHeight = 0.1 * size; // Strip light aspect ratio
-
+          float halfHeight = 0.1 * size;
           float dx = max(0.0, abs(xCoord) - halfWidth);
           float dy = max(0.0, abs(yCoord) - halfHeight);
           float dist = sqrt(dx * dx + dy * dy);
-          
           float falloff = smoothstep(halfWidth + 0.05, 0.0, dist);
           float alignment = max(0.0, dot(direction, lightDir));
-          
           return color * intensity * falloff * pow(alignment, 4.0);
         }
 
         void main() {
           vec3 direction = normalize(vWorldPosition);
           
-          // Introduce horizontal variance based on world XZ angle (azimuth skew)
+          // --- FRONT-TO-BACK BIAS ---
+          // direction.z ranges from -1 (back) to +1 (front). 
+          // Adjust the multiplier (e.g., 0.4) to control how dramatic the front/back contrast is.
+          float frontBackFactor = direction.z * 0.4; 
+
           float azimuthAngle = atan(direction.z, direction.x);
-          float horizontalShift = sin(azimuthAngle) * 0.03; // Subtle wave around the horizon
-          
+          float horizontalShift = sin(azimuthAngle) * 0.03;
           float height = direction.y + horizontalShift;
           
-          // Asymmetric horizon gradients (warms one side, cools the opposite side)
           vec3 dynamicHorizonColor = mix(horizonColor, skyColor * 0.5, cos(azimuthAngle) * 0.15);
           
           vec3 upper = mix(dynamicHorizonColor, skyColor, smoothstep(horizonLevel, skyLevel, height));
           vec3 lower = mix(dynamicHorizonColor, groundColor, smoothstep(horizonLevel, groundLevel, height));
           vec3 color = height >= horizonLevel ? upper : lower;
+
+          // Apply front-to-back lighting skew (brighten front Z+, darken back Z-)
+          color *= (1.0 + frontBackFactor);
           
           // Light sources
           color += sun(direction, sun1Position, sun1Color, sun1Size, sun1Intensity, sun1Atmosphere);
