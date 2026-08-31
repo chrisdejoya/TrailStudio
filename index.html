@@ -245,10 +245,14 @@
 
   .postproc-card input[type="number"] { width:55px; text-align:right; cursor:ew-resize; }
 
-  .ibl-grid {
+.ibl-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
+  }
+
+  @media(max-width: 1100px) { 
+    .ibl-grid { grid-template-columns: repeat(2, 1fr); } 
   }
 
   .ibl-card {
@@ -561,6 +565,7 @@
   <!-- TAB 5: PROCEDURAL IMAGE-BASED LIGHTING -->
   <div id="tab-ibl" class="dock-tab-content">
     <div class="ibl-grid">
+      <!-- Card 1: Environment & Preview -->
       <div class="ibl-card">
         <h2 style="margin-top:0;">Environment</h2>
         <canvas id="iblPreview" class="ibl-preview" width="256" height="56"></canvas>
@@ -574,21 +579,23 @@
           <input type="number" id="iblIntensityInput" min="0" max="10" step="0.05" value="1.00" style="width:55px; text-align:right; cursor:ew-resize;">
         </div>
         <div class="control-row">
-          <label>Show Background</label>
+          <label>Background</label>
           <input type="checkbox" id="iblBackground">
         </div>
       </div>
 
+      <!-- Card 2: Sky Gradient & Levels -->
       <div class="ibl-card">
         <h2 style="margin-top:0;">Sky Gradient</h2>
-        <div class="control-row"><label>Sky</label><input type="color" id="iblSkyColor" value="#1e293b"></div>
+        <div class="control-row"><label>Sky Color</label><input type="color" id="iblSkyColor" value="#1e293b"></div>
         <div class="control-row"><label>Sky Level</label><input type="range" id="iblSkyLevel" min="0.01" max="1" step="0.01" value="0.4"><span id="iblSkyLevelValue" class="value">0.40</span></div>
-        <div class="control-row"><label>Horizon</label><input type="color" id="iblHorizonColor" value="#38bdf8"></div>
+        <div class="control-row"><label>Horizon Color</label><input type="color" id="iblHorizonColor" value="#38bdf8"></div>
         <div class="control-row"><label>Horizon Level</label><input type="range" id="iblHorizonLevel" min="-0.5" max="0.5" step="0.01" value="0"><span id="iblHorizonLevelValue" class="value">0.00</span></div>
-        <div class="control-row"><label>Ground</label><input type="color" id="iblGroundColor" value="#0f172a"></div>
+        <div class="control-row"><label>Ground Color</label><input type="color" id="iblGroundColor" value="#0f172a"></div>
         <div class="control-row"><label>Ground Level</label><input type="range" id="iblGroundLevel" min="-1" max="-0.01" step="0.01" value="-0.4"><span id="iblGroundLevelValue" class="value">-0.40</span></div>
       </div>
 
+      <!-- Card 3: Primary Sun -->
       <div class="ibl-card">
         <h2 style="margin-top:0;">Sun 1</h2>
         <div class="control-row"><label>Visible</label><input type="checkbox" id="iblSun1Visible" checked></div>
@@ -600,19 +607,25 @@
         <div class="control-row"><label>Atmosphere</label><input type="range" id="iblSun1Atmosphere" min="0" max="1" step="0.01" value="0.5"><span id="iblSun1AtmosphereValue" class="value">0.50</span></div>
       </div>
 
+      <!-- Card 4: Secondary Sun -->
       <div class="ibl-card">
-        <h2 style="margin-top:0;">Sun 2 & Ring</h2>
-        <div class="control-row"><label>Sun 2 Visible</label><input type="checkbox" id="iblSun2Visible" checked></div>
-        <div class="control-row"><label>Sun 2 Color</label><input type="color" id="iblSun2Color" value="#f59e0b"></div>
+        <h2 style="margin-top:0;">Sun 2</h2>
+        <div class="control-row"><label>Visible</label><input type="checkbox" id="iblSun2Visible" checked></div>
+        <div class="control-row"><label>Color</label><input type="color" id="iblSun2Color" value="#f59e0b"></div>
         <div class="control-row"><label>Elevation</label><input type="range" id="iblSun2Elevation" min="0" max="90" step="1" value="20"><span id="iblSun2ElevationValue" class="value">20</span></div>
         <div class="control-row"><label>Azimuth</label><input type="range" id="iblSun2Azimuth" min="0" max="360" step="1" value="45"><span id="iblSun2AzimuthValue" class="value">45</span></div>
         <div class="control-row"><label>Size</label><input type="range" id="iblSun2Size" min="0.1" max="5" step="0.05" value="1.5"><span id="iblSun2SizeValue" class="value">1.50</span></div>
         <div class="control-row"><label>Intensity</label><input type="range" id="iblSun2Intensity" min="0" max="10" step="0.1" value="0"><span id="iblSun2IntensityValue" class="value">0.00</span></div>
         <div class="control-row"><label>Atmosphere</label><input type="range" id="iblSun2Atmosphere" min="0" max="1" step="0.01" value="0.7"><span id="iblSun2AtmosphereValue" class="value">0.70</span></div>
-        <div class="control-row"><label>Ring Visible</label><input type="checkbox" id="iblRingVisible" checked></div>
-        <div class="control-row"><label>Ring Color</label><input type="color" id="iblRingColor" value="#38bdf8"></div>
-        <div class="control-row"><label>Ring Height</label><input type="range" id="iblRingHeight" min="-1" max="1" step="0.05" value="0"><span id="iblRingHeightValue" class="value">0.00</span></div>
-        <div class="control-row"><label>Ring Intensity</label><input type="range" id="iblRingIntensity" min="0" max="10" step="0.1" value="3"><span id="iblRingIntensityValue" class="value">3.00</span></div>
+      </div>
+
+      <!-- Card 5: Horizon Ring -->
+      <div class="ibl-card">
+        <h2 style="margin-top:0;">Horizon Ring</h2>
+        <div class="control-row"><label>Visible</label><input type="checkbox" id="iblRingVisible" checked></div>
+        <div class="control-row"><label>Color</label><input type="color" id="iblRingColor" value="#38bdf8"></div>
+        <div class="control-row"><label>Height</label><input type="range" id="iblRingHeight" min="-1" max="1" step="0.05" value="0"><span id="iblRingHeightValue" class="value">0.00</span></div>
+        <div class="control-row"><label>Intensity</label><input type="range" id="iblRingIntensity" min="0" max="10" step="0.1" value="3"><span id="iblRingIntensityValue" class="value">3.00</span></div>
       </div>
     </div>
   </div>
