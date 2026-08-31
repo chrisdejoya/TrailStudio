@@ -50,6 +50,7 @@ export class ProceduralIBLEditor {
         uniform float sun2Size, sun2Intensity, sun2Atmosphere;
         varying vec3 vWorldPosition;
 
+        // Circular sun / soft disk function
         vec3 sun(vec3 direction, vec3 position, vec3 color, float size, float intensity, float atmosphere) {
           float alignment = dot(direction, normalize(position));
           float exponent = mix(8000.0 / (size * size), 2.0 / size, clamp(atmosphere, 0.0, 1.0));
@@ -58,14 +59,51 @@ export class ProceduralIBLEditor {
           return color * intensity * mix(disk, glow * (1.0 + atmosphere * 3.0), atmosphere);
         }
 
+        // Rectangular studio softbox / panel highlight function
+        vec3 rectLight(vec3 direction, vec3 position, vec3 color, float size, float intensity) {
+          vec3 lightDir = normalize(position);
+          
+          vec3 up = abs(lightDir.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+          vec3 tangent = normalize(cross(up, lightDir));
+          vec3 bitangent = cross(lightDir, tangent);
+
+          vec3 relDir = direction - lightDir * dot(direction, lightDir);
+          float xCoord = dot(relDir, tangent);
+          float yCoord = dot(relDir, bitangent);
+
+          float halfWidth = 0.05 * size;
+          float halfHeight = 0.1 * size; // Strip light aspect ratio
+
+          float dx = max(0.0, abs(xCoord) - halfWidth);
+          float dy = max(0.0, abs(yCoord) - halfHeight);
+          float dist = sqrt(dx * dx + dy * dy);
+          
+          float falloff = smoothstep(halfWidth + 0.05, 0.0, dist);
+          float alignment = max(0.0, dot(direction, lightDir));
+          
+          return color * intensity * falloff * pow(alignment, 4.0);
+        }
+
         void main() {
           vec3 direction = normalize(vWorldPosition);
-          float height = direction.y;
-          vec3 upper = mix(horizonColor, skyColor, smoothstep(horizonLevel, skyLevel, height));
-          vec3 lower = mix(horizonColor, groundColor, smoothstep(horizonLevel, groundLevel, height));
+          
+          // Introduce horizontal variance based on world XZ angle (azimuth skew)
+          float azimuthAngle = atan(direction.z, direction.x);
+          float horizontalShift = sin(azimuthAngle) * 0.03; // Subtle wave around the horizon
+          
+          float height = direction.y + horizontalShift;
+          
+          // Asymmetric horizon gradients (warms one side, cools the opposite side)
+          vec3 dynamicHorizonColor = mix(horizonColor, skyColor * 0.5, cos(azimuthAngle) * 0.15);
+          
+          vec3 upper = mix(dynamicHorizonColor, skyColor, smoothstep(horizonLevel, skyLevel, height));
+          vec3 lower = mix(dynamicHorizonColor, groundColor, smoothstep(horizonLevel, groundLevel, height));
           vec3 color = height >= horizonLevel ? upper : lower;
+          
+          // Light sources
           color += sun(direction, sun1Position, sun1Color, sun1Size, sun1Intensity, sun1Atmosphere);
-          color += sun(direction, sun2Position, sun2Color, sun2Size, sun2Intensity, sun2Atmosphere);
+          color += rectLight(direction, sun2Position, sun2Color, sun2Size, sun2Intensity);
+
           gl_FragColor = vec4(color, 1.0);
         }`
     });
@@ -89,16 +127,25 @@ export class ProceduralIBLEditor {
     u.horizonLevel.value = state.horizonLevel;
     u.groundLevel.value = state.groundLevel;
 
-    [1, 2].forEach((index) => {
-      const elevation = THREE.MathUtils.degToRad(90 - state[`sun${index}Elevation`]);
-      const azimuth = THREE.MathUtils.degToRad(state[`sun${index}Azimuth`]);
-      u[`sun${index}Position`].value.setFromSphericalCoords(100, elevation, azimuth);
-      u[`sun${index}Color`].value.set(state[`sun${index}Color`]);
-      u[`sun${index}Size`].value = state[`sun${index}Size`] ?? (index === 1 ? 1 : 1.5);
-      u[`sun${index}Intensity`].value = state[`sun${index}Visible`] ? state[`sun${index}Intensity`] : 0;
-      u[`sun${index}Atmosphere`].value = state[`sun${index}Atmosphere`] ?? (index === 1 ? 0.5 : 0.7);
-    });
+    // Sun 1 (Spherical disk/glow)
+    const sun1El = THREE.MathUtils.degToRad(90 - state.sun1Elevation);
+    const sun1Az = THREE.MathUtils.degToRad(state.sun1Azimuth);
+    u.sun1Position.value.setFromSphericalCoords(100, sun1El, sun1Az);
+    u.sun1Color.value.set(state.sun1Color);
+    u.sun1Size.value = state.sun1Size;
+    u.sun1Intensity.value = state.sun1Visible ? state.sun1Intensity : 0;
+    u.sun1Atmosphere.value = state.sun1Atmosphere;
 
+    // Sun 2 (Rectangular softbox)
+    const sun2El = THREE.MathUtils.degToRad(90 - state.sun2Elevation);
+    const sun2Az = THREE.MathUtils.degToRad(state.sun2Azimuth);
+    u.sun2Position.value.setFromSphericalCoords(100, sun2El, sun2Az);
+    u.sun2Color.value.set(state.sun2Color);
+    u.sun2Size.value = state.sun2Size;
+    u.sun2Intensity.value = state.sun2Visible ? state.sun2Intensity : 0;
+    u.sun2Atmosphere.value = state.sun2Atmosphere;
+
+    // Ring updates
     this.ringMesh.visible = state.ringVisible ?? true;
     this.ringMesh.position.y = state.ringHeight ?? 0;
     this.ringMaterial.color.set(state.ringColor).multiplyScalar(state.ringIntensity ?? 1);
@@ -121,12 +168,38 @@ export class ProceduralIBLEditor {
 
   renderPreview(state) {
     if (!this.previewCanvas || !this.previewContext) return;
-    const gradient = this.previewContext.createLinearGradient(0, 0, 0, this.previewCanvas.height);
+    const ctx = this.previewContext;
+    const w = this.previewCanvas.width;
+    const h = this.previewCanvas.height;
+
+    // Clear and draw background vertical gradient with horizontal variance simulation
+    const gradient = ctx.createLinearGradient(0, 0, 0, h);
     gradient.addColorStop(0, state.skyColor);
-    gradient.addColorStop(Math.max(0, Math.min(1, 0.5 - state.horizonLevel / 2)), state.horizonColor);
+    gradient.addColorStop(0.5, state.horizonColor);
     gradient.addColorStop(1, state.groundColor);
-    this.previewContext.fillStyle = gradient;
-    this.previewContext.fillRect(0, 0, this.previewCanvas.width, this.previewCanvas.height);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw rough preview approximations of Sun 1 and Sun 2 positions on the strip
+    const drawLightPreview = (azimuth, color, size, isRect) => {
+      const x = (azimuth / 360) * w;
+      const y = h * 0.4; // Upper region
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      if (isRect) {
+        ctx.fillRect(x - (size * 4), y - (size * 2), size * 8, size * 4);
+      } else {
+        ctx.arc(x, y, size * 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    };
+
+    if (state.sun1Visible) drawLightPreview(state.sun1Azimuth, state.sun1Color, state.sun1Size, false);
+    if (state.sun2Visible) drawLightPreview(state.sun2Azimuth, state.sun2Color, state.sun2Size, true);
   }
 
   dispose() {
