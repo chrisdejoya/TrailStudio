@@ -24,10 +24,12 @@ import {
   handleCameraMouseMove,
   handleCameraWheel,
   handleCameraResize,
-  cameraApi
+  cameraApi,
+  setTargetModelGroup
 } from './cameraControls.js';
 
-const DB_NAME = 'TrailpadStudio';
+/* ================================================================= IndexedDB Storage ================================================================= */
+const DB_NAME = 'TrailStudio';
 const DB_VERSION = 1;
 const STORE_NAME = 'models';
 const MODEL_KEY = 'current_glb';
@@ -106,6 +108,63 @@ async function clearStoredModel() {
   }
 }
 
+async function verifyPermission(fileHandle) {
+  const options = { mode: 'read' };
+  if ((await fileHandle.queryPermission(options)) === 'granted') return true;
+  if ((await fileHandle.requestPermission(options)) === 'granted') return true;
+  return false;
+}
+
+/* ================================================================= Three.js Scene & Engine Setup ================================================================= */
+const app = document.querySelector('#app');
+const scene = new THREE.Scene();
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.VSMShadowMap;
+app.appendChild(renderer.domElement);
+
+const {
+  composer,
+  aoPass,
+  bloomPass,
+  postShaderPass,
+  updateAntiAliasing,
+  resize: resizePostProcessing
+} = createPostProcessing(renderer, scene, camera);
+
+// Managers Setup
+const diagnosticsPanel = new DiagnosticsPanel();
+const lightingManager = new LightingManager(scene);
+const proceduralIBLEditor = new ProceduralIBLEditor(renderer, scene);
+const iblState = { ...DEFAULT_IBL_STATE };
+
+const controllerGroup = new THREE.Group();
+controllerGroup.rotation.x = 0.30;
+scene.add(controllerGroup);
+setTargetModelGroup(controllerGroup);
+
+let buttonEmissionMultiplier = 1.0;
+let buttonEmissionColor = new THREE.Color(0xffffff);
+const trailManager = new TrailManager(scene, camera);
+const modelManager = new ModelManager(controllerGroup, trailManager, () => {});
+
+const gamepadManager = new GamepadManager({
+  hudUI: diagnosticsPanel.getHudUI(),
+  meshMappings: modelManager.MESH_MAPPINGS,
+  onPadChange: () => {
+    refreshPads();
+    diagnosticsPanel.resetSnapshot();
+  }
+});
+
+/* ================================================================= Global Number Input Scrubbing Logic ================================================================= */
 let isPotentialScrub = false;
 let isScrubbing = false;
 let scrubInput = null;
@@ -159,6 +218,7 @@ window.addEventListener('mouseup', () => {
   scrubInput = null;
 });
 
+/* ================================================================= UI & Dock Event Bindings ================================================================= */
 document.querySelectorAll('.dock-tab-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.dock-tab-btn').forEach((b) => b.classList.remove('active'));
@@ -186,18 +246,7 @@ if (toggleDockBtn) {
   });
 }
 
-// Instantiate the extracted DiagnosticsPanel
-const diagnosticsPanel = new DiagnosticsPanel();
-
-const app = document.querySelector('#app');
-const scene = new THREE.Scene();
-
-// Initialize Camera inputs/listeners from module
-setupCameraInputs(saveToLocalStorage);
-
-// Initialize Lighting Manager
-const lightingManager = new LightingManager(scene);
-
+// Shortcut Listeners
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     lightingManager.setActiveLight(null);
@@ -211,71 +260,8 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1));
-renderer.setSize(innerWidth, innerHeight);
-renderer.setClearColor(0x000000, 0);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.VSMShadowMap;
-app.appendChild(renderer.domElement);
-
-const {
-  composer,
-  aoPass,
-  bloomPass,
-  postShaderPass,
-  updateAntiAliasing,
-  resize: resizePostProcessing
-} = createPostProcessing(renderer, scene, camera);
-
-const iblState = { ...DEFAULT_IBL_STATE };
-const proceduralIBLEditor = new ProceduralIBLEditor(renderer, scene);
-
-function updateIBL() {
-  proceduralIBLEditor.update(iblState);
-}
-
-setupIBLControls(iblState, updateIBL);
-
-document.querySelector('#aaToggle').addEventListener('change', updateAntiAliasing);
-document.querySelector('#aaQualitySelect').addEventListener('change', updateAntiAliasing);
-
-document.querySelector('#shadowQualitySelect').addEventListener('change', (e) => {
-  lightingManager.updateShadowQuality(e.target.value);
-});
-
-document.querySelector('#bloomToggle').addEventListener('change', (e) => {
-  bloomPass.enabled = e.target.checked;
-});
-
-bindSliderAndInput('#bloomStrength', '#bloomStrengthInput', (val) => { bloomPass.strength = val; }, 2);
-bindSliderAndInput('#bloomRadius', '#bloomRadiusInput', (val) => { bloomPass.radius = val; }, 2);
-bindSliderAndInput('#bloomThreshold', '#bloomThresholdInput', (val) => { bloomPass.threshold = val; }, 2);
-
-document.querySelector('#aoToggle').addEventListener('change', (e) => {
-  aoPass.enabled = e.target.checked;
-});
-bindSliderAndInput('#aoRadius', '#aoRadiusInput', (val) => { aoPass.kernelRadius = val; }, 2);
-bindSliderAndInput('#aoMinDistance', '#aoMinDistanceInput', (val) => { aoPass.minDistance = val; }, 3);
-bindSliderAndInput('#aoMaxDistance', '#aoMaxDistanceInput', (val) => { aoPass.maxDistance = val; }, 2);
-
-document.querySelector('#toneMappingSelect').addEventListener('change', (e) => {
-  switch (e.target.value) {
-    case 'Linear': renderer.toneMapping = THREE.LinearToneMapping; break;
-    case 'Reinhard': renderer.toneMapping = THREE.ReinhardToneMapping; break;
-    case 'Cineon': renderer.toneMapping = THREE.CineonToneMapping; break;
-    default: renderer.toneMapping = THREE.ACESFilmicToneMapping; break;
-  }
-});
-
-bindSliderAndInput('#exposureRange', '#exposureInput', (val) => { renderer.toneMappingExposure = val; }, 2);
-bindSliderAndInput('#contrastRange', '#contrastInput', (val) => { postShaderPass.uniforms.contrast.value = val; }, 2);
-bindSliderAndInput('#saturationRange', '#saturationInput', (val) => { postShaderPass.uniforms.saturation.value = val; }, 2);
-
 window.addEventListener('contextmenu', (e) => e.preventDefault());
+
 renderer.domElement.addEventListener('mousedown', (e) => {
   lightingManager.setActiveLight(null);
   handleCameraMouseDown(e);
@@ -293,12 +279,56 @@ renderer.domElement.addEventListener('wheel', (e) => {
   handleCameraWheel(e, scheduleSave);
 }, { passive: false });
 
+window.addEventListener('resize', () => {
+  handleCameraResize();
+  renderer.setSize(innerWidth, innerHeight);
+  resizePostProcessing(innerWidth, innerHeight);
+});
+
+// Settings / LocalStorage Triggers
+const bottomDockElem = document.querySelector('#bottom-dock');
+if (bottomDockElem) {
+  bottomDockElem.addEventListener('input', scheduleSave);
+  bottomDockElem.addEventListener('change', scheduleSave);
+}
+
+/* ================================================================= Control Wiring & Configuration ================================================================= */
+function updateIBL() {
+  proceduralIBLEditor.update(iblState);
+}
+setupIBLControls(iblState, updateIBL);
+setupCameraInputs(saveToLocalStorage);
 lightingManager.renderLightingDock();
 
-const controllerGroup = new THREE.Group();
-controllerGroup.rotation.x = 0.55;
-scene.add(controllerGroup);
+// Post-processing UI Bindings
+document.querySelector('#aaToggle').addEventListener('change', updateAntiAliasing);
+document.querySelector('#aaQualitySelect').addEventListener('change', updateAntiAliasing);
+document.querySelector('#shadowQualitySelect').addEventListener('change', (e) => lightingManager.updateShadowQuality(e.target.value));
 
+document.querySelector('#bloomToggle').addEventListener('change', (e) => { bloomPass.enabled = e.target.checked; });
+bindSliderAndInput('#bloomStrength', '#bloomStrengthInput', (val) => { bloomPass.strength = val; }, 2);
+bindSliderAndInput('#bloomRadius', '#bloomRadiusInput', (val) => { bloomPass.radius = val; }, 2);
+bindSliderAndInput('#bloomThreshold', '#bloomThresholdInput', (val) => { bloomPass.threshold = val; }, 2);
+
+document.querySelector('#aoToggle').addEventListener('change', (e) => { aoPass.enabled = e.target.checked; });
+bindSliderAndInput('#aoRadius', '#aoRadiusInput', (val) => { aoPass.kernelRadius = val; }, 2);
+bindSliderAndInput('#aoMinDistance', '#aoMinDistanceInput', (val) => { aoPass.minDistance = val; }, 3);
+bindSliderAndInput('#aoMaxDistance', '#aoMaxDistanceInput', (val) => { aoPass.maxDistance = val; }, 2);
+
+document.querySelector('#toneMappingSelect').addEventListener('change', (e) => {
+  switch (e.target.value) {
+    case 'Linear': renderer.toneMapping = THREE.LinearToneMapping; break;
+    case 'Reinhard': renderer.toneMapping = THREE.ReinhardToneMapping; break;
+    case 'Cineon': renderer.toneMapping = THREE.CineonToneMapping; break;
+    default: renderer.toneMapping = THREE.ACESFilmicToneMapping; break;
+  }
+});
+
+bindSliderAndInput('#exposureRange', '#exposureInput', (val) => { renderer.toneMappingExposure = val; }, 2);
+bindSliderAndInput('#contrastRange', '#contrastInput', (val) => { postShaderPass.uniforms.contrast.value = val; }, 2);
+bindSliderAndInput('#saturationRange', '#saturationInput', (val) => { postShaderPass.uniforms.saturation.value = val; }, 2);
+
+// Model Control UI Bindings
 const syncModelScale = (val) => {
   const s = Math.max(0.01, parseFloat(val) || 1);
   controllerGroup.scale.set(s, s, s);
@@ -313,23 +343,20 @@ const modelScaleInput = document.querySelector('#modelScaleInput');
 if (modelScale) modelScale.addEventListener('input', (e) => syncModelScale(e.target.value));
 if (modelScaleInput) modelScaleInput.addEventListener('input', (e) => syncModelScale(e.target.value));
 
-let buttonEmissionMultiplier = 1.0;
-const trailManager = new TrailManager(scene, camera);
-
-// Initialize ModelManager module
-const modelManager = new ModelManager(controllerGroup, trailManager, () => {
-  // Callback when model is loaded/rebuilt
-});
-
-let buttonEmissionColor = new THREE.Color(0xffffff);
-const emissionColor = document.querySelector('#emissionColor');
-if (emissionColor) emissionColor.addEventListener('input', (e) => {
-  buttonEmissionColor.set(e.target.value);
-});
+const emissionColorElem = document.querySelector('#emissionColor');
+if (emissionColorElem) {
+  emissionColorElem.addEventListener('input', (e) => {
+    buttonEmissionColor.set(e.target.value);
+  });
+}
 
 bindSliderAndInput('#trailOffset', '#trailOffsetInput', (val) => {
   trailManager.setOffsetY(val);
   trailManager.syncTarget(modelManager.leftStick3DGroup);
+}, 2);
+
+bindSliderAndInput('#emissionIntensity', '#emissionIntensityInput', (val) => {
+  buttonEmissionMultiplier = val;
 }, 2);
 
 const boneVisibilityToggle = document.querySelector('#boneVisibilityToggle');
@@ -339,6 +366,7 @@ if (boneVisibilityToggle) {
   });
 }
 
+// File I/O Actions
 const loadDefaultBtn = document.querySelector('#loadDefaultBtn');
 if (loadDefaultBtn) {
   loadDefaultBtn.addEventListener('click', async () => {
@@ -363,13 +391,6 @@ if (fileInput) {
   });
 }
 
-async function verifyPermission(fileHandle) {
-  const options = { mode: 'read' };
-  if ((await fileHandle.queryPermission(options)) === 'granted') return true;
-  if ((await fileHandle.requestPermission(options)) === 'granted') return true;
-  return false;
-}
-
 const openPickerBtn = document.querySelector('#openPickerBtn');
 if (openPickerBtn) {
   openPickerBtn.addEventListener('click', async () => {
@@ -389,49 +410,77 @@ if (openPickerBtn) {
       await saveBinaryModel(buffer, file.name);
       await saveFileHandle(handle);
     } catch (err) {
-      // Ignore cancellation errors.
+      // Ignore user cancellation errors.
     }
   });
 }
 
-async function initModelPersistence() {
-  const handle = await getStoredFileHandle();
-  if (handle) {
-    try {
-      if (await verifyPermission(handle)) {
-        const file = await handle.getFile();
-        const buffer = await file.arrayBuffer();
-        modelManager.parseAndLoadGLTF(buffer);
-        return;
-      }
-    } catch (err) {
-      console.warn('File handle load error:', err);
-    }
-  }
+const exportSettingsBtn = document.querySelector('#exportSettingsBtn');
+if (exportSettingsBtn) {
+  exportSettingsBtn.addEventListener('click', () => {
+    const data = JSON.stringify(getSettingsState(), null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
 
-  const stored = await getStoredBinaryModel();
-  if (stored && stored.buffer) {
-    modelManager.parseAndLoadGLTF(stored.buffer);
-    return;
-  }
-
-  modelManager.buildProceduralController();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trailpad-settings-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 }
 
-const gamepadManager = new GamepadManager({
-  hudUI: diagnosticsPanel.getHudUI(),
-  meshMappings: modelManager.MESH_MAPPINGS,
-  onPadChange: (padInfo) => {
-    refreshPads();
-    diagnosticsPanel.resetSnapshot();
-  }
-});
+const importSettingsInput = document.querySelector('#importSettingsInput');
+if (importSettingsInput) {
+  importSettingsInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const parsed = JSON.parse(evt.target.result);
+        applySettingsState(parsed);
+        saveToLocalStorage();
+      } catch (err) {
+        console.warn('Could not import settings:', err);
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+
+/* ================================================================= Gamepad & Diagnostics Integration ================================================================= */
+const padSelect = document.querySelector('#padSelect');
+if (padSelect) {
+  padSelect.addEventListener('change', (e) => { 
+    gamepadManager.selectPad(Number(e.target.value)); 
+    diagnosticsPanel.resetSnapshot(); 
+  });
+}
+
+const scanBtn = document.querySelector('#scan');
+if (scanBtn) scanBtn.onclick = refreshPads;
+
+const rumbleBtn = document.querySelector('#rumble');
+if (rumbleBtn) {
+  rumbleBtn.onclick = async () => {
+    const pad = gamepadManager.getSelectedPad();
+    if (!pad?.vibrationActuator) return;
+    try {
+      await pad.vibrationActuator.playEffect('dual-rumble', { duration: 180, strongMagnitude: 0.65, weakMagnitude: 0.35 });
+    } catch (err) {
+      console.warn('Rumble failed:', err);
+    }
+  };
+}
 
 function refreshPads() {
   const pads = gamepadManager.refreshPads();
   const sel = document.querySelector('#padSelect');
   const old = gamepadManager.activePadIndex;
   if (!sel) return;
+  
   sel.innerHTML = '';
   if (!pads.length) {
     sel.innerHTML = '<option>No controller detected</option>';
@@ -439,11 +488,14 @@ function refreshPads() {
     diagnosticsPanel.setStatus(false);
     return;
   }
+  
   pads.forEach((pad) => {
     const option = document.createElement('option');
-    option.value = pad.index; option.textContent = `#${pad.index} — ${pad.id}`;
+    option.value = pad.index; 
+    option.textContent = `#${pad.index} — ${pad.id}`;
     sel.appendChild(option);
   });
+
   const newIndex = pads.some((pad) => pad.index === old) ? old : pads[0].index;
   gamepadManager.selectPad(newIndex);
   sel.value = newIndex;
@@ -452,11 +504,15 @@ function refreshPads() {
 
 function processPadTransforms(pad) {
   const ax = pad.axes;
-  const lx = ax[0] || 0, ly = ax[1] || 0, rx = ax[2] || 0, ry = ax[3] || 0;
+  const lx = ax[0] || 0;
+  const ly = ax[1] || 0;
+  const rx = ax[2] || 0;
+  const ry = ax[3] || 0;
 
   const maxTilt = 0.35;
   const leftStickRotation = new THREE.Euler(ly * maxTilt, 0, -lx * maxTilt);
   const rightStickRotation = new THREE.Euler(ry * maxTilt, 0, -rx * maxTilt);
+
   if (modelManager.leftStick3DGroup) {
     modelManager.leftStick3DGroup.quaternion.copy(modelManager.motionBaseQuaternions.get(modelManager.leftStick3DGroup)).multiply(new THREE.Quaternion().setFromEuler(leftStickRotation));
   }
@@ -480,49 +536,7 @@ function processPadTransforms(pad) {
   }
 }
 
-function loop() {
-  requestAnimationFrame(loop);
-  const pad = gamepadManager.getSelectedPad();
-  if (pad) {
-    diagnosticsPanel.setStatus(true);
-    diagnosticsPanel.update(pad, modelManager.buttons3D, modelManager.basePositions, buttonEmissionColor, buttonEmissionMultiplier);
-    processPadTransforms(pad);
-  } else if (gamepadManager.activePadIndex !== null) {
-    diagnosticsPanel.setStatus(false);
-  }
-
-  trailManager.update();
-  composer.render();
-}
-
-const padSelect = document.querySelector('#padSelect');
-if (padSelect) padSelect.addEventListener('change', (e) => { 
-  gamepadManager.selectPad(Number(e.target.value)); 
-  diagnosticsPanel.resetSnapshot(); 
-});
-
-const scanBtn = document.querySelector('#scan');
-if (scanBtn) scanBtn.onclick = refreshPads;
-
-const rumbleBtn = document.querySelector('#rumble');
-if (rumbleBtn) {
-  rumbleBtn.onclick = async () => {
-    const pad = gamepadManager.getSelectedPad();
-    if (!pad?.vibrationActuator) return;
-    try {
-      await pad.vibrationActuator.playEffect('dual-rumble', { duration: 180, strongMagnitude: 0.65, weakMagnitude: 0.35 });
-    } catch (err) {
-      console.warn('Rumble failed:', err);
-    }
-  };
-}
-
-window.addEventListener('resize', () => {
-  handleCameraResize();
-  renderer.setSize(innerWidth, innerHeight);
-  resizePostProcessing(innerWidth, innerHeight);
-});
-
+/* ================================================================= State Serialization & Persistence ================================================================= */
 function getSettingsState() {
   return {
     camera: getCameraState(),
@@ -715,54 +729,55 @@ function loadFromLocalStorage() {
   }
 }
 
-document.querySelector('#bottom-dock').addEventListener('input', scheduleSave);
-document.querySelector('#bottom-dock').addEventListener('change', scheduleSave);
-
-const exportSettingsBtn = document.querySelector('#exportSettingsBtn');
-if (exportSettingsBtn) {
-  exportSettingsBtn.addEventListener('click', () => {
-    const data = JSON.stringify(getSettingsState(), null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `trailpad-settings-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-}
-
-const importSettingsInput = document.querySelector('#importSettingsInput');
-if (importSettingsInput) {
-  importSettingsInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const parsed = JSON.parse(evt.target.result);
-        applySettingsState(parsed);
-        saveToLocalStorage();
-      } catch (err) {
-        console.warn('Could not import settings:', err);
+async function initModelPersistence() {
+  const handle = await getStoredFileHandle();
+  if (handle) {
+    try {
+      if (await verifyPermission(handle)) {
+        const file = await handle.getFile();
+        const buffer = await file.arrayBuffer();
+        modelManager.parseAndLoadGLTF(buffer);
+        return;
       }
-    };
-    reader.readAsText(file);
-  });
+    } catch (err) {
+      console.warn('File handle load error:', err);
+    }
+  }
+
+  const stored = await getStoredBinaryModel();
+  if (stored && stored.buffer) {
+    modelManager.parseAndLoadGLTF(stored.buffer);
+    return;
+  }
+
+  modelManager.buildProceduralController();
 }
 
-bindSliderAndInput('#emissionIntensity', '#emissionIntensityInput', (val) => {
-  buttonEmissionMultiplier = val;
-}, 2);
+/* ================================================================= Main Execution Loop & App API ================================================================= */
+function loop() {
+  requestAnimationFrame(loop);
+  
+  const pad = gamepadManager.getSelectedPad();
+  if (pad) {
+    diagnosticsPanel.setStatus(true);
+    diagnosticsPanel.update(pad, modelManager.buttons3D, modelManager.basePositions, buttonEmissionColor, buttonEmissionMultiplier);
+    processPadTransforms(pad);
+  } else if (gamepadManager.activePadIndex !== null) {
+    diagnosticsPanel.setStatus(false);
+  }
 
+  trailManager.update();
+  composer.render();
+}
+
+// Initializers Execution
 updateIBL();
 loadFromLocalStorage();
 initModelPersistence();
 refreshPads();
 loop();
 
+// Expose Application APIs
 const appApi = {
   setMode(groupId) {
     const activeGroup = document.querySelector('.inspector-group.active');

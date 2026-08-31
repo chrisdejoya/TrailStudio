@@ -7,8 +7,6 @@ export const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window
 export const cameraTarget = new THREE.Vector3(0, 0, 0);
 
 let radius = 6.5;
-let theta = 0;
-let phi = 0.85;
 let isUpdatingRotUI = false;
 
 let isMouseDown = false;
@@ -18,6 +16,13 @@ let previousMousePosition = { x: 0, y: 0 };
 const panRight = new THREE.Vector3();
 const panUp = new THREE.Vector3();
 const panForward = new THREE.Vector3();
+
+// Reference to the object group being rotated instead of the camera
+let targetModelGroup = null;
+
+export function setTargetModelGroup(group) {
+  targetModelGroup = group;
+}
 
 // -----------------------------------------------------------------------------
 // UTILITY & SYNC FUNCTIONS
@@ -31,20 +36,9 @@ export function syncTargetInputs() {
   if (z) z.value = cameraTarget.z.toFixed(2);
 }
 
-export function syncAnglesFromCameraPosition() {
-  const offset = new THREE.Vector3().subVectors(camera.position, cameraTarget);
-  radius = offset.length();
-  if (radius > 0) {
-    phi = Math.acos(Math.max(-1, Math.min(1, offset.y / radius)));
-    theta = Math.atan2(offset.x, offset.z);
-  }
-}
-
 export function updateCameraPosition(skipRotationUpdate = false) {
-  phi = Math.max(0.01, Math.min(Math.PI - 0.01, phi));
-  camera.position.x = cameraTarget.x + radius * Math.sin(phi) * Math.sin(theta);
-  camera.position.y = cameraTarget.y + radius * Math.cos(phi);
-  camera.position.z = cameraTarget.z + radius * Math.sin(phi) * Math.cos(theta);
+  // Position the camera slightly elevated and looking forward/down at the target
+  camera.position.set(cameraTarget.x, cameraTarget.y + 1.2, cameraTarget.z + radius);
   camera.lookAt(cameraTarget);
 
   const camRadius = document.querySelector('#camRadius');
@@ -52,14 +46,14 @@ export function updateCameraPosition(skipRotationUpdate = false) {
   if (camRadius) camRadius.value = radius;
   if (camRadiusInput) camRadiusInput.value = radius.toFixed(1);
 
-  if (!skipRotationUpdate) {
+  if (!skipRotationUpdate && targetModelGroup) {
     isUpdatingRotUI = true;
     const rotX = document.querySelector('#camRotX');
     const rotY = document.querySelector('#camRotY');
     const rotZ = document.querySelector('#camRotZ');
-    if (rotX) rotX.value = (camera.rotation.x * (180 / Math.PI)).toFixed(1);
-    if (rotY) rotY.value = (camera.rotation.y * (180 / Math.PI)).toFixed(1);
-    if (rotZ) rotZ.value = (camera.rotation.z * (180 / Math.PI)).toFixed(1);
+    if (rotX) rotX.value = (targetModelGroup.rotation.x * (180 / Math.PI)).toFixed(1);
+    if (rotY) rotY.value = (targetModelGroup.rotation.y * (180 / Math.PI)).toFixed(1);
+    if (rotZ) rotZ.value = (targetModelGroup.rotation.z * (180 / Math.PI)).toFixed(1);
     isUpdatingRotUI = false;
   }
 }
@@ -96,18 +90,12 @@ export const syncZoom = (val) => {
 };
 
 export const updateRotFromInputs = () => {
-  if (isUpdatingRotUI) return;
+  if (isUpdatingRotUI || !targetModelGroup) return;
   const rotX = (parseFloat(document.querySelector('#camRotX')?.value) || 0) * (Math.PI / 180);
   const rotY = (parseFloat(document.querySelector('#camRotY')?.value) || 0) * (Math.PI / 180);
   const rotZ = (parseFloat(document.querySelector('#camRotZ')?.value) || 0) * (Math.PI / 180);
 
-  const offset = new THREE.Vector3(0, 0, radius);
-  const euler = new THREE.Euler(rotX, rotY, rotZ, 'YXZ');
-  offset.applyEuler(euler);
-
-  camera.position.copy(cameraTarget).add(offset);
-  camera.lookAt(cameraTarget);
-  syncAnglesFromCameraPosition();
+  targetModelGroup.rotation.set(rotX, rotY, rotZ);
 };
 
 export const updateCamTarget = () => {
@@ -144,8 +132,9 @@ export function setupCameraInputs(onSaveCallback) {
   const resetCamBtn = document.querySelector('#resetCamBtn');
   if (resetCamBtn) {
     resetCamBtn.addEventListener('click', () => {
-      radius = 6.5; theta = 0; phi = 0.85;
+      radius = 6.5;
       cameraTarget.set(0, 0, 0);
+      if (targetModelGroup) targetModelGroup.rotation.set(0.55, 0, 0);
       syncFov(50);
       syncTargetInputs();
       updateCameraPosition();
@@ -159,7 +148,7 @@ export function setupCameraInputs(onSaveCallback) {
 }
 
 // -----------------------------------------------------------------------------
-// EVENT HANDLERS
+// EVENT HANDLERS (Rotating the Object instead of the Camera)
 // -----------------------------------------------------------------------------
 export function handleCameraMouseDown(e) {
   isMouseDown = true;
@@ -173,9 +162,10 @@ export function handleCameraMouseMove(e, activeLightId = null, lightsMap = new M
   const deltaY = e.clientY - previousMousePosition.y;
 
   if (activeMouseButton === 0) {
-    if (!activeLightId) {
-      theta -= deltaX * 0.008;
-      phi -= deltaY * 0.008;
+    if (!activeLightId && targetModelGroup) {
+      // Rotate the object group instead of orbital camera angles
+      targetModelGroup.rotation.y += deltaX * 0.008;
+      targetModelGroup.rotation.x += deltaY * 0.008;
       updateCameraPosition();
     }
   } else if (activeMouseButton === 1) {
@@ -213,7 +203,7 @@ export function getCameraState() {
     fov: camera.fov,
     radius,
     target: [cameraTarget.x, cameraTarget.y, cameraTarget.z],
-    rotation: [camera.rotation.x, camera.rotation.y, camera.rotation.z]
+    rotation: targetModelGroup ? [targetModelGroup.rotation.x, targetModelGroup.rotation.y, targetModelGroup.rotation.z] : [0, 0, 0]
   };
 }
 
@@ -225,13 +215,17 @@ export function applyCameraState(state) {
   }
   if (state.fov !== undefined) syncFov(state.fov, false);
   if (state.radius !== undefined) syncZoom(state.radius);
+  if (state.rotation && Array.isArray(state.rotation) && targetModelGroup) {
+    targetModelGroup.rotation.set(...state.rotation);
+  }
   updateCameraPosition();
 }
 
 export const cameraApi = {
   resetCamera() {
-    radius = 6.5; theta = 0; phi = 0.85;
+    radius = 6.5;
     cameraTarget.set(0, 0, 0);
+    if (targetModelGroup) targetModelGroup.rotation.set(0.55, 0, 0);
     syncFov(50);
     syncTargetInputs();
     updateCameraPosition();
