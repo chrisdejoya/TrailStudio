@@ -17,6 +17,15 @@ const panRight = new THREE.Vector3();
 const panUp = new THREE.Vector3();
 const panForward = new THREE.Vector3();
 
+// Adjustable snap thresholds in degrees
+export let rotationSnapThresholdY = 1.0; // Snaps to 0 when between -1 and 1
+export let rotationSnapThresholdX = 1.0; // Snaps to 80 when within 1 degree of 80
+
+export function setRotationSnapThresholds(yThreshold, xThreshold) {
+  if (yThreshold !== undefined) rotationSnapThresholdY = yThreshold;
+  if (xThreshold !== undefined) rotationSnapThresholdX = xThreshold;
+}
+
 // Reference to the object group being rotated instead of the camera
 let targetModelGroup = null;
 
@@ -166,6 +175,21 @@ export function handleCameraMouseMove(e, activeLightId = null, lightsMap = new M
       // Rotate the object group instead of orbital camera angles
       targetModelGroup.rotation.y += deltaX * 0.008;
       targetModelGroup.rotation.x += deltaY * 0.008;
+
+      // Convert current rotations to degrees for threshold checks
+      let rotYDeg = targetModelGroup.rotation.y * (180 / Math.PI);
+      let rotXDeg = targetModelGroup.rotation.x * (180 / Math.PI);
+
+      // Snap Y rotation to 0 if within threshold
+      if (Math.abs(rotYDeg) <= rotationSnapThresholdY) {
+        targetModelGroup.rotation.y = 0;
+      }
+
+      // Snap X rotation to 80 if within threshold
+      if (Math.abs(rotXDeg - 80) <= rotationSnapThresholdX) {
+        targetModelGroup.rotation.x = 80 * (Math.PI / 180);
+      }
+
       updateCameraPosition();
     }
   } else if (activeMouseButton === 1) {
