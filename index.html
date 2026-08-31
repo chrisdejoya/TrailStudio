@@ -569,10 +569,12 @@
 
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Trail</span></div>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-            <input type="checkbox" id="trailEnabled" checked style="width:16px;height:16px;">
-          </label>
+          <div class="panel-header-left">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="trailEnabled" checked style="width:16px;height:16px;">
+            </label>
+            <span>Trail</span>
+          </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
@@ -618,6 +620,15 @@
             </div>
             <div class="slider-controls">
               <input type="range" id="trailOffset" min="-5" max="5" step="0.01" value="0.20">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Radius</span></div>
+              <input type="number" id="trailRadiusInput" class="drag-input" min="0" max="5" step="0.01" value="0.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="trailRadius" min="0" max="5" step="0.01" value="0">
             </div>
           </div>
         </div></div>
@@ -734,11 +745,13 @@
 
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Sun 1</span></div>
+          <div class="panel-header-left">
+            <input type="checkbox" id="iblSun1Visible" checked style="width:16px;height:16px;">
+            <label for="iblSun1Visible" onclick="event.stopPropagation()">Sun 1</label>
+          </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
-          <div class="checkbox-row"><input type="checkbox" id="iblSun1Visible" checked><label for="iblSun1Visible">Visible</label></div>
           <div class="row-stacked"><span>Color</span><input type="color" id="iblSun1Color" value="#ffffff"></div>
           <div class="control-row"><label>Elevation</label><input type="range" id="iblSun1Elevation" min="0" max="90" step="1" value="45"><span id="iblSun1ElevationValue" class="value">45</span></div>
           <div class="control-row"><label>Azimuth</label><input type="range" id="iblSun1Azimuth" min="0" max="360" step="1" value="180"><span id="iblSun1AzimuthValue" class="value">180</span></div>
@@ -750,11 +763,13 @@
 
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Sun 2</span></div>
+          <div class="panel-header-left">
+            <input type="checkbox" id="iblSun2Visible" checked style="width:16px;height:16px;">
+            <label for="iblSun2Visible" onclick="event.stopPropagation()">Sun 2</label>
+          </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
-          <div class="checkbox-row"><input type="checkbox" id="iblSun2Visible" checked><label for="iblSun2Visible">Visible</label></div>
           <div class="row-stacked"><span>Color</span><input type="color" id="iblSun2Color" value="#f59e0b"></div>
           <div class="control-row"><label>Elevation</label><input type="range" id="iblSun2Elevation" min="0" max="90" step="1" value="20"><span id="iblSun2ElevationValue" class="value">20</span></div>
           <div class="control-row"><label>Azimuth</label><input type="range" id="iblSun2Azimuth" min="0" max="360" step="1" value="45"><span id="iblSun2AzimuthValue" class="value">45</span></div>
@@ -766,11 +781,13 @@
 
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Horizon Ring</span></div>
+          <div class="panel-header-left">
+            <input type="checkbox" id="iblRingVisible" checked style="width:16px;height:16px;">
+            <label for="iblRingVisible" onclick="event.stopPropagation()">Studio Ring</label>
+          </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
-          <div class="checkbox-row"><input type="checkbox" id="iblRingVisible" checked><label for="iblRingVisible">Visible</label></div>
           <div class="row-stacked"><span>Color</span><input type="color" id="iblRingColor" value="#38bdf8"></div>
           <div class="control-row"><label>Height</label><input type="range" id="iblRingHeight" min="-1" max="1" step="0.05" value="0"><span id="iblRingHeightValue" class="value">0.00</span></div>
           <div class="control-row"><label>Intensity</label><input type="range" id="iblRingIntensity" min="0" max="10" step="0.1" value="3"><span id="iblRingIntensityValue" class="value">3.00</span></div>
@@ -815,11 +832,13 @@
 
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Bloom</span></div>
+          <div class="panel-header-left">
+            <input type="checkbox" id="bloomToggle" style="width:16px;height:16px;">
+            <label for="bloomToggle" onclick="event.stopPropagation()">Bloom</label>
+          </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
-          <div class="checkbox-row"><input type="checkbox" id="bloomToggle"><label for="bloomToggle">Enable Bloom</label></div>
           <div class="control-row"><label>Strength</label><input type="range" id="bloomStrength" min="0" max="3" step="0.05" value="1.0"><input type="number" id="bloomStrengthInput" min="0" max="5" step="0.05" value="1.00"></div>
           <div class="control-row"><label>Radius</label><input type="range" id="bloomRadius" min="0" max="2" step="0.05" value="0.75"><input type="number" id="bloomRadiusInput" min="0" max="5" step="0.05" value="0.75"></div>
           <div class="control-row"><label>Threshold</label><input type="range" id="bloomThreshold" min="0" max="1" step="0.05" value="0.9"><input type="number" id="bloomThresholdInput" min="0" max="1" step="0.05" value="0.90"></div>
@@ -828,11 +847,13 @@
 
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Ambient Occlusion</span></div>
+          <div class="panel-header-left">
+            <input type="checkbox" id="aoToggle" style="width:16px;height:16px;">
+            <label for="aoToggle" onclick="event.stopPropagation()">Ambient Occlusion</label>
+          </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
-          <div class="checkbox-row"><input type="checkbox" id="aoToggle"><label for="aoToggle">Enable AO</label></div>
           <div class="control-row"><label>Radius</label><input type="range" id="aoRadius" min="0" max="32" step="0.5" value="8"><input type="number" id="aoRadiusInput" min="0" max="32" step="0.5" value="8.00"></div>
           <div class="control-row"><label>Min Distance</label><input type="range" id="aoMinDistance" min="0" max="0.1" step="0.001" value="0.001"><input type="number" id="aoMinDistanceInput" min="0" max="0.1" step="0.001" value="0.001"></div>
           <div class="control-row"><label>Max Distance</label><input type="range" id="aoMaxDistance" min="0.01" max="1" step="0.01" value="0.1"><input type="number" id="aoMaxDistanceInput" min="0.01" max="1" step="0.01" value="0.10"></div>

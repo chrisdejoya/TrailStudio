@@ -332,6 +332,10 @@ bindSliderAndInput('#trailOffset', '#trailOffsetInput', (val) => {
   trailManager.syncTarget(modelManager.leftStick3DGroup);
 }, 2);
 
+bindSliderAndInput('#trailRadius', '#trailRadiusInput', (val) => {
+  trailManager.setRadius(val);
+}, 2);
+
 bindSliderAndInput('#trailIntensity', '#trailIntensityInput', (val) => {
   trailManager.setIntensity(val);
 }, 2);
@@ -543,7 +547,8 @@ function getSettingsState() {
       colorEnd: '#' + trailConfig.colorEnd.toString(16).padStart(6, '0'),
       intensity: trailConfig.intensity,
       width: trailConfig.width,
-      length: trailConfig.length
+      length: trailConfig.length,
+      radius: trailConfig.radius
     },
     postProcessing: {
       aaEnabled: document.querySelector('#aaToggle').checked,
@@ -643,6 +648,13 @@ if (state.model) {
       const trailLengthInput = document.querySelector('#trailLengthInput');
       if (trailLength) trailLength.value = t.length;
       if (trailLengthInput) trailLengthInput.value = t.length.toFixed(1);
+    }
+    if (t.radius !== undefined) {
+      trailManager.setRadius(t.radius);
+      const trailRadius = document.querySelector('#trailRadius');
+      const trailRadiusInput = document.querySelector('#trailRadiusInput');
+      if (trailRadius) trailRadius.value = t.radius;
+      if (trailRadiusInput) trailRadiusInput.value = t.radius.toFixed(2);
     }
   }
 

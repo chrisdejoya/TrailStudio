@@ -316,6 +316,7 @@ export class TrailManager {
     this.anchor = null;
     this.target = null;
     this.offsetY = 1.8;
+    this.radius = 0;
     this.dragging = false;
     this.leftStickActive = false;
     this._enabled = true;
@@ -325,7 +326,8 @@ export class TrailManager {
       width: 0.05,
       colorStart: 0xaa0022,
       colorEnd: 0x00aaaa,
-      intensity: 1.25
+      intensity: 1.25,
+      radius: 0
     };
   }
 
@@ -340,6 +342,14 @@ export class TrailManager {
     }
     if (this.trail && this.trail.mesh) {
       this._applyVisibility();
+    }
+  }
+
+  setRadius(val) {
+    this.radius = val;
+    this._trailConfig.radius = val;
+    if (this.anchor) {
+      this.anchor.position.x = this.radius;
     }
   }
 
@@ -388,7 +398,7 @@ export class TrailManager {
 
     if (!this.anchor) {
       this.anchor = new THREE.Object3D();
-      this.anchor.position.set(0, this.offsetY, 0);
+      this.anchor.position.set(this.radius, this.offsetY, 0);
       this.trail = new LightTrail(this.anchor, this.scene, {
         camera: this.camera,
         length: this._trailConfig.length,
@@ -404,7 +414,7 @@ export class TrailManager {
       this.target.add(this.anchor);
     }
 
-    this.anchor.position.set(0, this.offsetY, 0);
+    this.anchor.position.set(this.radius, this.offsetY, 0);
     this._applyVisibility();
   }
 
@@ -466,6 +476,10 @@ export class TrailManager {
       this.trail.maxLifetime = length;
       this.trail.material.uniforms.uMaxLifetime.value = length;
     }
+  }
+
+  getRadius() {
+    return this.radius;
   }
 
   getTrailConfig() {
