@@ -35,10 +35,12 @@ const ContrastSaturationShader = {
 };
 
 function createMainRenderTarget(width, height, samples = 2) {
+  // Clamp multi-sampling samples defensively to prevent overhead/crashes
+  const maxSamples = Math.min(samples, 4);
   return new THREE.WebGLRenderTarget(width, height, {
     type: THREE.HalfFloatType,
     format: THREE.RGBAFormat,
-    samples
+    samples: maxSamples
   });
 }
 
@@ -48,12 +50,14 @@ export function createPostProcessing(renderer, scene, camera) {
 
   const composer = new EffectComposer(renderer, createMainRenderTarget(width, height, 2));
 
+  // 1. Base Render Pass
   const renderPass = new RenderPass(scene, camera);
   renderPass.clear = true;
   renderPass.clearColor = new THREE.Color(0, 0, 0);
   renderPass.clearAlpha = 0;
   composer.addPass(renderPass);
 
+  // 2. SSAO Pass
   const aoPass = new SSAOPass(scene, camera, width, height);
   aoPass.enabled = false;
   aoPass.kernelRadius = 8;
@@ -61,21 +65,25 @@ export function createPostProcessing(renderer, scene, camera) {
   aoPass.maxDistance = 0.1;
   composer.addPass(aoPass);
 
+  // 3. Bloom Pass
   const bloomPass = new UnrealBloomPass(new THREE.Vector2(width, height), 1.0, 0.5, 0.95);
   bloomPass.enabled = false;
   composer.addPass(bloomPass);
 
+  // 4. Contrast & Saturation Pass (now operates safely on normalized values)
   const postShaderPass = new ShaderPass(ContrastSaturationShader);
   composer.addPass(postShaderPass);
 
-  const fxaaPass = new ShaderPass(FXAAShader);
-  const pixelRatio = renderer.getPixelRatio();
-  fxaaPass.material.uniforms.resolution.value.x = 1 / (width * pixelRatio);
-  fxaaPass.material.uniforms.resolution.value.y = 1 / (height * pixelRatio);
-  composer.addPass(fxaaPass);
-
+  // 5. OutputPass (Handles tone mapping and color space conversion)
+  // Must run BEFORE FXAA so edge-detection processes correct LDR values.
   const outputPass = new OutputPass();
   composer.addPass(outputPass);
+
+  // 6. FXAA Pass (Runs on final sRGB buffer)
+  const fxaaPass = new ShaderPass(FXAAShader);
+  const pixelRatio = renderer.getPixelRatio();
+  fxaaPass.material.uniforms.resolution.value.set(1 / (width * pixelRatio), 1 / (height * pixelRatio));
+  composer.addPass(fxaaPass);
 
   function updateAntiAliasing() {
     const enabled = document.querySelector('#aaToggle')?.checked ?? true;
@@ -86,21 +94,18 @@ export function createPostProcessing(renderer, scene, camera) {
     let samples = 0;
     if (enabled) {
       if (mode.includes('2msaa')) samples = 2;
-      else if (mode.includes('4msaa')) samples = 4;
-      else if (mode.includes('8msaa')) samples = 8;
+      else if (mode.includes('4msaa') || mode.includes('8msaa')) samples = 4;
     }
 
     const oldTarget = composer.renderTarget1;
     composer.reset(createMainRenderTarget(window.innerWidth, window.innerHeight, samples));
-    oldTarget.dispose();
+    if (oldTarget) oldTarget.dispose();
   }
 
-  function resize(width, height) {
-    composer.setSize(width, height);
-    aoPass.setSize(width, height);
+  function resize(w, h) {
+    composer.setSize(w, h);
     const pr = renderer.getPixelRatio();
-    fxaaPass.material.uniforms.resolution.value.x = 1 / (width * pr);
-    fxaaPass.material.uniforms.resolution.value.y = 1 / (height * pr);
+    fxaaPass.material.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr));
   }
 
   return {
