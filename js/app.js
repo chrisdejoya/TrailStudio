@@ -481,14 +481,30 @@ function populateButtonLabelList() {
 
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;min-height:24px;';
+    row.dataset.index = i;
     row.innerHTML = `
       <input type="checkbox" data-index="${i}" ${config.visible ? 'checked' : ''} style="width:14px;height:14px;flex-shrink:0;cursor:pointer;">
-      <span style="width:110px;color:#aaa;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${BUTTON_NAMES[i]}</span>
+      <span class="btn-name" style="width:110px;color:#aaa;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">${BUTTON_NAMES[i]}</span>
       <input type="text" data-index="${i}" value="${config.text}" style="flex:1;min-width:0;background:#1e1e22;border:1px solid #3a3a42;color:#fff;padding:3px 6px;border-radius:4px;font-size:11px;font-family:inherit;height:22px;box-sizing:border-box;">
     `;
     const checkbox = row.querySelector('input[type="checkbox"]');
     checkbox.addEventListener('change', (e) => {
       buttonLabelManager.setVisibility(parseInt(e.target.dataset.index), e.target.checked);
+    });
+    row.addEventListener('mouseenter', (e) => {
+      buttonLabelManager.updateLabelHover(parseInt(e.currentTarget.dataset.index), true);
+    });
+    row.addEventListener('mouseleave', (e) => {
+      buttonLabelManager.updateLabelHover(parseInt(e.currentTarget.dataset.index), false);
+    });
+    const nameSpan = row.querySelector('.btn-name');
+    nameSpan.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.index);
+      const currentConfig = buttonLabelManager.getConfig(idx);
+      if (currentConfig) {
+        buttonLabelManager.setVisibility(idx, !currentConfig.visible);
+        checkbox.checked = !currentConfig.visible;
+      }
     });
     const input = row.querySelector('input[type="text"]');
     input.addEventListener('change', (e) => {

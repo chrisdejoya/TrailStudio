@@ -10,14 +10,19 @@ const DEFAULT_LABEL_CONFIG = {
   fontStyle: 'normal',
   color: '#ffffffcc',
   labelScale: 1,
-  dropShadow: { enabled: true, x: 0, y: 1, blur: 2, color: '#000000dd' },
-  offset: { x: 0, y: 0.18, z: 0 },
+  dropShadow: { enabled: true, x: 0, y: 0, blur: 2, color: '#000000dd' },
+  offset: { x: 0, y: 0.15, z: 0 },
   activation: {
-    brightness: 1.8,
-    glow: true,
-    scale: 1.12,
+    brightness: 2.0,
+    glow: { enabled: true, blur: 4, color: '#ffffff', layers: 1 },
+    scale: 1.1,
     colorShift: false,
     transition: '0.05s ease-out'
+  },
+  hover: {
+    enabled: true,
+    glow: { enabled: true, blur: 6, color: '#ffffff', layers: 1 },
+    transition: '0.1s ease-out'
   }
 };
 
@@ -158,7 +163,7 @@ export class ButtonLabelManager {
 
       // Create inner content div that we style
       const div = document.createElement('div');
-      div.style.cssText = this.buildStyle(config, false);
+      div.style.cssText = this.buildStyle(config, false, false);
       div.textContent = config.text;
       div.dataset.buttonIndex = index;
 
@@ -171,11 +176,12 @@ export class ButtonLabelManager {
       
       // Store reference to inner content element for updates
       label.userData.contentElement = div;
+      label.userData.isHovered = false;
     } else {
       const contentEl = label.userData.contentElement;
       if (contentEl) {
         contentEl.textContent = config.text;
-        contentEl.style.cssText = this.buildStyle(config, false);
+        contentEl.style.cssText = this.buildStyle(config, false, label.userData.isHovered || false);
       }
     }
 
@@ -183,7 +189,7 @@ export class ButtonLabelManager {
     label.visible = this.enabled && config.visible;
   }
 
-  buildStyle(config, isPressed) {
+  buildStyle(config, isPressed, isHovered) {
     const styles = [];
 
     styles.push(`font-family: "${config.fontFamily}"`);
@@ -203,14 +209,18 @@ export class ButtonLabelManager {
     }
 
     const filters = [];
-    if (config.dropShadow.enabled) {
+    if (config.dropShadow.enabled && !isHovered) {
       const ds = config.dropShadow;
       filters.push(`drop-shadow(${ds.x}px ${ds.y}px ${ds.blur}px ${ds.color})`);
     }
-    if (isPressed && config.activation.glow) {
-      const glowSize = 6 + config.fontSize * 0.3;
-      filters.push(`drop-shadow(0 0 ${glowSize}px ${config.color})`);
-      filters.push(`drop-shadow(0 0 ${glowSize * 1.5}px ${config.color})`);
+    if ((isPressed && config.activation.glow?.enabled) || (isHovered && config.hover.glow?.enabled)) {
+      const glow = isPressed ? config.activation.glow : config.hover.glow;
+      const blur = glow.blur ?? 4;
+      const color = glow.color ?? config.color;
+      const layers = glow.layers ?? 1;
+      for (let i = 1; i <= layers; i++) {
+        filters.push(`drop-shadow(0 0 ${blur * i}px ${color})`);
+      }
     }
     if (isPressed) {
       const brightness = config.activation.brightness;
@@ -254,7 +264,20 @@ export class ButtonLabelManager {
 
     const contentEl = label.userData.contentElement;
     if (contentEl) {
-      contentEl.style.cssText = this.buildStyle(config, isPressed);
+      contentEl.style.cssText = this.buildStyle(config, isPressed, label.userData.isHovered || false);
+    }
+  }
+
+  updateLabelHover(index, isHovered) {
+    const label = this.labels.get(index);
+    const config = this.configs.get(index);
+    if (!label || !config) return;
+
+    label.userData.isHovered = isHovered;
+
+    const contentEl = label.userData.contentElement;
+    if (contentEl) {
+      contentEl.style.cssText = this.buildStyle(config, false, isHovered);
     }
   }
 
