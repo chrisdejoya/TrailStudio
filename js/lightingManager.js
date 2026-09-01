@@ -159,10 +159,14 @@ export class LightingManager {
             <option value="HemisphereLight" ${cfg.type === 'HemisphereLight' ? 'selected' : ''}>Hemisphere</option>
           </select>
         </div>
-        <div class="control-row">
-          <label>Intensity</label>
-          <input type="range" id="${cfg.id}-intensity" min="0" max="5" step="0.1" value="${cfg.intensity}">
-          <input type="number" id="${cfg.id}-intensity-input" min="0" max="10" step="0.1" value="${cfg.intensity.toFixed(1)}">
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon"><span>Intensity</span></div>
+            <input type="number" id="${cfg.id}-intensity-input" class="drag-input" min="0" max="10" step="0.1" value="${cfg.intensity.toFixed(1)}">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="${cfg.id}-intensity" min="0" max="5" step="0.1" value="${cfg.intensity}">
+          </div>
         </div>
         
         <div class="control-row">
@@ -207,13 +211,23 @@ export class LightingManager {
         ` : ''}
 
         ${isSpot ? `
-        <div class="control-row">
-          <label>Angle (°)</label>
-          <input type="range" id="${cfg.id}-angle" min="1" max="90" step="1" value="${Math.round((cfg.angle ?? Math.PI / 3) * 180 / Math.PI)}">
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon"><span>Angle (°)</span></div>
+            <input type="number" id="${cfg.id}-angle-input" class="drag-input" min="1" max="90" step="1" value="${Math.round((cfg.angle ?? Math.PI / 3) * 180 / Math.PI)}">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="${cfg.id}-angle" min="1" max="90" step="1" value="${Math.round((cfg.angle ?? Math.PI / 3) * 180 / Math.PI)}">
+          </div>
         </div>
-        <div class="control-row">
-          <label>Penumbra</label>
-          <input type="range" id="${cfg.id}-penumbra" min="0" max="1" step="0.05" value="${cfg.penumbra ?? 0}">
+        <div class="slider-row">
+          <div class="row">
+            <div class="label-with-icon"><span>Penumbra</span></div>
+            <input type="number" id="${cfg.id}-penumbra-input" class="drag-input" min="0" max="1" step="0.05" value="${(cfg.penumbra ?? 0).toFixed(2)}">
+          </div>
+          <div class="slider-controls">
+            <input type="range" id="${cfg.id}-penumbra" min="0" max="1" step="0.05" value="${cfg.penumbra ?? 0}">
+          </div>
         </div>
         ` : ''}
 
@@ -294,16 +308,30 @@ export class LightingManager {
       }
 
       if (isSpot) {
-        card.querySelector(`#${cfg.id}-angle`).addEventListener('input', (e) => {
-          const val = (parseFloat(e.target.value) || 45) * Math.PI / 180;
-          cfg.angle = val;
-          entry.instance.angle = val;
-        });
-        card.querySelector(`#${cfg.id}-penumbra`).addEventListener('input', (e) => {
-          const val = parseFloat(e.target.value) || 0;
-          cfg.penumbra = val;
-          entry.instance.penumbra = val;
-        });
+        const angleRange = card.querySelector(`#${cfg.id}-angle`);
+        const angleInput = card.querySelector(`#${cfg.id}-angle-input`);
+        const updateAngle = (val) => {
+          const deg = Math.max(1, Math.min(90, val));
+          const rad = deg * Math.PI / 180;
+          cfg.angle = rad;
+          entry.instance.angle = rad;
+          angleRange.value = deg;
+          angleInput.value = deg;
+        };
+        angleRange.addEventListener('input', (e) => updateAngle(parseFloat(e.target.value)));
+        angleInput.addEventListener('input', (e) => updateAngle(parseFloat(e.target.value) || 45));
+
+        const penumbraRange = card.querySelector(`#${cfg.id}-penumbra`);
+        const penumbraInput = card.querySelector(`#${cfg.id}-penumbra-input`);
+        const updatePenumbra = (val) => {
+          const clamped = Math.max(0, Math.min(1, val));
+          cfg.penumbra = clamped;
+          entry.instance.penumbra = clamped;
+          penumbraRange.value = clamped;
+          penumbraInput.value = clamped.toFixed(2);
+        };
+        penumbraRange.addEventListener('input', (e) => updatePenumbra(parseFloat(e.target.value)));
+        penumbraInput.addEventListener('input', (e) => updatePenumbra(parseFloat(e.target.value) || 0));
       }
 
       if (supportsShadow) {
