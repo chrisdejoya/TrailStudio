@@ -145,18 +145,31 @@ export class ButtonLabelManager {
     let label = this.labels.get(index);
 
     if (!label) {
+      // Create wrapper div that CSS2DRenderer will position
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'pointer-events: none; user-select: none;';
+
+      // Create inner content div that we style
       const div = document.createElement('div');
       div.style.cssText = this.buildStyle(config, false);
       div.textContent = config.text;
       div.dataset.buttonIndex = index;
 
-      label = new CSS2DObject(div);
+      wrapper.appendChild(div);
+
+      label = new CSS2DObject(wrapper);
       label.center.set(0.5, 0.5);
       this.labels.set(index, label);
       this.labelGroup.add(label);
+      
+      // Store reference to inner content element for updates
+      label.userData.contentElement = div;
     } else {
-      label.element.textContent = config.text;
-      label.element.style.cssText = this.buildStyle(config, false);
+      const contentEl = label.userData.contentElement;
+      if (contentEl) {
+        contentEl.textContent = config.text;
+        contentEl.style.cssText = this.buildStyle(config, false);
+      }
     }
 
     this.updateLabelPosition(index);
@@ -259,7 +272,10 @@ export class ButtonLabelManager {
     const config = this.configs.get(index);
     if (!label || !config) return;
 
-    label.element.style.cssText = this.buildStyle(config, isPressed);
+    const contentEl = label.userData.contentElement;
+    if (contentEl) {
+      contentEl.style.cssText = this.buildStyle(config, isPressed);
+    }
   }
 
   updateAllPositions() {
