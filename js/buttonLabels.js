@@ -11,7 +11,7 @@ const DEFAULT_LABEL_CONFIG = {
   color: '#ffffffcc',
   labelScale: 1,
   dropShadow: { enabled: true, x: 0, y: 0, blur: 2, color: '#000000dd' },
-  offset: { x: 0, y: 0.15, z: 0 },
+  offset: { x: 0, y: 0, z: 0 },
   activation: {
     brightness: 2.0,
     glow: { enabled: true, blur: 4, color: '#ffffff', layers: 1 },
@@ -248,11 +248,29 @@ export class ButtonLabelManager {
 
     if (!label || !object || !basePos || !config) return;
 
-    const worldPos = new THREE.Vector3();
-    object.getWorldPosition(worldPos);
+    // Compute world-space bounding box of the button object
+    const box = new THREE.Box3();
+    object.traverse((child) => {
+      if (child.isMesh) {
+        const childBox = new THREE.Box3().setFromObject(child);
+        box.union(childBox);
+      }
+    });
+
+    let labelPos;
+    if (!box.isEmpty()) {
+      // Center of bounding box (visual center from any angle)
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      labelPos = center;
+    } else {
+      // Fallback to object world position
+      labelPos = new THREE.Vector3();
+      object.getWorldPosition(labelPos);
+    }
 
     const offset = new THREE.Vector3(config.offset.x, config.offset.y, config.offset.z);
-    const labelPos = worldPos.clone().add(offset);
+    labelPos.add(offset);
 
     label.position.copy(labelPos);
   }
