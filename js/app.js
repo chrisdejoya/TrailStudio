@@ -448,29 +448,6 @@ function wireButtonLabelUI() {
     labelColorEl.addEventListener('input', (e) => buttonLabelManager.setGlobalConfig({ color: e.target.value }));
   }
 
-  const bgColorEl = document.querySelector('#buttonLabelBgColor');
-  if (bgColorEl) {
-    bgColorEl.addEventListener('input', (e) => buttonLabelManager.setGlobalConfig({ background: { color: e.target.value } }));
-  }
-
-  const bgEnabledEl = document.querySelector('#buttonLabelBgEnabled');
-  if (bgEnabledEl) {
-    bgEnabledEl.addEventListener('change', (e) => buttonLabelManager.setGlobalConfig({ background: { enabled: e.target.checked } }));
-  }
-
-  const billboardEl = document.querySelector('#buttonLabelBillboardEnabled');
-  if (billboardEl) {
-    billboardEl.addEventListener('change', (e) => buttonLabelManager.setBillboardMode(e.target.checked));
-  }
-
-  const alwaysOnTopEl = document.querySelector('#buttonLabelAlwaysOnTop');
-  if (alwaysOnTopEl) {
-    alwaysOnTopEl.addEventListener('change', (e) => {
-      // CSS2D always renders on top of WebGL, but we can store this preference
-      buttonLabelManager.setGlobalConfig({ alwaysOnTop: e.target.checked });
-    });
-  }
-
   // Populate label list with editable inputs
   populateButtonLabelList();
 }
@@ -491,13 +468,29 @@ function populateButtonLabelList() {
     const config = buttonLabelManager.getConfig(i);
     if (!config) continue;
 
+    // Hide labels that don't have a button object registered (not in current model)
+    const hasButtonObject = buttonLabelManager.buttonObjects?.has(i);
+    if (!hasButtonObject) {
+      // Still create a hidden placeholder to maintain indexing
+      const placeholder = document.createElement('div');
+      placeholder.style.display = 'none';
+      placeholder.dataset.index = i;
+      listEl.appendChild(placeholder);
+      continue;
+    }
+
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;';
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;min-height:24px;';
     row.innerHTML = `
-      <span style="width:120px;color:#aaa;flex-shrink:0;">${BUTTON_NAMES[i]}</span>
-      <input type="text" data-index="${i}" value="${config.text}" style="flex:1;background:#1e1e22;border:1px solid #3a3a42;color:#fff;padding:4px 8px;border-radius:4px;font-size:12px;font-family:inherit;">
+      <input type="checkbox" data-index="${i}" ${config.visible ? 'checked' : ''} style="width:14px;height:14px;flex-shrink:0;cursor:pointer;">
+      <span style="width:110px;color:#aaa;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${BUTTON_NAMES[i]}</span>
+      <input type="text" data-index="${i}" value="${config.text}" style="flex:1;min-width:0;background:#1e1e22;border:1px solid #3a3a42;color:#fff;padding:3px 6px;border-radius:4px;font-size:11px;font-family:inherit;height:22px;box-sizing:border-box;">
     `;
-    const input = row.querySelector('input');
+    const checkbox = row.querySelector('input[type="checkbox"]');
+    checkbox.addEventListener('change', (e) => {
+      buttonLabelManager.setVisibility(parseInt(e.target.dataset.index), e.target.checked);
+    });
+    const input = row.querySelector('input[type="text"]');
     input.addEventListener('change', (e) => {
       buttonLabelManager.setText(parseInt(e.target.dataset.index), e.target.value);
     });

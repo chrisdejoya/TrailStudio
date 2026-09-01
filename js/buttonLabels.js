@@ -12,8 +12,6 @@ const DEFAULT_LABEL_CONFIG = {
   labelScale: 1,
   stroke: { enabled: true, color: '#000000', width: 2 },
   dropShadow: { enabled: true, x: 0, y: 1, blur: 3, color: '#00000080' },
-  background: { enabled: false, color: '#000000', padding: 4, borderRadius: 4, opacity: 0.5 },
-  billboard: true,
   offset: { x: 0, y: 0.18, z: 0 },
   activation: {
     brightness: 1.8,
@@ -118,7 +116,6 @@ export class ButtonLabelManager {
     this.basePositions = new Map();
 
     this.enabled = true;
-    this.billboardMode = true;
 
     for (let i = 0; i < 17; i++) {
       this.configs.set(i, { ...DEFAULT_LABEL_CONFIG, text: this.getDefaultSymbol(i) });
@@ -141,6 +138,17 @@ export class ButtonLabelManager {
   createOrUpdateLabel(index) {
     const config = this.configs.get(index);
     if (!config) return;
+
+    // Check if this button index has a 3D object registered
+    const hasButtonObject = this.buttonObjects.has(index);
+    if (!hasButtonObject) {
+      // Hide label if it exists but button object doesn't
+      const existingLabel = this.labels.get(index);
+      if (existingLabel) {
+        existingLabel.visible = false;
+      }
+      return;
+    }
 
     let label = this.labels.get(index);
 
@@ -193,24 +201,6 @@ export class ButtonLabelManager {
     // Apply label scale as base transform
     if (config.labelScale !== 1) {
       styles.push(`transform: scale(${config.labelScale})`);
-    }
-
-    if (config.background.enabled) {
-      const bgColor = config.background.color;
-      const opacity = config.background.opacity !== undefined ? config.background.opacity : 1;
-      let finalColor = bgColor;
-      if (bgColor.startsWith('#') && bgColor.length === 7 && opacity < 1) {
-        const r = parseInt(bgColor.slice(1, 3), 16);
-        const g = parseInt(bgColor.slice(3, 5), 16);
-        const b = parseInt(bgColor.slice(5, 7), 16);
-        finalColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-      } else if (bgColor.startsWith('#') && bgColor.length === 9) {
-        // Already has alpha
-        finalColor = bgColor;
-      }
-      styles.push(`background-color: ${finalColor}`);
-      styles.push(`padding: ${config.background.padding}px`);
-      styles.push(`border-radius: ${config.background.borderRadius}px`);
     }
 
     const shadows = [];
@@ -292,10 +282,6 @@ export class ButtonLabelManager {
     }
   }
 
-  setBillboardMode(enabled) {
-    this.billboardMode = enabled;
-  }
-
   updateConfig(index, partialConfig) {
     const current = this.configs.get(index) || { ...DEFAULT_LABEL_CONFIG };
     const merged = { ...current, ...partialConfig };
@@ -308,9 +294,6 @@ export class ButtonLabelManager {
     }
     if (partialConfig.dropShadow) {
       merged.dropShadow = { ...current.dropShadow, ...partialConfig.dropShadow };
-    }
-    if (partialConfig.background) {
-      merged.background = { ...current.background, ...partialConfig.background };
     }
     if (partialConfig.offset) {
       merged.offset = { ...current.offset, ...partialConfig.offset };
@@ -389,7 +372,6 @@ export class ButtonLabelManager {
     }
     return {
       enabled: this.enabled,
-      billboardMode: this.billboardMode,
       configs
     };
   }
@@ -397,7 +379,6 @@ export class ButtonLabelManager {
   fromJSON(data) {
     if (!data) return;
     if (data.enabled !== undefined) this.setEnabled(data.enabled);
-    if (data.billboardMode !== undefined) this.setBillboardMode(data.billboardMode);
     if (data.configs) {
       for (const [index, config] of Object.entries(data.configs)) {
         const idx = parseInt(index);
