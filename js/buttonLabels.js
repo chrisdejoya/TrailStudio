@@ -4,7 +4,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 const DEFAULT_LABEL_CONFIG = {
   text: '',
   visible: true,
-  fontFamily: 'Rubik, system-ui, sans-serif',
+  fontFamily: 'Rubik, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   fontSize: 20,
   fontWeight: 600,
   fontStyle: 'normal',
@@ -126,6 +126,13 @@ export class ButtonLabelManager {
     }
 
     window.addEventListener('resize', () => this.onResize());
+
+    // Wait for fonts to load, then refresh labels
+    document.fonts.ready.then(() => {
+      for (const index of this.buttonObjects.keys()) {
+        this.createOrUpdateLabel(index);
+      }
+    });
   }
 
   getDefaultSymbol(index) {
@@ -166,6 +173,14 @@ export class ButtonLabelManager {
       div.style.cssText = this.buildStyle(config, false, false);
       div.textContent = config.text;
       div.dataset.buttonIndex = index;
+      div.style.pointerEvents = 'auto'; // Enable interaction for double-click
+
+      // Double-click to select corresponding editor input
+      div.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        const event = new CustomEvent('buttonLabelDoubleClick', { detail: { index } });
+        window.dispatchEvent(event);
+      });
 
       wrapper.appendChild(div);
 
@@ -259,10 +274,19 @@ export class ButtonLabelManager {
 
     let labelPos;
     if (!box.isEmpty()) {
-      // Center of bounding box (visual center from any angle)
+      // Interpolate between center and top based on camera elevation
       const center = new THREE.Vector3();
       box.getCenter(center);
-      labelPos = center;
+      const top = new THREE.Vector3(center.x, box.max.y, center.z);
+
+      // Camera elevation: 0 = horizon, 1 = directly above
+      const camDir = new THREE.Vector3();
+      this.camera.getWorldDirection(camDir);
+      camDir.y = Math.abs(camDir.y);
+      const elevation = THREE.MathUtils.clamp(camDir.y, 0, 1);
+
+      // Lerp: low camera (side view) -> top, high camera (top-down) -> center
+      labelPos = new THREE.Vector3().lerpVectors(center, top, elevation);
     } else {
       // Fallback to object world position
       labelPos = new THREE.Vector3();
