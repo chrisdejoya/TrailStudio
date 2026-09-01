@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural IBL & PBR Studio</title>
+    <!-- Tailwind CSS for UI layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- lil-gui for Interactive Controls -->
+    <script src="https://cdn.jsdelivr.net/npm/lil-gui@0.18"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            color: #f3f4f6;
+            user-select: none;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+        .glass-panel {
+            background: rgba(18, 18, 24, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+        /* Custom lil-gui styling override for glassmorphism integration */
+        .lil-gui {
+            --background-color: rgba(15, 15, 22, 0.85) !important;
+            --text-color: #e2e8f0 !important;
+            --title-background-color: rgba(25, 25, 38, 0.9) !important;
+            --widget-color: rgba(45, 45, 65, 0.8) !important;
+            --hover-color: rgba(65, 65, 95, 0.9) !important;
+            --focus-color: rgba(99, 102, 241, 0.5) !important;
+            font-family: 'Inter', sans-serif !important;
+            border-radius: 12px !important;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5) !important;
+        }
+        .lil-gui .title {
+            font-weight: 600 !important;
+            letter-spacing: 0.05em;
+        }
+        .lil-gui .controller {
+            border-left: 2px solid rgba(99, 102, 241, 0.3);
+        }
+        /* Custom scrollbar for gui if needed */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="relative w-full h-full">
+
+    <div id="canvas-container"></div>
+
+    <div class="absolute top-6 left-6 z-10 pointer-events-auto">
+        <div class="glass-panel px-5 py-4 rounded-2xl flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-400 text-lg shadow-inner">
+                <i class="fa-solid fa-cube"></i>
+            </div>
+            <div>
+                <h1 class="text-base font-semibold tracking-wide text-white">Procedural IBL Studio</h1>
+                <p class="text-xs text-indigo-300 font-medium">Real-time PBR Environment Synthesis</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="absolute bottom-6 left-6 z-10 pointer-events-auto">
+        <div class="glass-panel px-4 py-3 rounded-xl flex items-center gap-4 text-xs font-medium text-slate-300">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>FPS: <strong id="fps-counter" class="text-white font-mono">60</strong></span>
+            </div>
+            <div class="h-4 w-[1px] bg-white/10"></div>
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-microchip text-indigo-400"></i>
+                <span>Shader: <strong class="text-white font-mono">GLSL Procedural</strong></span>
+            </div>
+            <div class="h-4 w-[1px] bg-white/10"></div>
+            <button id="toggle-bg-btn" class="hover:text-indigo-400 transition-colors flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-eye"></i> <span id="bg-btn-text">Hide Skybox</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="loader" class="fixed inset-0 bg-[#050505] z-50 flex flex-col items-center justify-center transition-opacity duration-700">
+        <div class="relative w-16 h-16 mb-4">
+            <div class="absolute inset-0 rounded-full border-4 border-indigo-500/20 animate-ping"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-t-indigo-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
+        </div>
+        <p class="text-sm font-medium tracking-widest text-indigo-300 uppercase">Synthesizing IBL Radiance...</p>
+    </div>
+
+    <script>
+        // --- Application State & Configuration ---
+        const state = {
+            preset: 'Cyberpunk Neon',
+            sunElevation: 0.6,
+            atmosphereDensity: 1.2,
+            glowIntensity: 1.5,
+            noiseScale: 3.5,
+            animationSpeed: 0.4,
+            metalness: 0.95,
+            roughness: 0.12,
+            colorHue: 0.65,
+            objectType: 'Torus Knot',
+            wireframe: false,
+            autoRotate: true,
+            showBackground: true,
+            exposure: 1.2
+        };
+
+        let scene, camera, renderer, controls;
+        let centralObject, skyMesh, skyMaterial, pmremGenerator;
+        let renderTarget;
+        let clock = new THREE.Clock();
+        let frameCount = 0, lastTime = performance.now(), fps = 60;
+
+        // Preset Color Palettes (Primary, Secondary, Emissive/Sun)
+        const palettes = {
+            'Cyberpunk Neon': { c1: [0.02, 0.02, 0.08], c2: [0.35, 0.05, 0.45], sun: [0.0, 0.9, 1.0], noise: [0.9, 0.1, 0.6] },
+            'Sunset Horizon': { c1: [0.05, 0.02, 0.05], c2: [0.6, 0.25, 0.1], sun: [1.0, 0.5, 0.1], noise: [0.8, 0.4, 0.2] },
+            'Studio Softbox': { c1: [0.08, 0.09, 0.12], c2: [0.2, 0.22, 0.28], sun: [0.9, 0.9, 1.0], noise: [0.5, 0.5, 0.6] },
+            'Deep Space Nebula': { c1: [0.01, 0.01, 0.03], c2: [0.1, 0.05, 0.2], sun: [0.8, 0.2, 0.9], noise: [0.4, 0.1, 0.9] }
+        };
+
+        // --- Shader Code for Procedural IBL Environment ---
+        const skyVertexShader = `
+            varying vec3 vWorldPosition;
+            void main() {
+                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                vWorldPosition = worldPosition.xyz;
+                gl_Position = projectionMatrix * viewMatrix * worldPosition;
+            }
+        `;
+
+        const skyFragmentShader = `
+            varying vec3 vWorldPosition;
+            uniform float uTime;
+            uniform float uSunElevation;
+            uniform float uAtmosphereDensity;
+            uniform float uGlowIntensity;
+            uniform float uNoiseScale;
+            uniform vec3 uColor1;
+            uniform vec3 uColor2;
+            uniform vec3 uSunColor;
+            uniform vec3 uNoiseColor;
+
+            // Simplex-like procedural noise functions for nebula clouds & stars
+            vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+            vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+            vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+            vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+
+            float snoise(vec3 v) {
+                const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+                const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+                vec3 i  = floor(v + dot(v, C.yyy));
+                vec3 x0 = v - i + dot(i, C.xxx);
+                vec3 g = step(x0.yzx, x0.xyz);
+                vec3 l = 1.0 - g;
+                vec3 i1 = min(g.xyz, l.zxy);
+                vec3 i2 = max(g.xyz, l.zxy);
+                vec3 x1 = x0 - i1 + C.xxx;
+                vec3 x2 = x0 - i2 + C.yyy;
+                vec3 x3 = x0 - D.yyy;
+                i = mod289(i);
+                vec4 p = permute(permute(permute(
+                            i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                        + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                        + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+                float n_ = 0.142857142857;
+                vec3  ns = n_ * D.wyz - D.xzx;
+                vec4 j = p - 49.0 * floor(p * ns.z);
+                vec4 x_ = floor(j * ns.z);
+                vec4 y_ = floor(j - 7.0 * x_);
+                vec4 x = x_ *ns.x + ns.yyyy;
+                vec4 y = y_ *ns.x + ns.yyyy;
+                vec4 h = 1.0 - abs(x) - abs(y);
+                vec4 b0 = vec4(x.xy, y.xy);
+                vec4 b1 = vec4(x.zw, y.zw);
+                vec4 s0 = floor(b0)*2.0 + 1.0;
+                vec4 s1 = floor(b1)*2.0 + 1.0;
+                vec4 sh = -step(h, vec4(0.0));
+                vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+                vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+                vec3 p0 = vec3(a0.xy, h.x);
+                vec3 p1 = vec3(a0.zw, h.y);
+                vec3 p2 = vec3(a1.xy, h.z);
+                vec3 p3 = vec3(a1.zw, h.w);
+                vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+                p0 *= norm.x;
+                p1 *= norm.y;
+                p2 *= norm.z;
+                p3 *= norm.w;
+                vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                m = m * m;
+                return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+            }
+
+            void main() {
+                vec3 dir = normalize(vWorldPosition);
+                
+                // Base gradient based on altitude
+                float y = dir.y;
+                vec3 color = mix(uColor1, uColor2, smoothstep(-0.5, 0.8, y * uAtmosphereDensity));
+
+                // Sun / Horizon glow source
+                vec3 sunDir = normalize(vec3(sin(uTime * 0.1) * 0.5, uSunElevation, cos(uTime * 0.1) * 0.5));
+                float sun = max(dot(dir, sunDir), 0.0);
+                color += uSunColor * pow(sun, 16.0) * uGlowIntensity;
+                color += uSunColor * pow(sun, 128.0) * (uGlowIntensity * 2.0); // sharp highlight
+
+                // Studio softbox overhead strip lights for crisp PBR reflections
+                float box1 = max(0.0, dot(dir, normalize(vec3(1.0, 1.5, 1.0)))) ;
+                float box2 = max(0.0, dot(dir, normalize(vec3(-1.0, 1.2, -1.0))));
+                color += vec3(0.8, 0.9, 1.0) * pow(box1, 8.0) * 1.5;
+                color += vec3(0.5, 0.7, 1.0) * pow(box2, 6.0) * 1.2;
+
+                // Procedural Nebula Noise clouds in upper hemisphere
+                if (y > -0.2) {
+                    vec3 noiseCoord = dir * uNoiseScale + vec3(uTime * 0.05, uTime * 0.02, 0.0);
+                    float n = snoise(noiseCoord) * 0.5 + 0.5;
+                    float n2 = snoise(noiseCoord * 2.0 - vec3(10.0)) * 0.5 + 0.5;
+                    
+                    vec3 nebula = uNoiseColor * n * n2 * smoothstep(-0.2, 0.8, y);
+                    color += nebula * 1.2;
+
+                    // Tiny starry speckles
+                    float stars = pow(snoise(dir * 150.0), 32.0);
+                    color += vec3(stars) * step(0.8, snoise(dir * 50.0)) * 2.0;
+                }
+
+                // Vignette & Tone mapping adjustment
+                color = clamp(color, 0.0, 20.0);
+                gl_FragColor = vec4(color, 1.0);
+            }
+        `;
+
+        // --- Initialization ---
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // Scene
+            scene = new THREE.Scene();
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 5.5);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = state.exposure;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            container.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxDistance = 15;
+            controls.minDistance = 2;
+
+            // PMREM Generator for real-time IBL capture
+            pmremGenerator = new THREE.PMREMGenerator(renderer);
+            pmremGenerator.compileEquirectangularShader();
+
+            // Create Procedural Background Skybox & Render Target
+            setupEnvironment();
+
+            // Create Central 3D PBR Object
+            setupCentralObject();
+
+            // Setup UI & Lil-GUI Controls
+            setupGUI();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            document.getElementById('toggle-bg-btn').addEventListener('click', toggleBackground);
+
+            // Hide Loader
+            setTimeout(() => {
+                const loader = document.getElementById('loader');
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 700);
+            }, 500);
+
+            // Start Render Loop
+            animate();
+        }
+
+        // --- Environment & IBL Generation Setup ---
+        let renderTargetScene, renderTargetCamera, envRenderTarget;
+
+        function setupEnvironment() {
+            // Create a dedicated offscreen scene to render the procedural sky sphere into an equirectangular/cubemap target
+            renderTargetScene = new THREE.Scene();
+            renderTargetCamera = new THREE.PerspectiveCamera(90, 1, 0.1, 10);
+
+            const pColors = palettes[state.preset];
+
+            skyMaterial = new THREE.ShaderMaterial({
+                vertexShader: skyVertexShader,
+                fragmentShader: skyFragmentShader,
+                uniforms: {
+                    uTime: { value: 0 },
+                    uSunElevation: { value: state.sunElevation },
+                    uAtmosphereDensity: { value: state.atmosphereDensity },
+                    uGlowIntensity: { value: state.glowIntensity },
+                    uNoiseScale: { value: state.noiseScale },
+                    uColor1: { value: new THREE.Color(...pColors.c1) },
+                    uColor2: { value: new THREE.Color(...pColors.c2) },
+                    uSunColor: { value: new THREE.Color(...pColors.sun) },
+                    uNoiseColor: { value: new THREE.Color(...pColors.noise) }
+                },
+                side: THREE.BackSide
+            });
+
+            const skyGeo = new THREE.SphereGeometry(50, 64, 64);
+            skyMesh = new THREE.Mesh(skyGeo, skyMaterial);
+            scene.add(skyMesh); // Main background sky
+
+            // Create WebGLRenderTarget for capturing environment for IBL PBR reflections
+            envRenderTarget = new THREE.WebGLRenderTarget(1024, 1024, {
+                minFilter: THREE.LinearMipmapLinearFilter,
+                magFilter: THREE.LinearFilter,
+                format: THREE.RGBAFormat,
+                type: THREE.FloatType,
+                generateMipmaps: true
+            });
+
+            updateIBL();
+        }
+
+        function updateIBL() {
+            // Render sky into cubemap / PMREM for true PBR reflections
+            // For real-time performance, we use PMREMGenerator from cube cameras or render target
+            const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(512, {
+                generateMipmaps: true,
+                minFilter: THREE.LinearMipmapLinearFilter,
+                magFilter: THREE.LinearFilter
+            });
+
+            const cubeCamera = new THREE.CubeCamera(0.1, 100, cubeRenderTarget);
+            cubeCamera.update(renderer, skyMesh);
+
+            const generatedIBL = pmremGenerator.fromCubemap(cubeRenderTarget);
+            scene.environment = generatedIBL.texture;
+            
+            if (state.showBackground) {
+                scene.background = skyMesh.material;
+            } else {
+                scene.background = new THREE.Color(0x050508);
+            }
+        }
+
+        // --- Central 3D PBR Sculpture Object ---
+        let objectMesh, objectMaterial;
+
+        function setupCentralObject() {
+            objectMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                metalness: state.metalness,
+                roughness: state.roughness,
+                envMapIntensity: 1.2
+            });
+
+            createGeometry(state.objectType);
+        }
+
+        function createGeometry(type) {
+            if (objectMesh) scene.remove(objectMesh);
+
+            let geometry;
+            if (type === 'Torus Knot') {
+                geometry = new THREE.TorusKnotGeometry(1.2, 0.38, 128, 32, 2, 3);
+            } else if (type === 'Icosahedron') {
+                geometry = new THREE.IcosahedronGeometry(1.5, 3);
+            } else if (type === 'Sculpted Sphere') {
+                geometry = new THREE.SphereGeometry(1.5, 64, 64);
+                // Displace vertices slightly for procedural abstract look
+                const position = geometry.attributes.position;
+                const vector = new THREE.Vector3();
+                for (let i = 0; i < position.count; i++) {
+                    vector.fromBufferAttribute(position, i);
+                    vector.normalize();
+                    const wave = Math.sin(vector.x * 5.0) * Math.cos(vector.y * 5.0) * Math.sin(vector.z * 5.0);
+                    vector.multiplyScalar(1.5 + wave * 0.15);
+                    position.setXYZ(i, vector.x, vector.y, vector.z);
+                }
+                geometry.computeVertexNormals();
+            } else if (type === 'Rounded Box') {
+                geometry = new THREE.BoxGeometry(1.8, 1.8, 1.8, 32, 32, 32);
+            }
+
+            objectMesh = new THREE.Mesh(geometry, objectMaterial);
+            objectMesh.castShadow = true;
+            objectMesh.receiveShadow = true;
+            scene.add(objectMesh);
+        }
+
+        // --- Interactive Controls (lil-gui) ---
+        function setupGUI() {
+            const gui = new lil.GUI({ title: 'IBL & PBR Parameters' });
+            gui.domElement.style.position = 'absolute';
+            gui.domElement.style.top = '20px';
+            gui.domElement.style.right = '20px';
+            gui.domElement.style.zIndex = '20';
+
+            // Environment Folder
+            const envFolder = gui.addFolder('Procedural Environment');
+            
+            envFolder.add(state, 'preset', Object.keys(palettes)).name('Mood Preset').onChange(val => {
+                const p = palettes[val];
+                skyMaterial.uniforms.uColor1.value.set(...p.c1);
+                skyMaterial.uniforms.uColor2.value.set(...p.c2);
+                skyMaterial.uniforms.uSunColor.value.set(...p.sun);
+                skyMaterial.uniforms.uNoiseColor.value.set(...p.noise);
+                updateIBL();
+            });
+
+            envFolder.add(state, 'sunElevation', -1.0, 2.0, 0.05).name('Sun Elevation').onChange(v => {
+                skyMaterial.uniforms.uSunElevation.value = v;
+                updateIBL();
+            });
+
+            envFolder.add(state, 'atmosphereDensity', 0.2, 3.0, 0.1).name('Atmosphere').onChange(v => {
+                skyMaterial.uniforms.uAtmosphereDensity.value = v;
+                updateIBL();
+            });
+
+            envFolder.add(state, 'glowIntensity', 0.1, 5.0, 0.1).name('Glow Strength').onChange(v => {
+                skyMaterial.uniforms.uGlowIntensity.value = v;
+                updateIBL();
+            });
+
+            envFolder.add(state, 'noiseScale', 1.0, 10.0, 0.1).name('Nebula Detail').onChange(v => {
+                skyMaterial.uniforms.uNoiseScale.value = v;
+                updateIBL();
+            });
+
+            // PBR Material Folder
+            const pbrFolder = gui.addFolder('PBR Central Object');
+
+            pbrFolder.add(state, 'objectType', ['Torus Knot', 'Sculpted Sphere', 'Icosahedron', 'Rounded Box']).name('Geometry').onChange(v => {
+                createGeometry(v);
+            });
+
+            pbrFolder.add(objectMaterial, 'metalness', 0.0, 1.0, 0.01).name('Metalness');
+            pbrFolder.add(objectMaterial, 'roughness', 0.0, 1.0, 0.01).name('Roughness');
+            
+            const colorObj = { color: '#ffffff' };
+            pbrFolder.addColor(colorObj, 'color').name('Base Tint').onChange(c => {
+                objectMaterial.color.set(c);
+            });
+
+            pbrFolder.add(state, 'wireframe').name('Wireframe').onChange(v => {
+                objectMaterial.wireframe = v;
+            });
+
+            // Animation Folder
+            const animFolder = gui.addFolder('Animation & Scene');
+            animFolder.add(state, 'autoRotate').name('Rotate Object');
+            animFolder.add(state, 'animationSpeed', 0.0, 2.0, 0.1).name('Light Shift Speed');
+            animFolder.add(state, 'exposure', 0.5, 3.0, 0.1).name('Exposure').onChange(v => {
+                renderer.toneMappingExposure = v;
+            });
+
+            gui.open();
+        }
+
+        // --- Toggle Background Visibility ---
+        function toggleBackground() {
+            state.showBackground = !state.showBackground;
+            const btnText = document.getElementById('bg-btn-text');
+            if (state.showBackground) {
+                scene.background = skyMesh.material;
+                btnText.textContent = 'Hide Skybox';
+            } else {
+                scene.background = new THREE.Color(0x050508);
+                btnText.textContent = 'Show Skybox';
+            }
+        }
+
+        // --- Window Resize Handler ---
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const elapsedTime = clock.getElapsedTime();
+
+            // Update shader time uniform for dynamic glowing/drifting atmosphere
+            if (skyMaterial) {
+                skyMaterial.uniforms.uTime.value = elapsedTime * state.animationSpeed;
+            }
+
+            // Rotate central object if enabled
+            if (state.autoRotate && objectMesh) {
+                objectMesh.rotation.x = elapsedTime * 0.15;
+                objectMesh.rotation.y = elapsedTime * 0.25;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+
+            // FPS Calculation
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime - lastTime >= 1000) {
+                fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+                document.getElementById('fps-counter').textContent = fps;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+        }
+
+        // Start everything on window load
+        window.onload = init;
+    </script>
+</body>
+</html>
