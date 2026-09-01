@@ -598,7 +598,7 @@
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-              <input type="checkbox" id="trailEnabled" checked style="width:16px;height:16px;">
+              <input type="checkbox" id="trailEnabled" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
             </label>
             <span>Trail</span>
           </div>
@@ -773,7 +773,7 @@
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="iblSun1Visible" checked style="width:16px;height:16px;">
+            <input type="checkbox" id="iblSun1Visible" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
             <label for="iblSun1Visible" onclick="event.stopPropagation()">Sun 1</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -791,7 +791,7 @@
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="iblSun2Visible" checked style="width:16px;height:16px;">
+            <input type="checkbox" id="iblSun2Visible" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
             <label for="iblSun2Visible" onclick="event.stopPropagation()">Sun 2</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -809,7 +809,7 @@
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="iblRingVisible" checked style="width:16px;height:16px;">
+            <input type="checkbox" id="iblRingVisible" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
             <label for="iblRingVisible" onclick="event.stopPropagation()">Studio Ring</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -860,7 +860,7 @@
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="bloomToggle" style="width:16px;height:16px;">
+            <input type="checkbox" id="bloomToggle" style="width:16px;height:16px;" onclick="event.stopPropagation()">
             <label for="bloomToggle" onclick="event.stopPropagation()">Bloom</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -875,7 +875,7 @@
       <div class="panel">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="aoToggle" style="width:16px;height:16px;">
+            <input type="checkbox" id="aoToggle" style="width:16px;height:16px;" onclick="event.stopPropagation()">
             <label for="aoToggle" onclick="event.stopPropagation()">Ambient Occlusion</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
