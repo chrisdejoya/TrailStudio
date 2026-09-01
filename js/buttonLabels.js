@@ -10,7 +10,6 @@ const DEFAULT_LABEL_CONFIG = {
   fontStyle: 'normal',
   color: '#ffffff',
   labelScale: 1,
-  stroke: { enabled: true, color: '#000000', width: 2 },
   dropShadow: { enabled: true, x: 0, y: 1, blur: 3, color: '#00000080' },
   offset: { x: 0, y: 0.18, z: 0 },
   activation: {
@@ -203,34 +202,25 @@ export class ButtonLabelManager {
       styles.push(`transform: scale(${config.labelScale})`);
     }
 
-    const shadows = [];
-    if (config.stroke.enabled) {
-      const w = config.stroke.width;
-      const c = config.stroke.color;
-      shadows.push(`${w}px ${w}px 0 ${c}`);
-      shadows.push(`-${w}px ${w}px 0 ${c}`);
-      shadows.push(`${w}px -${w}px 0 ${c}`);
-      shadows.push(`-${w}px -${w}px 0 ${c}`);
-      shadows.push(`${w}px 0 0 ${c}`);
-      shadows.push(`-${w}px 0 0 ${c}`);
-      shadows.push(`0 ${w}px 0 ${c}`);
-      shadows.push(`0 -${w}px 0 ${c}`);
-    }
+    const filters = [];
     if (config.dropShadow.enabled) {
-      shadows.push(`${config.dropShadow.x}px ${config.dropShadow.y}px ${config.dropShadow.blur}px ${config.dropShadow.color}`);
+      const ds = config.dropShadow;
+      filters.push(`drop-shadow(${ds.x}px ${ds.y}px ${ds.blur}px ${ds.color})`);
     }
     if (isPressed && config.activation.glow) {
       const glowSize = 6 + config.fontSize * 0.3;
-      shadows.push(`0 0 ${glowSize}px ${config.color}`);
-      shadows.push(`0 0 ${glowSize * 1.5}px ${config.color}`);
+      filters.push(`drop-shadow(0 0 ${glowSize}px ${config.color})`);
+      filters.push(`drop-shadow(0 0 ${glowSize * 1.5}px ${config.color})`);
     }
-    if (shadows.length) {
-      styles.push(`text-shadow: ${shadows.join(', ')}`);
+    if (isPressed) {
+      const brightness = config.activation.brightness;
+      filters.push(`brightness(${brightness})`);
+    }
+    if (filters.length) {
+      styles.push(`filter: ${filters.join(' ')}`);
     }
 
     if (isPressed) {
-      const brightness = config.activation.brightness;
-      styles.push(`filter: brightness(${brightness})`);
       const combinedScale = (config.labelScale || 1) * (config.activation.scale || 1);
       if (combinedScale !== 1) {
         styles.push(`transform: scale(${combinedScale})`);
@@ -288,9 +278,6 @@ export class ButtonLabelManager {
 
     if (partialConfig.activation) {
       merged.activation = { ...current.activation, ...partialConfig.activation };
-    }
-    if (partialConfig.stroke) {
-      merged.stroke = { ...current.stroke, ...partialConfig.stroke };
     }
     if (partialConfig.dropShadow) {
       merged.dropShadow = { ...current.dropShadow, ...partialConfig.dropShadow };
