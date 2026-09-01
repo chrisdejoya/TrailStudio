@@ -134,43 +134,57 @@
     border: none;
     border-radius: 0;
     box-shadow: none;
-    padding: 8px 0 4px 0;
+    padding: 8px 10px 6px;
     margin: 0;
-    text-align: left;
     flex-shrink: 0;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
   }
-  .inspector-shell .mode-select {
-    width: 100%;
-    background-color: transparent;
-    border: none;
-    color: #ffffff;
-    padding: 0 26px 0 12px;
-    outline: none;
-    font-family: 'Rubik', sans-serif;
-    font-size: 20px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    text-align: left;
+  .inspector-shell .mode-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 60px;
+    background: #121214;
+    border: 1px solid #2d2d32;
+    border-radius: 8px;
+    color: #b7b7bc;
+    padding: 8px 4px 6px;
     cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    margin: 0;
+    transition: border-color 0.12s ease, background-color 0.12s ease, color 0.12s ease, transform 0.12s ease;
+    font-family: 'Rubik', sans-serif;
   }
-  .inspector-shell .mode-select option {
-    background-color: #121214;
+  .inspector-shell .mode-tab:hover {
+    border-color: #5896ed;
+    background-color: #1a1a1e;
     color: #ffffff;
-    text-transform: none;
+  }
+  .inspector-shell .mode-tab.active {
+    background: #1b2330;
+    border-color: #5896ed;
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px rgba(88, 150, 237, 0.2);
+  }
+  .inspector-shell .mode-tab-icon {
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
     font-size: 15px;
-    font-weight: 500;
+    font-weight: 700;
+    line-height: 1;
   }
-  .inspector-shell .mode-header-arrow {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    color: #ffffff;
+  .inspector-shell .mode-tab-label {
+    display: block;
+    font-size: 9px;
+    line-height: 1.1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: center;
+    font-weight: 600;
   }
 
   .inspector-shell .inspector-scroll {
@@ -489,18 +503,31 @@
      INSPECTOR SHELL (sidebar, matches ui.html design)
      ========================================================================= -->
 <div class="inspector-shell" id="inspector-shell">
-  <div class="mode-header">
-    <select id="modeSelector" class="mode-select" onchange="switchMode(this.value)">
-      <option value="group-model" selected>Controller</option>
-      <option value="group-camera">Camera</option>
-      <option value="group-environment">Environment</option>
-      <option value="group-lighting">Lighting</option>
-      <option value="group-postprocessing">Image Quality</option>
-      <option value="group-scene">Scene</option>
-    </select>
-    <svg class="mode-header-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-      <polygon points="12,16 4,8 20,8"/>
-    </svg>
+  <div class="mode-header" aria-label="Inspector sections">
+    <button class="mode-tab active" type="button" data-mode="group-model" onclick="switchMode('group-model')">
+      <span class="mode-tab-icon">◈</span>
+      <span class="mode-tab-label">Controller</span>
+    </button>
+    <button class="mode-tab" type="button" data-mode="group-camera" onclick="switchMode('group-camera')">
+      <span class="mode-tab-icon">◎</span>
+      <span class="mode-tab-label">Camera</span>
+    </button>
+    <button class="mode-tab" type="button" data-mode="group-environment" onclick="switchMode('group-environment')">
+      <span class="mode-tab-icon">◌</span>
+      <span class="mode-tab-label">Environment</span>
+    </button>
+    <button class="mode-tab" type="button" data-mode="group-lighting" onclick="switchMode('group-lighting')">
+      <span class="mode-tab-icon">✦</span>
+      <span class="mode-tab-label">Lighting</span>
+    </button>
+    <button class="mode-tab" type="button" data-mode="group-postprocessing" onclick="switchMode('group-postprocessing')">
+      <span class="mode-tab-icon">◍</span>
+      <span class="mode-tab-label">Image Quality</span>
+    </button>
+    <button class="mode-tab" type="button" data-mode="group-scene" onclick="switchMode('group-scene')">
+      <span class="mode-tab-icon">▣</span>
+      <span class="mode-tab-label">Scene</span>
+    </button>
   </div>
 
   <main class="inspector-scroll" id="inspectorScroll">
@@ -905,6 +932,11 @@
 
 <script>
   function switchMode(value) {
+    const tabs = document.querySelectorAll('.mode-tab');
+    tabs.forEach((tab) => {
+      tab.classList.toggle('active', tab.dataset.mode === value);
+    });
+
     if (window.TrailStudioApp && typeof window.TrailStudioApp.setMode === 'function') {
       window.TrailStudioApp.setMode(value);
     }

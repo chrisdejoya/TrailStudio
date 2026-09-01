@@ -11,19 +11,31 @@
 </head>
 <body>
   <div class="inspector-shell">
-    <div class="mode-header">
-      <select id="modeSelector" class="mode-select" onchange="switchMode(this.value)">
-        <option value="group-model" selected>Controller</option>
-        <option value="group-camera">Camera</option>
-        <option value="group-environment">Environment</option>
-        <option value="group-lighting">Lighting</option>
-        <option value="group-postprocessing">Image Quality</option>
-        <option value="group-scene">Scene</option>
-        <option value="group-options">Options</option>
-      </select>
-      <svg class="mode-header-arrow" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-        <polygon points="12,16 4,8 20,8"/>
-      </svg>
+    <div class="mode-header" aria-label="Inspector sections">
+      <button class="mode-tab active" type="button" data-mode="group-model" onclick="switchMode('group-model')">
+        <span class="mode-tab-icon">◈</span>
+        <span class="mode-tab-label">Controller</span>
+      </button>
+      <button class="mode-tab" type="button" data-mode="group-camera" onclick="switchMode('group-camera')">
+        <span class="mode-tab-icon">◎</span>
+        <span class="mode-tab-label">Camera</span>
+      </button>
+      <button class="mode-tab" type="button" data-mode="group-environment" onclick="switchMode('group-environment')">
+        <span class="mode-tab-icon">◌</span>
+        <span class="mode-tab-label">Environment</span>
+      </button>
+      <button class="mode-tab" type="button" data-mode="group-lighting" onclick="switchMode('group-lighting')">
+        <span class="mode-tab-icon">✦</span>
+        <span class="mode-tab-label">Lighting</span>
+      </button>
+      <button class="mode-tab" type="button" data-mode="group-postprocessing" onclick="switchMode('group-postprocessing')">
+        <span class="mode-tab-icon">◍</span>
+        <span class="mode-tab-label">Image Quality</span>
+      </button>
+      <button class="mode-tab" type="button" data-mode="group-scene" onclick="switchMode('group-scene')">
+        <span class="mode-tab-icon">▣</span>
+        <span class="mode-tab-label">Scene</span>
+      </button>
     </div>
 
     <main class="inspector-scroll" id="inspectorScroll">

@@ -189,6 +189,11 @@
     syncUiScale(uiScaleSlider ? uiScaleSlider.value : 1, false);
 
     function switchMode(groupId) {
+      const tabs = document.querySelectorAll('.mode-tab');
+      tabs.forEach((tab) => {
+        tab.classList.toggle('active', tab.dataset.mode === groupId);
+      });
+
       const activeGroup = document.querySelector('.inspector-group.active');
       const targetGroup = document.getElementById(groupId);
       const inspectorScroll = document.getElementById('inspectorScroll');
