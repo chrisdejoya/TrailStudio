@@ -136,6 +136,7 @@ class VIEW3D_PT_trailpad_panel(bpy.types.Panel):
             op.part_name = name_key
 
         layout.separator(factor=1.5)
+        layout.box().label(text="Export Options", icon='EXPORT')
 
         row = layout.row()
         row.scale_y = 1.3

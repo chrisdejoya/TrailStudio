@@ -1,0 +1,395 @@
+import * as THREE from 'three';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+const DEFAULT_LABEL_CONFIG = {
+  text: '',
+  visible: true,
+  fontFamily: 'Rubik, system-ui, sans-serif',
+  fontSize: 13,
+  fontWeight: 600,
+  fontStyle: 'normal',
+  color: '#ffffff',
+  labelScale: 1,
+  stroke: { enabled: true, color: '#000000', width: 2 },
+  dropShadow: { enabled: true, x: 0, y: 1, blur: 3, color: '#00000080' },
+  background: { enabled: false, color: '#000000', padding: 4, borderRadius: 4, opacity: 0.5 },
+  billboard: true,
+  offset: { x: 0, y: 0.18, z: 0 },
+  activation: {
+    brightness: 1.8,
+    glow: true,
+    scale: 1.12,
+    colorShift: false,
+    transition: '0.05s ease-out'
+  }
+};
+
+const BUTTON_NAMES = [
+  'South / A / Cross', 'East / B / Circle', 'West / X / Square', 'North / Y / Triangle',
+  'L1 / LB', 'R1 / RB', 'L2 / LT', 'R2 / RT',
+  'Select / Back', 'Start', 'L3', 'R3',
+  'D-Pad Up', 'D-Pad Down', 'D-Pad Left', 'D-Pad Right', 'Home / Guide'
+];
+
+const PS_SYMBOLS = {
+  'South / A / Cross': '×',
+  'East / B / Circle': '○',
+  'West / X / Square': '□',
+  'North / Y / Triangle': '△',
+  'L1 / LB': 'L1',
+  'R1 / RB': 'R1',
+  'L2 / LT': 'L2',
+  'R2 / RT': 'R2',
+  'Select / Back': '⬚',
+  'Start': '≡',
+  'L3': 'L3',
+  'R3': 'R3',
+  'D-Pad Up': '▲',
+  'D-Pad Down': '▼',
+  'D-Pad Left': '◀',
+  'D-Pad Right': '▶',
+  'Home / Guide': '⬤'
+};
+
+const XBOX_SYMBOLS = {
+  'South / A / Cross': 'A',
+  'East / B / Circle': 'B',
+  'West / X / Square': 'X',
+  'North / Y / Triangle': 'Y',
+  'L1 / LB': 'LB',
+  'R1 / RB': 'RB',
+  'L2 / LT': 'LT',
+  'R2 / RT': 'RT',
+  'Select / Back': '⬚',
+  'Start': '≡',
+  'L3': 'L3',
+  'R3': 'R3',
+  'D-Pad Up': '▲',
+  'D-Pad Down': '▼',
+  'D-Pad Left': '◀',
+  'D-Pad Right': '▶',
+  'Home / Guide': '⬤'
+};
+
+const DEFAULT_SYMBOLS = {
+  'South / A / Cross': '●',
+  'East / B / Circle': '●',
+  'West / X / Square': '●',
+  'North / Y / Triangle': '●',
+  'L1 / LB': 'L1',
+  'R1 / RB': 'R1',
+  'L2 / LT': 'L2',
+  'R2 / RT': 'R2',
+  'Select / Back': '◼',
+  'Start': '▶',
+  'L3': 'L3',
+  'R3': 'R3',
+  'D-Pad Up': '▲',
+  'D-Pad Down': '▼',
+  'D-Pad Left': '◀',
+  'D-Pad Right': '▶',
+  'Home / Guide': '◆'
+};
+
+export class ButtonLabelManager {
+  constructor(controllerGroup, camera, renderer, options = {}) {
+    this.controllerGroup = controllerGroup;
+    this.camera = camera;
+    this.renderer = renderer;
+    this.onConfigChange = options.onConfigChange || (() => {});
+
+    this.cssRenderer = new CSS2DRenderer();
+    this.cssRenderer.setSize(window.innerWidth, window.innerHeight);
+    this.cssRenderer.domElement.style.position = 'absolute';
+    this.cssRenderer.domElement.style.top = '0';
+    this.cssRenderer.domElement.style.left = '0';
+    this.cssRenderer.domElement.style.pointerEvents = 'none';
+    this.cssRenderer.domElement.style.zIndex = '10';
+    const appContainer = document.querySelector('#app') || document.body;
+    appContainer.appendChild(this.cssRenderer.domElement);
+
+    this.labelGroup = new THREE.Group();
+    const scene = controllerGroup.parent || controllerGroup;
+    scene.add(this.labelGroup);
+
+    this.labels = new Map();
+    this.configs = new Map();
+    this.buttonObjects = new Map();
+    this.basePositions = new Map();
+
+    this.enabled = true;
+    this.billboardMode = true;
+
+    for (let i = 0; i < 17; i++) {
+      this.configs.set(i, { ...DEFAULT_LABEL_CONFIG, text: this.getDefaultSymbol(i) });
+    }
+
+    window.addEventListener('resize', () => this.onResize());
+  }
+
+  getDefaultSymbol(index) {
+    const name = BUTTON_NAMES[index];
+    return PS_SYMBOLS[name] || DEFAULT_SYMBOLS[name] || '';
+  }
+
+  setButtonObject(index, object, basePosition) {
+    this.buttonObjects.set(index, object);
+    this.basePositions.set(index, basePosition.clone());
+    this.createOrUpdateLabel(index);
+  }
+
+  createOrUpdateLabel(index) {
+    const config = this.configs.get(index);
+    if (!config) return;
+
+    let label = this.labels.get(index);
+
+    if (!label) {
+      const div = document.createElement('div');
+      div.style.cssText = this.buildStyle(config, false);
+      div.textContent = config.text;
+      div.dataset.buttonIndex = index;
+
+      label = new CSS2DObject(div);
+      label.center.set(0.5, 0.5);
+      this.labels.set(index, label);
+      this.labelGroup.add(label);
+    } else {
+      label.element.textContent = config.text;
+      label.element.style.cssText = this.buildStyle(config, false);
+    }
+
+    this.updateLabelPosition(index);
+    label.visible = this.enabled && config.visible;
+  }
+
+  buildStyle(config, isPressed) {
+    const styles = [];
+
+    styles.push(`font-family: "${config.fontFamily}"`);
+    styles.push(`font-size: ${config.fontSize}px`);
+    styles.push(`font-weight: ${config.fontWeight}`);
+    styles.push(`font-style: ${config.fontStyle}`);
+    styles.push(`color: ${config.color}`);
+    styles.push(`white-space: nowrap`);
+    styles.push(`pointer-events: none`);
+    styles.push(`user-select: none`);
+    styles.push(`line-height: 1`);
+    styles.push(`transition: ${config.activation.transition}`);
+
+    // Apply label scale as base transform
+    if (config.labelScale !== 1) {
+      styles.push(`transform: scale(${config.labelScale})`);
+    }
+
+    if (config.background.enabled) {
+      const bgColor = config.background.color;
+      const opacity = config.background.opacity !== undefined ? config.background.opacity : 1;
+      let finalColor = bgColor;
+      if (bgColor.startsWith('#') && bgColor.length === 7 && opacity < 1) {
+        const r = parseInt(bgColor.slice(1, 3), 16);
+        const g = parseInt(bgColor.slice(3, 5), 16);
+        const b = parseInt(bgColor.slice(5, 7), 16);
+        finalColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+      } else if (bgColor.startsWith('#') && bgColor.length === 9) {
+        // Already has alpha
+        finalColor = bgColor;
+      }
+      styles.push(`background-color: ${finalColor}`);
+      styles.push(`padding: ${config.background.padding}px`);
+      styles.push(`border-radius: ${config.background.borderRadius}px`);
+    }
+
+    const shadows = [];
+    if (config.stroke.enabled) {
+      const w = config.stroke.width;
+      const c = config.stroke.color;
+      shadows.push(`${w}px ${w}px 0 ${c}`);
+      shadows.push(`-${w}px ${w}px 0 ${c}`);
+      shadows.push(`${w}px -${w}px 0 ${c}`);
+      shadows.push(`-${w}px -${w}px 0 ${c}`);
+      shadows.push(`${w}px 0 0 ${c}`);
+      shadows.push(`-${w}px 0 0 ${c}`);
+      shadows.push(`0 ${w}px 0 ${c}`);
+      shadows.push(`0 -${w}px 0 ${c}`);
+    }
+    if (config.dropShadow.enabled) {
+      shadows.push(`${config.dropShadow.x}px ${config.dropShadow.y}px ${config.dropShadow.blur}px ${config.dropShadow.color}`);
+    }
+    if (isPressed && config.activation.glow) {
+      const glowSize = 6 + config.fontSize * 0.3;
+      shadows.push(`0 0 ${glowSize}px ${config.color}`);
+      shadows.push(`0 0 ${glowSize * 1.5}px ${config.color}`);
+    }
+    if (shadows.length) {
+      styles.push(`text-shadow: ${shadows.join(', ')}`);
+    }
+
+    if (isPressed) {
+      const brightness = config.activation.brightness;
+      styles.push(`filter: brightness(${brightness})`);
+      const combinedScale = (config.labelScale || 1) * (config.activation.scale || 1);
+      if (combinedScale !== 1) {
+        styles.push(`transform: scale(${combinedScale})`);
+      }
+    }
+
+    return styles.join('; ');
+  }
+
+  updateLabelPosition(index) {
+    const label = this.labels.get(index);
+    const object = this.buttonObjects.get(index);
+    const basePos = this.basePositions.get(index);
+    const config = this.configs.get(index);
+
+    if (!label || !object || !basePos || !config) return;
+
+    const worldPos = new THREE.Vector3();
+    object.getWorldPosition(worldPos);
+
+    const offset = new THREE.Vector3(config.offset.x, config.offset.y, config.offset.z);
+    const labelPos = worldPos.clone().add(offset);
+
+    label.position.copy(labelPos);
+  }
+
+  updateButtonState(index, isPressed, pressure = 0) {
+    const label = this.labels.get(index);
+    const config = this.configs.get(index);
+    if (!label || !config) return;
+
+    label.element.style.cssText = this.buildStyle(config, isPressed);
+  }
+
+  updateAllPositions() {
+    for (const index of this.buttonObjects.keys()) {
+      this.updateLabelPosition(index);
+    }
+  }
+
+  setEnabled(enabled) {
+    this.enabled = enabled;
+    for (const [index, label] of this.labels) {
+      const config = this.configs.get(index);
+      label.visible = enabled && (config?.visible ?? true);
+    }
+  }
+
+  setBillboardMode(enabled) {
+    this.billboardMode = enabled;
+  }
+
+  updateConfig(index, partialConfig) {
+    const current = this.configs.get(index) || { ...DEFAULT_LABEL_CONFIG };
+    const merged = { ...current, ...partialConfig };
+
+    if (partialConfig.activation) {
+      merged.activation = { ...current.activation, ...partialConfig.activation };
+    }
+    if (partialConfig.stroke) {
+      merged.stroke = { ...current.stroke, ...partialConfig.stroke };
+    }
+    if (partialConfig.dropShadow) {
+      merged.dropShadow = { ...current.dropShadow, ...partialConfig.dropShadow };
+    }
+    if (partialConfig.background) {
+      merged.background = { ...current.background, ...partialConfig.background };
+    }
+    if (partialConfig.offset) {
+      merged.offset = { ...current.offset, ...partialConfig.offset };
+    }
+
+    this.configs.set(index, merged);
+    this.createOrUpdateLabel(index);
+    this.onConfigChange(this.getAllConfigs());
+  }
+
+  setGlobalConfig(partialConfig) {
+    for (let i = 0; i < 17; i++) {
+      this.updateConfig(i, partialConfig);
+    }
+  }
+
+  getConfig(index) {
+    return this.configs.get(index) ? { ...this.configs.get(index) } : null;
+  }
+
+  getAllConfigs() {
+    const result = {};
+    for (const [index, config] of this.configs) {
+      result[index] = { ...config };
+    }
+    return result;
+  }
+
+  setVisibility(index, visible) {
+    const config = this.configs.get(index);
+    if (!config) return;
+    config.visible = visible;
+    const label = this.labels.get(index);
+    if (label) label.visible = this.enabled && visible;
+    this.onConfigChange(this.getAllConfigs());
+  }
+
+  setText(index, text) {
+    this.updateConfig(index, { text });
+  }
+
+  applyPreset(preset) {
+    const symbols = preset === 'playstation' ? PS_SYMBOLS :
+                   preset === 'xbox' ? XBOX_SYMBOLS :
+                   DEFAULT_SYMBOLS;
+
+    for (let i = 0; i < 17; i++) {
+      const name = BUTTON_NAMES[i];
+      this.updateConfig(i, { text: symbols[name] || '' });
+    }
+  }
+
+  render() {
+    if (!this.enabled) return;
+    this.updateAllPositions();
+    this.cssRenderer.render(this.labelGroup, this.camera);
+  }
+
+  onResize() {
+    this.cssRenderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  dispose() {
+    this.cssRenderer.domElement.remove();
+    this.labelGroup.clear();
+    this.labels.clear();
+    this.configs.clear();
+    this.buttonObjects.clear();
+    this.basePositions.clear();
+  }
+
+  toJSON() {
+    const configs = {};
+    for (const [index, config] of this.configs) {
+      configs[index] = { ...config };
+    }
+    return {
+      enabled: this.enabled,
+      billboardMode: this.billboardMode,
+      configs
+    };
+  }
+
+  fromJSON(data) {
+    if (!data) return;
+    if (data.enabled !== undefined) this.setEnabled(data.enabled);
+    if (data.billboardMode !== undefined) this.setBillboardMode(data.billboardMode);
+    if (data.configs) {
+      for (const [index, config] of Object.entries(data.configs)) {
+        const idx = parseInt(index);
+        if (this.configs.has(idx)) {
+          this.configs.set(idx, { ...this.configs.get(idx), ...config });
+          this.createOrUpdateLabel(idx);
+        }
+      }
+    }
+  }
+}

@@ -9,6 +9,7 @@ import { GamepadManager } from './gamepadManager.js';
 import { LightingManager } from './lightingManager.js';
 import { DiagnosticsPanel } from './diagnosticsPanel.js';
 import { ModelManager } from './modelManager.js';
+import { ButtonLabelManager } from './buttonLabels.js';
 
 // Import isolated camera module
 import {
@@ -165,6 +166,39 @@ const gamepadManager = new GamepadManager({
   }
 });
 
+// Button Label Manager
+let buttonLabelManager = null;
+function createButtonLabelManager() {
+  if (buttonLabelManager) {
+    buttonLabelManager.dispose();
+  }
+  buttonLabelManager = new ButtonLabelManager(controllerGroup, camera, renderer, {
+    onConfigChange: scheduleSave
+  });
+  // Sync existing buttons
+  for (const [index, entry] of Object.entries(modelManager.buttons3D)) {
+    const idx = parseInt(index);
+    buttonLabelManager.setButtonObject(idx, entry.node, modelManager.basePositions[idx]);
+  }
+  wireButtonLabelUI();
+}
+
+// Call after model is loaded
+const originalOnModelLoaded = modelManager.onModelLoaded;
+modelManager.onModelLoaded = () => {
+  if (originalOnModelLoaded) originalOnModelLoaded();
+  createButtonLabelManager();
+};
+
+// Also sync when register3DButton is called (for dynamic additions)
+const originalRegister3DButton = modelManager.register3DButton.bind(modelManager);
+modelManager.register3DButton = (index, node, isStick, emissiveTargets) => {
+  originalRegister3DButton(index, node, isStick, emissiveTargets);
+  if (buttonLabelManager) {
+    buttonLabelManager.setButtonObject(index, node, modelManager.basePositions[index]);
+  }
+};
+
 /* ================================================================= Global Number Input Scrubbing Logic ================================================================= */
 let isPotentialScrub = false;
 let isScrubbing = false;
@@ -260,6 +294,7 @@ window.addEventListener('resize', () => {
   handleCameraResize();
   renderer.setSize(innerWidth, innerHeight);
   resizePostProcessing(innerWidth, innerHeight);
+  if (buttonLabelManager) buttonLabelManager.onResize();
 });
 
 // Settings / LocalStorage Triggers
@@ -385,6 +420,89 @@ if (syncLeftStickDpadToggle) {
   syncLeftStickDpadToggle.addEventListener('change', (e) => {
     modelManager.setSyncLeftStickDpad(e.target.checked);
   });
+}
+
+// Button Labels UI Wiring
+function wireButtonLabelUI() {
+  if (!buttonLabelManager) return;
+
+  const enabledEl = document.querySelector('#buttonLabelsEnabled');
+  if (enabledEl) {
+    enabledEl.addEventListener('change', (e) => buttonLabelManager.setEnabled(e.target.checked));
+  }
+
+  bindSliderAndInput('#buttonLabelSize', '#buttonLabelSizeInput', (val) => {
+    buttonLabelManager.setGlobalConfig({ labelScale: val });
+  }, 2);
+
+  bindSliderAndInput('#buttonLabelOffsetY', '#buttonLabelOffsetYInput', (val) => {
+    buttonLabelManager.setGlobalConfig({ offset: { y: val } });
+  }, 2);
+
+  bindSliderAndInput('#buttonLabelFontSize', '#buttonLabelFontSizeInput', (val) => {
+    buttonLabelManager.setGlobalConfig({ fontSize: val });
+  }, 0);
+
+  const labelColorEl = document.querySelector('#buttonLabelColor');
+  if (labelColorEl) {
+    labelColorEl.addEventListener('input', (e) => buttonLabelManager.setGlobalConfig({ color: e.target.value }));
+  }
+
+  const bgColorEl = document.querySelector('#buttonLabelBgColor');
+  if (bgColorEl) {
+    bgColorEl.addEventListener('input', (e) => buttonLabelManager.setGlobalConfig({ background: { color: e.target.value } }));
+  }
+
+  const bgEnabledEl = document.querySelector('#buttonLabelBgEnabled');
+  if (bgEnabledEl) {
+    bgEnabledEl.addEventListener('change', (e) => buttonLabelManager.setGlobalConfig({ background: { enabled: e.target.checked } }));
+  }
+
+  const billboardEl = document.querySelector('#buttonLabelBillboardEnabled');
+  if (billboardEl) {
+    billboardEl.addEventListener('change', (e) => buttonLabelManager.setBillboardMode(e.target.checked));
+  }
+
+  const alwaysOnTopEl = document.querySelector('#buttonLabelAlwaysOnTop');
+  if (alwaysOnTopEl) {
+    alwaysOnTopEl.addEventListener('change', (e) => {
+      // CSS2D always renders on top of WebGL, but we can store this preference
+      buttonLabelManager.setGlobalConfig({ alwaysOnTop: e.target.checked });
+    });
+  }
+
+  // Populate label list with editable inputs
+  populateButtonLabelList();
+}
+
+function populateButtonLabelList() {
+  const listEl = document.querySelector('#buttonLabelList');
+  if (!listEl || !buttonLabelManager) return;
+
+  listEl.innerHTML = '';
+  const BUTTON_NAMES = [
+    'South / A / Cross', 'East / B / Circle', 'West / X / Square', 'North / Y / Triangle',
+    'L1 / LB', 'R1 / RB', 'L2 / LT', 'R2 / RT',
+    'Select / Back', 'Start', 'L3', 'R3',
+    'D-Pad Up', 'D-Pad Down', 'D-Pad Left', 'D-Pad Right', 'Home / Guide'
+  ];
+
+  for (let i = 0; i < 17; i++) {
+    const config = buttonLabelManager.getConfig(i);
+    if (!config) continue;
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;';
+    row.innerHTML = `
+      <span style="width:120px;color:#aaa;flex-shrink:0;">${BUTTON_NAMES[i]}</span>
+      <input type="text" data-index="${i}" value="${config.text}" style="flex:1;background:#1e1e22;border:1px solid #3a3a42;color:#fff;padding:4px 8px;border-radius:4px;font-size:12px;font-family:inherit;">
+    `;
+    const input = row.querySelector('input');
+    input.addEventListener('change', (e) => {
+      buttonLabelManager.setText(parseInt(e.target.dataset.index), e.target.value);
+    });
+    listEl.appendChild(row);
+  }
 }
 
 // File I/O Actions
@@ -574,7 +692,8 @@ function getSettingsState() {
       }
     },
     lighting: lightingManager.getLightingState(),
-    ibl: { ...iblState }
+    ibl: { ...iblState },
+    buttonLabels: buttonLabelManager ? buttonLabelManager.toJSON() : {}
   };
 }
 
@@ -758,6 +877,12 @@ if (state.model) {
     lightingManager.applyLightingState(state.lighting);
   }
 
+  if (state.buttonLabels && buttonLabelManager) {
+    buttonLabelManager.fromJSON(state.buttonLabels);
+    // Re-populate the label list after loading
+    populateButtonLabelList();
+  }
+
   updateCameraPosition();
 }
 
@@ -840,6 +965,7 @@ function loop() {
   }
 
   trailManager.update();
+  if (buttonLabelManager) buttonLabelManager.render();
   composer.render();
 }
 
