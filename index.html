@@ -671,15 +671,23 @@
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
-          <div class="control-row">
-            <label>FOV</label>
-            <input type="range" id="camFov" min="15" max="100" step="1" value="50">
-            <input type="number" id="camFovInput" min="1" max="170" step="1" value="50">
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>FOV</span></div>
+              <input type="number" id="camFovInput" class="drag-input" min="1" max="170" step="1" value="50">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="camFov" min="15" max="100" step="1" value="50">
+            </div>
           </div>
-          <div class="control-row">
-            <label>Zoom</label>
-            <input type="range" id="camRadius" min="2" max="15" step="0.1" value="6.5">
-            <input type="number" id="camRadiusInput" min="0.5" max="50" step="0.1" value="6.5">
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Zoom</span></div>
+              <input type="number" id="camRadiusInput" class="drag-input" min="0.5" max="50" step="0.1" value="6.5">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="camRadius" min="2" max="15" step="0.1" value="6.5">
+            </div>
           </div>
           <div class="control-row">
             <label>Target FPS</label>
@@ -762,11 +770,35 @@
         </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="row-stacked"><span>Sky Color</span><input type="color" id="iblSkyColor" value="#1e293b"></div>
-          <div class="control-row"><label>Sky Level</label><input type="range" id="iblSkyLevel" min="0.01" max="1" step="0.01" value="0.4"><span id="iblSkyLevelValue" class="value">0.40</span></div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Sky Level</span></div>
+              <input type="number" id="iblSkyLevelInput" class="drag-input" min="0.01" max="1" step="0.01" value="0.40">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSkyLevel" min="0.01" max="1" step="0.01" value="0.4">
+            </div>
+          </div>
           <div class="row-stacked"><span>Horizon Color</span><input type="color" id="iblHorizonColor" value="#38bdf8"></div>
-          <div class="control-row"><label>Horizon Level</label><input type="range" id="iblHorizonLevel" min="-0.5" max="0.5" step="0.01" value="0"><span id="iblHorizonLevelValue" class="value">0.00</span></div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Horizon Level</span></div>
+              <input type="number" id="iblHorizonLevelInput" class="drag-input" min="-0.5" max="0.5" step="0.01" value="0.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblHorizonLevel" min="-0.5" max="0.5" step="0.01" value="0">
+            </div>
+          </div>
           <div class="row-stacked"><span>Ground Color</span><input type="color" id="iblGroundColor" value="#0f172a"></div>
-          <div class="control-row"><label>Ground Level</label><input type="range" id="iblGroundLevel" min="-1" max="-0.01" step="0.01" value="-0.4"><span id="iblGroundLevelValue" class="value">-0.40</span></div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Ground Level</span></div>
+              <input type="number" id="iblGroundLevelInput" class="drag-input" min="-1" max="-0.01" step="0.01" value="-0.40">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblGroundLevel" min="-1" max="-0.01" step="0.01" value="-0.4">
+            </div>
+          </div>
         </div></div>
       </div>
 
@@ -780,11 +812,51 @@
         </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="row-stacked"><span>Color</span><input type="color" id="iblSun1Color" value="#ffffff"></div>
-          <div class="control-row"><label>Elevation</label><input type="range" id="iblSun1Elevation" min="0" max="90" step="1" value="45"><span id="iblSun1ElevationValue" class="value">45</span></div>
-          <div class="control-row"><label>Azimuth</label><input type="range" id="iblSun1Azimuth" min="0" max="360" step="1" value="180"><span id="iblSun1AzimuthValue" class="value">180</span></div>
-          <div class="control-row"><label>Size</label><input type="range" id="iblSun1Size" min="0.1" max="5" step="0.05" value="1"><span id="iblSun1SizeValue" class="value">1.00</span></div>
-          <div class="control-row"><label>Intensity</label><input type="range" id="iblSun1Intensity" min="0" max="10" step="0.1" value="5"><span id="iblSun1IntensityValue" class="value">5.00</span></div>
-          <div class="control-row"><label>Atmosphere</label><input type="range" id="iblSun1Atmosphere" min="0" max="1" step="0.01" value="0.5"><span id="iblSun1AtmosphereValue" class="value">0.50</span></div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Elevation</span></div>
+              <input type="number" id="iblSun1ElevationInput" class="drag-input" min="0" max="90" step="1" value="45">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSun1Elevation" min="0" max="90" step="1" value="45">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Azimuth</span></div>
+              <input type="number" id="iblSun1AzimuthInput" class="drag-input" min="0" max="360" step="1" value="180">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSun1Azimuth" min="0" max="360" step="1" value="180">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Size</span></div>
+              <input type="number" id="iblSun1SizeInput" class="drag-input" min="0.1" max="5" step="0.05" value="1.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSun1Size" min="0.1" max="5" step="0.05" value="1">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Intensity</span></div>
+              <input type="number" id="iblSun1IntensityInput" class="drag-input" min="0" max="10" step="0.1" value="5.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSun1Intensity" min="0" max="10" step="0.1" value="5">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Atmosphere</span></div>
+              <input type="number" id="iblSun1AtmosphereInput" class="drag-input" min="0" max="1" step="0.01" value="0.50">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSun1Atmosphere" min="0" max="1" step="0.01" value="0.5">
+            </div>
+          </div>
         </div></div>
       </div>
 
@@ -798,11 +870,51 @@
         </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="row-stacked"><span>Color</span><input type="color" id="iblSun2Color" value="#f59e0b"></div>
-          <div class="control-row"><label>Elevation</label><input type="range" id="iblSun2Elevation" min="0" max="90" step="1" value="20"><span id="iblSun2ElevationValue" class="value">20</span></div>
-          <div class="control-row"><label>Azimuth</label><input type="range" id="iblSun2Azimuth" min="0" max="360" step="1" value="45"><span id="iblSun2AzimuthValue" class="value">45</span></div>
-          <div class="control-row"><label>Size</label><input type="range" id="iblSun2Size" min="0.1" max="5" step="0.05" value="1.5"><span id="iblSun2SizeValue" class="value">1.50</span></div>
-          <div class="control-row"><label>Intensity</label><input type="range" id="iblSun2Intensity" min="0" max="10" step="0.1" value="0"><span id="iblSun2IntensityValue" class="value">0.00</span></div>
-          <div class="control-row"><label>Atmosphere</label><input type="range" id="iblSun2Atmosphere" min="0" max="1" step="0.01" value="0.7"><span id="iblSun2AtmosphereValue" class="value">0.70</span></div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Elevation</span></div>
+              <input type="number" id="iblSun2ElevationInput" class="drag-input" min="0" max="90" step="1" value="20">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSun2Elevation" min="0" max="90" step="1" value="20">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Azimuth</span></div>
+              <input type="number" id="iblSun2AzimuthInput" class="drag-input" min="0" max="360" step="1" value="45">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSun2Azimuth" min="0" max="360" step="1" value="45">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Size</span></div>
+              <input type="number" id="iblSun2SizeInput" class="drag-input" min="0.1" max="5" step="0.05" value="1.50">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSun2Size" min="0.1" max="5" step="0.05" value="1.5">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Intensity</span></div>
+              <input type="number" id="iblSun2IntensityInput" class="drag-input" min="0" max="10" step="0.1" value="0.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSun2Intensity" min="0" max="10" step="0.1" value="0">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Atmosphere</span></div>
+              <input type="number" id="iblSun2AtmosphereInput" class="drag-input" min="0" max="1" step="0.01" value="0.70">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblSun2Atmosphere" min="0" max="1" step="0.01" value="0.7">
+            </div>
+          </div>
         </div></div>
       </div>
 
@@ -816,8 +928,24 @@
         </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="row-stacked"><span>Color</span><input type="color" id="iblRingColor" value="#38bdf8"></div>
-          <div class="control-row"><label>Height</label><input type="range" id="iblRingHeight" min="-1" max="1" step="0.05" value="0"><span id="iblRingHeightValue" class="value">0.00</span></div>
-          <div class="control-row"><label>Intensity</label><input type="range" id="iblRingIntensity" min="0" max="10" step="0.1" value="3"><span id="iblRingIntensityValue" class="value">3.00</span></div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Height</span></div>
+              <input type="number" id="iblRingHeightInput" class="drag-input" min="-1" max="1" step="0.05" value="0.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblRingHeight" min="-1" max="1" step="0.05" value="0">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Intensity</span></div>
+              <input type="number" id="iblRingIntensityInput" class="drag-input" min="0" max="10" step="0.1" value="3.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="iblRingIntensity" min="0" max="10" step="0.1" value="3">
+            </div>
+          </div>
         </div></div>
       </div>
     </div>
@@ -866,9 +994,33 @@
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
-          <div class="control-row"><label>Strength</label><input type="range" id="bloomStrength" min="0" max="3" step="0.05" value="1.0"><input type="number" id="bloomStrengthInput" min="0" max="5" step="0.05" value="1.00"></div>
-          <div class="control-row"><label>Radius</label><input type="range" id="bloomRadius" min="0" max="2" step="0.05" value="0.75"><input type="number" id="bloomRadiusInput" min="0" max="5" step="0.05" value="0.75"></div>
-          <div class="control-row"><label>Threshold</label><input type="range" id="bloomThreshold" min="0" max="1" step="0.05" value="0.9"><input type="number" id="bloomThresholdInput" min="0" max="1" step="0.05" value="0.90"></div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Strength</span></div>
+              <input type="number" id="bloomStrengthInput" class="drag-input" min="0" max="5" step="0.05" value="1.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="bloomStrength" min="0" max="3" step="0.05" value="1.0">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Radius</span></div>
+              <input type="number" id="bloomRadiusInput" class="drag-input" min="0" max="5" step="0.05" value="0.75">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="bloomRadius" min="0" max="2" step="0.05" value="0.75">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Threshold</span></div>
+              <input type="number" id="bloomThresholdInput" class="drag-input" min="0" max="1" step="0.05" value="0.90">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="bloomThreshold" min="0" max="1" step="0.05" value="0.9">
+            </div>
+          </div>
         </div></div>
       </div>
 
@@ -881,9 +1033,33 @@
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
-          <div class="control-row"><label>Radius</label><input type="range" id="aoRadius" min="0" max="32" step="0.5" value="8"><input type="number" id="aoRadiusInput" min="0" max="32" step="0.5" value="8.00"></div>
-          <div class="control-row"><label>Min Distance</label><input type="range" id="aoMinDistance" min="0" max="0.1" step="0.001" value="0.001"><input type="number" id="aoMinDistanceInput" min="0" max="0.1" step="0.001" value="0.001"></div>
-          <div class="control-row"><label>Max Distance</label><input type="range" id="aoMaxDistance" min="0.01" max="1" step="0.01" value="0.1"><input type="number" id="aoMaxDistanceInput" min="0.01" max="1" step="0.01" value="0.10"></div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Radius</span></div>
+              <input type="number" id="aoRadiusInput" class="drag-input" min="0" max="32" step="0.5" value="8.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="aoRadius" min="0" max="32" step="0.5" value="8">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Min Distance</span></div>
+              <input type="number" id="aoMinDistanceInput" class="drag-input" min="0" max="0.1" step="0.001" value="0.001">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="aoMinDistance" min="0" max="0.1" step="0.001" value="0.001">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Max Distance</span></div>
+              <input type="number" id="aoMaxDistanceInput" class="drag-input" min="0.01" max="1" step="0.01" value="0.10">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="aoMaxDistance" min="0.01" max="1" step="0.01" value="0.1">
+            </div>
+          </div>
         </div></div>
       </div>
 
@@ -902,9 +1078,33 @@
               <option value="Cineon">Cineon</option>
             </select>
           </div>
-          <div class="control-row"><label>Exposure</label><input type="range" id="exposureRange" min="0.1" max="3" step="0.05" value="1.1"><input type="number" id="exposureInput" min="0.01" max="10" step="0.05" value="1.10"></div>
-          <div class="control-row"><label>Contrast</label><input type="range" id="contrastRange" min="0.5" max="2" step="0.05" value="1.0"><input type="number" id="contrastInput" min="0.1" max="5" step="0.05" value="1.00"></div>
-          <div class="control-row"><label>Saturation</label><input type="range" id="saturationRange" min="0" max="2" step="0.05" value="1.0"><input type="number" id="saturationInput" min="0" max="5" step="0.05" value="1.00"></div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Exposure</span></div>
+              <input type="number" id="exposureInput" class="drag-input" min="0.01" max="10" step="0.05" value="1.10">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="exposureRange" min="0.1" max="3" step="0.05" value="1.1">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Contrast</span></div>
+              <input type="number" id="contrastInput" class="drag-input" min="0.1" max="5" step="0.05" value="1.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="contrastRange" min="0.5" max="2" step="0.05" value="1.0">
+            </div>
+          </div>
+          <div class="slider-row">
+            <div class="row">
+              <div class="label-with-icon"><span>Saturation</span></div>
+              <input type="number" id="saturationInput" class="drag-input" min="0" max="5" step="0.05" value="1.00">
+            </div>
+            <div class="slider-controls">
+              <input type="range" id="saturationRange" min="0" max="2" step="0.05" value="1.0">
+            </div>
+          </div>
         </div></div>
       </div>
     </div>

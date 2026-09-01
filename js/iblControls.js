@@ -4,11 +4,12 @@ import { bindSliderAndInput } from './uiBridge.js';
 export function setupIBLControls(iblState, onUpdate) {
   function bindIBLControl(id, key, type = 'float') {
     const element = document.querySelector(`#${id}`);
-    const valueElement = document.querySelector(`#${id}Value`);
+    const inputElement = document.querySelector(`#${id}Input`);
     if (!element) return;
     element.addEventListener(type === 'boolean' ? 'change' : 'input', () => {
-      iblState[key] = type === 'boolean' ? element.checked : (type === 'color' ? element.value : parseFloat(element.value));
-      if (valueElement) valueElement.textContent = type === 'integer' ? String(iblState[key]) : iblState[key].toFixed(type === 'float' ? 2 : 1);
+      const val = type === 'boolean' ? element.checked : (type === 'color' ? element.value : parseFloat(element.value));
+      iblState[key] = val;
+      if (inputElement) inputElement.value = type === 'integer' ? String(val) : val.toFixed(type === 'float' ? 2 : 1);
       onUpdate();
     });
   }
@@ -31,6 +32,81 @@ export function setupIBLControls(iblState, onUpdate) {
     iblState.intensity = value;
     onUpdate();
   }, 2);
+
+  bindSliderAndInput('#iblSkyLevel', '#iblSkyLevelInput', (value) => {
+    iblState.skyLevel = value;
+    onUpdate();
+  }, 2);
+
+  bindSliderAndInput('#iblHorizonLevel', '#iblHorizonLevelInput', (value) => {
+    iblState.horizonLevel = value;
+    onUpdate();
+  }, 2);
+
+  bindSliderAndInput('#iblGroundLevel', '#iblGroundLevelInput', (value) => {
+    iblState.groundLevel = value;
+    onUpdate();
+  }, 2);
+
+  bindSliderAndInput('#iblSun1Elevation', '#iblSun1ElevationInput', (value) => {
+    iblState.sun1Elevation = value;
+    onUpdate();
+  }, 0);
+
+  bindSliderAndInput('#iblSun1Azimuth', '#iblSun1AzimuthInput', (value) => {
+    iblState.sun1Azimuth = value;
+    onUpdate();
+  }, 0);
+
+  bindSliderAndInput('#iblSun1Size', '#iblSun1SizeInput', (value) => {
+    iblState.sun1Size = value;
+    onUpdate();
+  }, 2);
+
+  bindSliderAndInput('#iblSun1Intensity', '#iblSun1IntensityInput', (value) => {
+    iblState.sun1Intensity = value;
+    onUpdate();
+  }, 2);
+
+  bindSliderAndInput('#iblSun1Atmosphere', '#iblSun1AtmosphereInput', (value) => {
+    iblState.sun1Atmosphere = value;
+    onUpdate();
+  }, 2);
+
+  bindSliderAndInput('#iblSun2Elevation', '#iblSun2ElevationInput', (value) => {
+    iblState.sun2Elevation = value;
+    onUpdate();
+  }, 0);
+
+  bindSliderAndInput('#iblSun2Azimuth', '#iblSun2AzimuthInput', (value) => {
+    iblState.sun2Azimuth = value;
+    onUpdate();
+  }, 0);
+
+  bindSliderAndInput('#iblSun2Size', '#iblSun2SizeInput', (value) => {
+    iblState.sun2Size = value;
+    onUpdate();
+  }, 2);
+
+  bindSliderAndInput('#iblSun2Intensity', '#iblSun2IntensityInput', (value) => {
+    iblState.sun2Intensity = value;
+    onUpdate();
+  }, 2);
+
+  bindSliderAndInput('#iblSun2Atmosphere', '#iblSun2AtmosphereInput', (value) => {
+    iblState.sun2Atmosphere = value;
+    onUpdate();
+  }, 2);
+
+  bindSliderAndInput('#iblRingHeight', '#iblRingHeightInput', (value) => {
+    iblState.ringHeight = value;
+    onUpdate();
+  }, 2);
+
+  bindSliderAndInput('#iblRingIntensity', '#iblRingIntensityInput', (value) => {
+    iblState.ringIntensity = value;
+    onUpdate();
+  }, 2);
 }
 
 export function applyIBLStateToUI(iblState, state, onUpdate) {
@@ -48,15 +124,14 @@ export function applyIBLStateToUI(iblState, state, onUpdate) {
       ringVisible: 'iblRingVisible', ringColor: 'iblRingColor', ringHeight: 'iblRingHeight', ringIntensity: 'iblRingIntensity'
     };
     const element = document.querySelector(`#${elementMap[key] || ''}`);
+    const inputElement = document.querySelector(`#${elementMap[key] || ''}Input`);
     if (element) {
       if (element.type === 'checkbox') element.checked = value;
       else element.value = value;
     }
-    const valueElement = document.querySelector(`#${elementMap[key] || ''}Value`);
-    if (valueElement && typeof value === 'number') valueElement.textContent = Number.isInteger(value) ? String(value) : value.toFixed(2);
+    if (inputElement && typeof value === 'number') {
+      inputElement.value = Number.isInteger(value) ? String(value) : value.toFixed(2);
+    }
   });
-
-  const iblIntensityInput = document.querySelector('#iblIntensityInput');
-  if (iblIntensityInput) iblIntensityInput.value = iblState.intensity.toFixed(2);
   onUpdate();
 }
