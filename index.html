@@ -275,6 +275,19 @@
   }
   .inspector-shell .panel.collapsed .panel-body-content { opacity: 0; }
 
+  /* Auto-hide UI transitions */
+  .inspector-shell, #hud {
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .inspector-shell.ui-hidden, #hud.ui-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-10px);
+  }
+  .inspector-shell.ui-hidden {
+    transform: translateX(-20px);
+  }
+
   .inspector-shell .caret { cursor: pointer; opacity: 0.7; transition: transform 0.12s cubic-bezier(0.15, 1, 0.25, 1), opacity 0.12s ease; color: #aaa; }
   .inspector-shell .caret:hover { opacity: 1; color: #fff; }
 
@@ -1340,6 +1353,36 @@
       }, 150); // Keep dimmed for 150ms after last wheel event
     }, { passive: true });
   }
+
+  // Auto-hide UI after inactivity
+  const uiShell = document.querySelector('.inspector-shell');
+  const hud = document.querySelector('#hud');
+  let hideTimer = null;
+  const HIDE_DELAY = 5000;
+
+  function showUI() {
+    uiShell?.classList.remove('ui-hidden');
+    hud?.classList.remove('ui-hidden');
+  }
+
+  function hideUI() {
+    uiShell?.classList.add('ui-hidden');
+    hud?.classList.add('ui-hidden');
+  }
+
+  function resetHideTimer() {
+    clearTimeout(hideTimer);
+    showUI();
+    hideTimer = setTimeout(hideUI, HIDE_DELAY);
+  }
+
+  // Track any mouse activity on the document
+  ['mousemove', 'mousedown', 'wheel', 'keydown', 'touchstart'].forEach(evt => {
+    document.addEventListener(evt, resetHideTimer, { passive: true });
+  });
+
+  // Initialize timer
+  resetHideTimer();
 </script>
 
 <script type="importmap">
