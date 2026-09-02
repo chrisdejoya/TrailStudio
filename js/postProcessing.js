@@ -26,10 +26,21 @@ const ContrastSaturationShader = {
     varying vec2 vUv;
     void main() {
       vec4 col = texture2D(tDiffuse, vUv);
-      vec3 color = (col.rgb - 0.5) * contrast + 0.5;
+      vec3 color = clamp(col.rgb, 0.0, 1.0);
+
+      // Keep contrast near-neutral at 1.0 and make the curve much gentler,
+      // so already-tonemapped values do not get pushed into a harsh blown-out look.
+      float contrastValue = clamp(contrast, 0.5, 1.5);
+      float contrastGain = 1.0 + (contrastValue - 1.0) * 0.5;
+      color = (color - 0.5) * contrastGain + 0.5;
+      color = clamp(color, 0.0, 1.0);
+
       float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
       vec3 grayscale = vec3(luminance);
-      color = mix(grayscale, color, saturation);
+      float sat = clamp(saturation, 0.0, 1.5);
+      color = mix(grayscale, color, sat);
+      color = clamp(color, 0.0, 1.0);
+
       gl_FragColor = vec4(color, col.a);
     }`
 };
