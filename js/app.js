@@ -457,6 +457,7 @@ if (syncLeftStickDpadToggle) {
 // Button Labels UI Wiring
 async function wireButtonLabelUI() {
   if (!buttonLabelManager) return;
+  await buttonLabelManager.glyphsReady;
 
   const enabledEl = document.querySelector('#buttonLabelsEnabled');
   if (enabledEl) {

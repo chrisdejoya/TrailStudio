@@ -214,7 +214,7 @@ export class ButtonLabelManager {
       }
     });
 
-    this.loadGlyphs();
+    this.glyphsReady = this.loadGlyphs();
   }
 
   async loadGlyphs() {
@@ -393,7 +393,6 @@ export class ButtonLabelManager {
   setContentElement(contentEl, config) {
     if (config.svg) {
       contentEl.innerHTML = config.svg;
-      contentEl.textContent = '';
     } else {
       contentEl.textContent = config.text || '';
     }
