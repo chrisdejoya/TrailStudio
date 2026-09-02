@@ -10,6 +10,7 @@ import { LightingManager } from './lightingManager.js';
 import { DiagnosticsPanel } from './diagnosticsPanel.js';
 import { ModelManager } from './modelManager.js';
 import { ButtonLabelManager, SVG_PRESETS } from './buttonLabels.js';
+import { CompositionGrid } from './compositionGrid.js';
 
 function loadGoogleFont(url) {
   if (document.querySelector(`link[href="${url}"]`)) return;
@@ -164,6 +165,9 @@ renderer.toneMappingExposure = 1.1;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 app.appendChild(renderer.domElement);
+const compositionGrid = new CompositionGrid();
+const pressedCanvasButtons = new Set();
+let compositionGridWheelTimer = null;
 
 const {
   composer,
@@ -307,11 +311,20 @@ renderer.domElement.addEventListener('mousedown', (e) => {
   lightingManager.setActiveLight(null);
   handleCameraMouseDown(e);
   trailManager.setDragging(true);
+  pressedCanvasButtons.add(e.button);
+  compositionGrid.show();
 });
 
-window.addEventListener('mouseup', () => {
+window.addEventListener('mouseup', (e) => {
   trailManager.setDragging(false);
+  pressedCanvasButtons.delete(e.button);
+  if (pressedCanvasButtons.size === 0) compositionGrid.hide();
   saveToLocalStorage();
+});
+
+window.addEventListener('blur', () => {
+  pressedCanvasButtons.clear();
+  compositionGrid.hide();
 });
 
 window.addEventListener('mousemove', (e) => {
@@ -320,6 +333,11 @@ window.addEventListener('mousemove', (e) => {
 
 renderer.domElement.addEventListener('wheel', (e) => {
   handleCameraWheel(e, scheduleSave);
+  compositionGrid.show();
+  clearTimeout(compositionGridWheelTimer);
+  compositionGridWheelTimer = setTimeout(() => {
+    if (pressedCanvasButtons.size === 0) compositionGrid.hide();
+  }, 150);
 }, { passive: false });
 
 window.addEventListener('resize', () => {
@@ -327,6 +345,7 @@ window.addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
   resizePostProcessing(innerWidth, innerHeight);
   if (buttonLabelManager) buttonLabelManager.onResize();
+  compositionGrid.onResize();
 });
 
 // Settings / LocalStorage Triggers

@@ -1,0 +1,75 @@
+/* Composition Grid Variables */
+:root {
+  /* Colors */
+  --grid-color: #ffffff;
+  --grid-opacity: 0.5;
+
+  /* Line widths */
+  --grid-line-width: 2px;
+  --grid-bracket-width: 2px;
+  --grid-cross-width: 2px;
+  --grid-thirds-width: 2px;
+
+  /* Sizes */
+  --grid-bracket-size: 3px;
+  --grid-cross-size: 3px;
+
+  /* Rule of thirds dash pattern */
+  --grid-thirds-dash: 4px;
+  --grid-thirds-gap: 4px;
+
+  /* Animation */
+  --grid-transition: opacity 0.15s ease-out;
+}
+
+/* Composition Grid Overlay */
+.composition-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: var(--grid-transition);
+}
+
+.composition-grid.visible {
+  opacity: 1;
+}
+
+.composition-grid svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.composition-grid .grid-bracket {
+  fill: none;
+  stroke: var(--grid-color);
+  stroke-width: var(--grid-bracket-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: var(--grid-opacity);
+}
+
+.composition-grid .grid-cross {
+  fill: none;
+  stroke: var(--grid-color);
+  stroke-width: var(--grid-cross-width);
+  stroke-linecap: round;
+  opacity: var(--grid-opacity);
+}
+
+.composition-grid .grid-thirds {
+  fill: none;
+  stroke: var(--grid-color);
+  stroke-width: var(--grid-thirds-width);
+  stroke-dasharray: var(--grid-thirds-dash) var(--grid-thirds-gap);
+  opacity: var(--grid-opacity);
+}
+
+.composition-grid .grid-line {
+  fill: none;
+  stroke: var(--grid-color);
+  stroke-width: var(--grid-line-width);
+  opacity: var(--grid-opacity);
+}
