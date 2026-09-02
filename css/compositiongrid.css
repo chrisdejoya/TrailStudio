@@ -6,13 +6,13 @@
 
   /* Line widths */
   --grid-line-width: 1px;
-  --grid-bracket-width: 4px;
-  --grid-cross-width: 1px;
+  --grid-bracket-width: 2px;
+  --grid-cross-width: 2px;
   --grid-thirds-width: 1px;
 
   /* Sizes */
   --grid-bracket-size: 10px;
-  --grid-cross-size: 30px;
+  --grid-cross-size: 20px;
 
   /* Rule of thirds dash pattern */
   --grid-thirds-dash: 2px;
@@ -49,6 +49,7 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   opacity: var(--grid-opacity);
+  vector-effect: non-scaling-stroke;
 }
 
 .composition-grid .grid-cross {

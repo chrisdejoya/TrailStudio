@@ -48,9 +48,9 @@ export class CompositionGrid {
           <!-- Bottom center -->
           <path d="M ${vw / 2 - bw / 2} ${vh} H ${vw / 2 + bw / 2} M ${vw / 2} ${vh} V ${vh - bh}" />
           <!-- Left center -->
-          <path d="M 0 ${vh / 2 - bh / 2} H ${bw} M 0 ${vh / 2} V ${vh / 2}" />
+          <path d="M 0 ${vh / 2 - bh / 2} V ${vh / 2 + bh / 2} M 0 ${vh / 2} H ${bw}" />
           <!-- Right center -->
-          <path d="M ${vw} ${vh / 2 - bh / 2} H ${vw - bw} M ${vw} ${vh / 2} V ${vh / 2}" />
+          <path d="M ${vw} ${vh / 2 - bh / 2} V ${vh / 2 + bh / 2} M ${vw} ${vh / 2} H ${vw - bw}" />
         </g>
         <!-- Center cross -->
         <g class="grid-cross">
