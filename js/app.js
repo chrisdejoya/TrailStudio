@@ -177,7 +177,6 @@ const gamepadManager = new GamepadManager({
   hudUI: diagnosticsPanel.getHudUI(),
   meshMappings: modelManager.MESH_MAPPINGS,
   onPadChange: () => {
-    refreshPads();
     diagnosticsPanel.resetSnapshot();
   }
 });

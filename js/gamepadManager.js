@@ -42,7 +42,12 @@ export class GamepadManager {
 
   refreshPads() {
     const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-    return Array.from(gamepads).filter(Boolean);
+    const result = [];
+    for (let i = 0; i < gamepads.length; i++) {
+      const pad = gamepads[i];
+      if (pad) result.push(pad);
+    }
+    return result;
   }
 
   selectPad(index) {
