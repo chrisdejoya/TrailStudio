@@ -127,10 +127,27 @@ async function clearStoredModel() {
 }
 
 async function verifyPermission(fileHandle) {
+  if (!fileHandle || typeof fileHandle.queryPermission !== 'function') return false;
+
   const options = { mode: 'read' };
-  if ((await fileHandle.queryPermission(options)) === 'granted') return true;
-  if ((await fileHandle.requestPermission(options)) === 'granted') return true;
-  return false;
+
+  try {
+    if ((await fileHandle.queryPermission(options)) === 'granted') return true;
+  } catch (err) {
+    return false;
+  }
+
+  const hasUserActivation = navigator.userActivation && navigator.userActivation.isActive;
+  if (!hasUserActivation) return false;
+
+  try {
+    return (await fileHandle.requestPermission(options)) === 'granted';
+  } catch (err) {
+    if (err && err.name === 'SecurityError') {
+      console.warn('File permission request requires a user gesture.');
+    }
+    return false;
+  }
 }
 
 /* ================================================================= Three.js Scene & Engine Setup ================================================================= */
@@ -827,22 +844,34 @@ function refreshPads() {
 /* ================================================================= State Serialization & Persistence ================================================================= */
 // Helper to normalize color values (handles both hex numbers and CSS color strings)
 function normalizeColor(color) {
-  if (typeof color === 'number') {
-    return '#' + color.toString(16).padStart(6, '0');
+  if (typeof color === 'number' && Number.isFinite(color)) {
+    return '#' + (color >>> 0).toString(16).padStart(6, '0');
   }
-  if (typeof color === 'string') {
-    // Handle double-prefix from old corrupted data (e.g., "##aa0022")
-    if (color.startsWith('##')) {
-      return '#' + color.slice(2);
-    }
-    // Already a valid CSS color
-    if (color.startsWith('#')) {
-      return color;
-    }
-    // Hex string without prefix
-    return '#' + color;
+
+  if (typeof color !== 'string') {
+    return '#aa0022';
   }
-  return '#aa0022'; // default
+
+  const trimmed = color.trim();
+  if (!trimmed) return '#aa0022';
+
+  const cleaned = trimmed.replace(/^#+/, '').replace(/[^0-9a-fA-F]/g, '');
+  if (!cleaned) return '#aa0022';
+
+  let hex = cleaned;
+  if (hex.length === 3) {
+    hex = hex.split('').map((ch) => ch + ch).join('');
+  }
+
+  if (hex.length > 6) {
+    hex = hex.slice(-6);
+  }
+
+  if (hex.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(hex)) {
+    return '#aa0022';
+  }
+
+  return '#' + hex.toLowerCase();
 }
 
 function getSettingsState() {
@@ -923,9 +952,10 @@ if (state.model) {
       if (trailOffsetInput) trailOffsetInput.value = state.model.trailOffsetY.toFixed(2);
     }
     if (state.model.emissionColor) {
+      const normalizedEmission = normalizeColor(state.model.emissionColor);
       const emissionColorInput = document.querySelector('#emissionColor');
-      if (emissionColorInput) emissionColorInput.value = state.model.emissionColor;
-      buttonEmissionColor.set(state.model.emissionColor);
+      if (emissionColorInput) emissionColorInput.value = normalizedEmission;
+      buttonEmissionColor.set(normalizedEmission);
     }
     if (state.model.syncLeftStickDpad !== undefined) {
       const toggle = document.querySelector('#syncLeftStickDpadToggle');
@@ -1125,7 +1155,9 @@ async function initModelPersistence() {
         return;
       }
     } catch (err) {
-      console.warn('File handle load error:', err);
+      if (err && err.name !== 'SecurityError') {
+        console.warn('File handle load error:', err);
+      }
     }
   }
 
