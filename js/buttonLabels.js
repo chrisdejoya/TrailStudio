@@ -197,6 +197,7 @@ export class ButtonLabelManager {
     this.configs = new Map();
     this.buttonObjects = new Map();
     this.basePositions = new Map();
+    this.glyphs = [];
 
     this.enabled = true;
 
@@ -212,6 +213,59 @@ export class ButtonLabelManager {
         this.createOrUpdateLabel(index);
       }
     });
+
+    this.loadGlyphs();
+  }
+
+  async loadGlyphs() {
+    try {
+      const response = await fetch('/svg/glyphs.json');
+      if (response.ok) {
+        this.glyphs = await response.json();
+      }
+    } catch (error) {
+      console.warn('Failed to load glyphs:', error);
+      this.glyphs = [];
+    }
+  }
+
+  getGlyphs() {
+    return this.glyphs;
+  }
+
+  async getGlyphSvg(filename) {
+    const glyph = this.glyphs.find(g => g.filename === filename);
+    if (!glyph) return null;
+    
+    try {
+      const response = await fetch(`/svg/glyphs/${filename}`);
+      if (response.ok) {
+        let svgText = await response.text();
+        // Adapt SVG for label system: use currentColor for stroke, ensure proper sizing
+        svgText = svgText
+          .replace(/stroke="white"/g, 'stroke="currentColor"')
+          .replace(/stroke='white'/g, "stroke='currentColor'")
+          .replace(/width="[\d.]+"/, 'width="1em"')
+          .replace(/height="[\d.]+"/, 'height="1em"');
+        // Ensure viewBox is set for proper scaling
+        if (!svgText.includes('viewBox')) {
+          svgText = svgText.replace('<svg', '<svg viewBox="0 0 24 24"');
+        }
+        return svgText;
+      }
+    } catch (error) {
+      console.warn(`Failed to load glyph ${filename}:`, error);
+    }
+    return null;
+  }
+
+  async setButtonGlyph(index, filename) {
+    const svg = await this.getGlyphSvg(filename);
+    if (svg) {
+      this.updateConfig(index, { svg });
+      return true;
+    }
+    return false;
   }
 
   getDefaultSymbol(index) {
@@ -250,7 +304,6 @@ export class ButtonLabelManager {
       // Create inner content div that we style
       const div = document.createElement('div');
       div.style.cssText = this.buildStyle(config, false, false);
-      div.textContent = config.text;
       div.dataset.buttonIndex = index;
       div.style.pointerEvents = 'auto'; // Enable interaction for double-click
 
@@ -271,6 +324,9 @@ export class ButtonLabelManager {
       // Store reference to inner content element for updates
       label.userData.contentElement = div;
       label.userData.isHovered = false;
+
+      // Apply SVG or text content
+      this.setContentElement(div, config);
     } else {
       const contentEl = label.userData.contentElement;
       if (contentEl) {

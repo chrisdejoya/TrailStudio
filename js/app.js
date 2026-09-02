@@ -544,16 +544,21 @@ function showSvgGlyphMenu(button, index) {
   // Remove any existing menu
   document.querySelectorAll('.svg-glyph-menu').forEach(m => m.remove());
 
-  const buttonName = BUTTON_NAMES[index];
+  // Get glyphs from ButtonLabelManager
+  const glyphs = buttonLabelManager?.getGlyphs?.() || [];
   
-  // Get glyphs for this specific button from each preset
   const glyphOptions = [
-    { label: 'None (text only)', svg: null },
-    { label: 'PlayStation', svg: getSvgForButton('playstation', buttonName) },
-    { label: 'Xbox', svg: getSvgForButton('xbox', buttonName) },
-    { label: 'Nintendo', svg: getSvgForButton('nintendo', buttonName) },
-    { label: 'Generic', svg: getSvgForButton('generic', buttonName) }
-  ].filter(opt => opt.svg !== null || opt.label === 'None (text only)');
+    { label: 'None (text only)', svg: null, filename: null }
+  ];
+
+  // Add glyphs from glyphs.json with their friendly names
+  for (const glyph of glyphs) {
+    glyphOptions.push({
+      label: glyph.friendlyName,
+      svg: null, // Will be loaded on selection
+      filename: glyph.filename
+    });
+  }
 
   const menu = document.createElement('div');
   menu.className = 'svg-glyph-menu';
@@ -572,13 +577,13 @@ function showSvgGlyphMenu(button, index) {
     `;
     
     if (opt.svg) {
-      // Preview SVG
+      // Preview SVG (for presets, if any)
       const preview = document.createElement('span');
       preview.innerHTML = opt.svg;
       preview.style.cssText = 'width:18px;height:18px;display:flex;align-items:center;justify-content:center;color:#ccc;flex-shrink:0;';
       item.appendChild(preview);
     }
-    
+
     const label = document.createElement('span');
     label.textContent = opt.label;
     item.appendChild(label);
@@ -589,14 +594,20 @@ function showSvgGlyphMenu(button, index) {
     item.addEventListener('mouseleave', () => {
       item.style.background = 'transparent';
     });
-    item.addEventListener('click', () => {
-      if (opt.svg) {
-        buttonLabelManager.updateConfig(index, { svg: opt.svg });
+    item.addEventListener('click', async () => {
+      if (opt.filename) {
+        // Load SVG from file and assign
+        const success = await buttonLabelManager.setButtonGlyph(index, opt.filename);
+        if (success) {
+          menu.remove();
+          refreshButtonLabelRow(index);
+        }
       } else {
+        // None selected - clear SVG
         buttonLabelManager.updateConfig(index, { svg: null });
+        menu.remove();
+        refreshButtonLabelRow(index);
       }
-      menu.remove();
-      refreshButtonLabelRow(index);
     });
     menu.appendChild(item);
   });
@@ -615,13 +626,6 @@ function showSvgGlyphMenu(button, index) {
     }
   };
   setTimeout(() => document.addEventListener('click', closeMenu), 0);
-}
-
-function getSvgForButton(presetName, buttonName) {
-  if (SVG_PRESETS && SVG_PRESETS[presetName]) {
-    return SVG_PRESETS[presetName][buttonName] || null;
-  }
-  return null;
 }
 
 function refreshButtonLabelRow(index) {

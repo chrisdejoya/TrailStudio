@@ -1,0 +1,18 @@
+[
+  {
+    "filename": "ps-circle.svg",
+    "friendlyName": "Circle"
+  },
+  {
+    "filename": "ps-cross.svg",
+    "friendlyName": "Cross"
+  },
+  {
+    "filename": "ps-square.svg",
+    "friendlyName": "Square"
+  },
+  {
+    "filename": "ps-triangle.svg",
+    "friendlyName": "Triangle"
+  }
+]
