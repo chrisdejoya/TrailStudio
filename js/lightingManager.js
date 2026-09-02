@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createLightConfigState } from './state.js';
+import { initializeColorPicker } from './colorPicker.js';
 
 export class LightingManager {
   constructor(scene) {
@@ -171,13 +172,13 @@ export class LightingManager {
         
         <div class="control-row">
           <label>${isHemisphere ? 'Sky Color' : 'Color'}</label>
-          <input type="color" id="${cfg.id}-color" value="${cfg.color}">
+          <div id="${cfg.id}-color" class="custom-color-picker" data-value="${cfg.color}"></div>
         </div>
 
         ${isHemisphere ? `
         <div class="control-row">
           <label>Ground Color</label>
-          <input type="color" id="${cfg.id}-ground-color" value="${cfg.groundColor || '#080b12'}">
+          <div id="${cfg.id}-ground-color" class="custom-color-picker" data-value="${cfg.groundColor || '#080b12'}"></div>
         </div>
         ` : ''}
 
@@ -264,17 +265,21 @@ export class LightingManager {
       intRange.addEventListener('input', (e) => updateIntensity(parseFloat(e.target.value)));
       intInput.addEventListener('input', (e) => updateIntensity(parseFloat(e.target.value) || 0));
 
-      card.querySelector(`#${cfg.id}-color`).addEventListener('input', (e) => {
-        cfg.color = e.target.value;
-        entry.instance.color.set(e.target.value);
+      const colorElement = card.querySelector(`#${cfg.id}-color`);
+      initializeColorPicker(colorElement, colorElement.dataset.value, (color) => {
+        cfg.color = color;
+        entry.instance.color.set(color);
       });
 
       if (isHemisphere) {
-        card.querySelector(`#${cfg.id}-ground-color`).addEventListener('input', (e) => {
-          cfg.groundColor = e.target.value;
-          entry.instance.groundColor.set(e.target.value);
+        const groundColorElement = card.querySelector(`#${cfg.id}-ground-color`);
+        initializeColorPicker(groundColorElement, groundColorElement.dataset.value, (color) => {
+          cfg.groundColor = color;
+          entry.instance.groundColor.set(color);
         });
       }
+
+        if (window.CustomDropdown) window.CustomDropdown.bindSelect(card.querySelector(`#${cfg.id}-type`));
 
       card.querySelector(`#${cfg.id}-type`).addEventListener('change', (e) => {
         cfg.type = e.target.value;

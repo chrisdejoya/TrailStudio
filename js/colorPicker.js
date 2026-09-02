@@ -3,25 +3,34 @@
 const COLOR_PICKER_STYLES = `
     .custom-color-picker-wrapper {
       position: relative;
-      display: inline-block;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .custom-color-picker-wrapper .hex-input {
+      width: 92px;
+      height: 30px;
+      text-align: left;
     }
 
     .color-preview-btn {
       width: 36px;
       height: 36px;
       border-radius: 6px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
+      border: 1px solid #3a3a42;
       cursor: pointer;
       transition: border-color 0.2s;
     }
 
     .color-preview-btn:hover {
-      border-color: rgba(255, 255, 255, 0.8);
+      border-color: #5896ed;
     }
 
     .color-popup {
-      position: absolute;
-      top: 45px;
+      position: fixed;
+      top: 0;
       left: 0;
       width: 200px;
       background: #1e1e1e;
@@ -67,20 +76,20 @@ const COLOR_PICKER_STYLES = `
       cursor: pointer;
     }
 
-    .color-hex-row {
-      margin-top: 5px;
-    }
-
     .hex-input {
-      width: 100%;
-      background: #2a2a2a;
-      border: 1px solid #444;
+      background: #1e1e22;
+      border: 1px solid #3a3a42;
       color: #fff;
       padding: 5px;
-      border-radius: 3px;
+      border-radius: 5px;
       font-family: monospace;
       box-sizing: border-box;
-      text-align: center;
+      outline: none;
+    }
+
+    .hex-input:focus {
+      border-color: #5896ed;
+      background: #26262c;
     }
 `;
 
@@ -100,6 +109,7 @@ export class CustomColorPicker {
     
     if (!this.container) return;
 
+    this.container._customColorPicker = this;
     this.color = this.parseColor(initialColor);
     this.onChange = onChange;
     this.isOpen = false;
@@ -117,6 +127,7 @@ export class CustomColorPicker {
   render() {
     this.container.classList.add('custom-color-picker-wrapper');
     this.container.innerHTML = `
+      <input type="text" class="hex-input" value="${this.color}" aria-label="Hex color value">
       <div class="color-preview-btn" style="background-color: ${this.color};"></div>
       <div class="color-popup" style="display: none;">
         <div class="color-saturation-box">
@@ -126,7 +137,7 @@ export class CustomColorPicker {
           <input type="range" min="0" max="360" value="0" class="hue-slider">
         </div>
         <div class="color-hex-row">
-          <input type="text" class="hex-input" value="${this.color}">
+          <input type="text" class="hex-input popup-hex-input" value="${this.color}" aria-label="Hex color value">
         </div>
       </div>
     `;
@@ -137,6 +148,7 @@ export class CustomColorPicker {
     this.cursor = this.container.querySelector('.color-cursor');
     this.hueSlider = this.container.querySelector('.hue-slider');
     this.hexInput = this.container.querySelector('.hex-input');
+    this.popupHexInput = this.container.querySelector('.popup-hex-input');
 
     this.updateFromHex(this.color, false);
   }
@@ -148,12 +160,20 @@ export class CustomColorPicker {
     });
 
     document.addEventListener('click', (e) => {
-      if (this.isOpen && !this.container.contains(e.target)) {
+      if (this.isOpen && !this.container.contains(e.target) && !this.popup.contains(e.target)) {
         this.closePopup();
       }
     });
 
     this.hexInput.addEventListener('input', (e) => {
+      let val = e.target.value;
+      if (!val.startsWith('#')) val = '#' + val;
+      if (/^#[0-9A-F]{6}$/i.test(val)) {
+        this.updateFromHex(val, true);
+      }
+    });
+
+    this.popupHexInput.addEventListener('input', (e) => {
       let val = e.target.value;
       if (!val.startsWith('#')) val = '#' + val;
       if (/^#[0-9A-F]{6}$/i.test(val)) {
@@ -186,13 +206,23 @@ export class CustomColorPicker {
 
   openPopup() {
     this.isOpen = true;
+    document.body.appendChild(this.popup);
     this.popup.style.display = 'block';
+    const rect = this.previewBtn.getBoundingClientRect();
+    const popupWidth = this.popup.offsetWidth;
+    const left = Math.min(rect.left, window.innerWidth - popupWidth - 8);
+    const top = Math.min(rect.bottom + 6, window.innerHeight - this.popup.offsetHeight - 8);
+    this.popup.style.left = `${Math.max(8, left)}px`;
+    this.popup.style.top = `${Math.max(8, top)}px`;
     this.updateFromHex(this.color, false);
   }
 
   closePopup() {
     this.isOpen = false;
     this.popup.style.display = 'none';
+    this.container.appendChild(this.popup);
+    this.popup.style.left = '';
+    this.popup.style.top = '';
   }
 
   handleSatBoxMove(e) {
@@ -211,8 +241,11 @@ export class CustomColorPicker {
     const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
 
     this.color = hex;
+    this.container.dataset.value = hex;
     this.previewBtn.style.backgroundColor = hex;
     this.hexInput.value = hex;
+    this.popupHexInput.value = hex;
+    this.popupHexInput.value = hex;
 
     this.onChange(hex);
   }
@@ -232,16 +265,21 @@ export class CustomColorPicker {
     const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
 
     this.color = hex;
+    this.container.dataset.value = hex;
     this.previewBtn.style.backgroundColor = hex;
     this.hexInput.value = hex;
+    this.popupHexInput.value = hex;
+    this.popupHexInput.value = hex;
 
     this.onChange(hex);
   }
 
   updateFromHex(hex, triggerCallback = true) {
     this.color = hex;
+    this.container.dataset.value = hex;
     this.previewBtn.style.backgroundColor = hex;
     this.hexInput.value = hex;
+    this.popupHexInput.value = hex;
 
     const rgb = this.hexToRgb(hex);
     const hsv = this.rgbToHsv(rgb.r, rgb.g, rgb.b);
@@ -308,4 +346,16 @@ export class CustomColorPicker {
     }
     return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
   }
+}
+
+export function initializeColorPicker(containerElement, initialColor, onChange) {
+  return new CustomColorPicker(containerElement, initialColor, onChange);
+}
+
+export function getColorPickerValue(containerElement) {
+  return containerElement?.dataset.value;
+}
+
+export function setColorPickerValue(containerElement, color) {
+  containerElement?._customColorPicker?.updateFromHex(color);
 }

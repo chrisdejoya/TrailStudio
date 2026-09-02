@@ -11,6 +11,7 @@ import { DiagnosticsPanel } from './diagnosticsPanel.js';
 import { ModelManager } from './modelManager.js';
 import { ButtonLabelManager, SVG_PRESETS } from './buttonLabels.js';
 import { CompositionGrid } from './compositionGrid.js';
+import { getColorPickerValue, initializeColorPicker, setColorPickerValue } from './colorPicker.js';
 
 function loadGoogleFont(url) {
   if (document.querySelector(`link[href="${url}"]`)) return;
@@ -362,6 +363,7 @@ function updateIBL() {
 setupIBLControls(iblState, updateIBL);
 setupCameraInputs(saveToLocalStorage);
 lightingManager.renderLightingDock();
+if (window.CustomDropdown) window.CustomDropdown.bindAll();
 
 // Post-processing UI Bindings
 document.querySelector('#aaToggle').addEventListener('change', updateAntiAliasing);
@@ -408,9 +410,7 @@ if (modelScaleInput) modelScaleInput.addEventListener('input', (e) => syncModelS
 
 const emissionColorElem = document.querySelector('#emissionColor');
 if (emissionColorElem) {
-  emissionColorElem.addEventListener('input', (e) => {
-    buttonEmissionColor.set(e.target.value);
-  });
+  initializeColorPicker(emissionColorElem, emissionColorElem.dataset.value, (color) => buttonEmissionColor.set(color));
 }
 
 bindSliderAndInput('#trailOffset', '#trailOffsetInput', (val) => {
@@ -436,16 +436,12 @@ bindSliderAndInput('#trailLength', '#trailLengthInput', (val) => {
 
 const trailColorStart = document.querySelector('#trailColorStart');
 if (trailColorStart) {
-  trailColorStart.addEventListener('input', (e) => {
-    trailManager.setColorStart(e.target.value);
-  });
+  initializeColorPicker(trailColorStart, trailColorStart.dataset.value, (color) => trailManager.setColorStart(color));
 }
 
 const trailColorEnd = document.querySelector('#trailColorEnd');
 if (trailColorEnd) {
-  trailColorEnd.addEventListener('input', (e) => {
-    trailManager.setColorEnd(e.target.value);
-  });
+  initializeColorPicker(trailColorEnd, trailColorEnd.dataset.value, (color) => trailManager.setColorEnd(color));
 }
 
 const trailEnabled = document.querySelector('#trailEnabled');
@@ -527,7 +523,7 @@ async function wireButtonLabelUI() {
 
   const labelColorEl = document.querySelector('#buttonLabelColor');
   if (labelColorEl) {
-    labelColorEl.addEventListener('input', (e) => buttonLabelManager.setGlobalConfig({ color: e.target.value }));
+    initializeColorPicker(labelColorEl, labelColorEl.dataset.value, (color) => buttonLabelManager.setGlobalConfig({ color }));
   }
 
   // Populate label list with editable inputs
@@ -908,7 +904,7 @@ function getSettingsState() {
       scale: parseFloat(document.querySelector('#modelScale').value),
       emissionIntensity: parseFloat(document.querySelector('#emissionIntensity').value),
       trailOffsetY: trailManager.getOffsetY(),
-      emissionColor: document.querySelector('#emissionColor').value,
+      emissionColor: getColorPickerValue(document.querySelector('#emissionColor')),
       syncLeftStickDpad: document.querySelector('#syncLeftStickDpadToggle')?.checked ?? false
     },
     trail: {
@@ -974,7 +970,7 @@ if (state.model) {
     if (state.model.emissionColor) {
       const normalizedEmission = normalizeColor(state.model.emissionColor);
       const emissionColorInput = document.querySelector('#emissionColor');
-      if (emissionColorInput) emissionColorInput.value = normalizedEmission;
+      if (emissionColorInput) setColorPickerValue(emissionColorInput, normalizedEmission);
       buttonEmissionColor.set(normalizedEmission);
     }
     if (state.model.syncLeftStickDpad !== undefined) {
@@ -994,13 +990,13 @@ if (state.model) {
       const normalizedStart = normalizeColor(t.colorStart);
       trailManager.setColorStart(normalizedStart);
       const trailColorStart = document.querySelector('#trailColorStart');
-      if (trailColorStart) trailColorStart.value = normalizedStart;
+      if (trailColorStart) setColorPickerValue(trailColorStart, normalizedStart);
     }
     if (t.colorEnd) {
       const normalizedEnd = normalizeColor(t.colorEnd);
       trailManager.setColorEnd(normalizedEnd);
       const trailColorEnd = document.querySelector('#trailColorEnd');
-      if (trailColorEnd) trailColorEnd.value = normalizedEnd;
+      if (trailColorEnd) setColorPickerValue(trailColorEnd, normalizedEnd);
     }
     if (t.intensity !== undefined) {
       trailManager.setIntensity(t.intensity);

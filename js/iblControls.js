@@ -1,13 +1,21 @@
 import { DEFAULT_IBL_STATE } from './state.js';
 import { bindSliderAndInput } from './uiBridge.js';
+import { initializeColorPicker, setColorPickerValue } from './colorPicker.js';
 
 export function setupIBLControls(iblState, onUpdate) {
   function bindIBLControl(id, key, type = 'float') {
     const element = document.querySelector(`#${id}`);
     const inputElement = document.querySelector(`#${id}Input`);
     if (!element) return;
+    if (type === 'color') {
+      initializeColorPicker(element, element.dataset.value, (value) => {
+        iblState[key] = value;
+        onUpdate();
+      });
+      return;
+    }
     element.addEventListener(type === 'boolean' ? 'change' : 'input', () => {
-      const val = type === 'boolean' ? element.checked : (type === 'color' ? element.value : parseFloat(element.value));
+      const val = type === 'boolean' ? element.checked : parseFloat(element.value);
       iblState[key] = val;
       if (inputElement) inputElement.value = type === 'integer' ? String(val) : val.toFixed(type === 'float' ? 2 : 1);
       onUpdate();
@@ -127,6 +135,7 @@ export function applyIBLStateToUI(iblState, state, onUpdate) {
     const inputElement = document.querySelector(`#${elementMap[key] || ''}Input`);
     if (element) {
       if (element.type === 'checkbox') element.checked = value;
+      else if (element.classList.contains('custom-color-picker')) setColorPickerValue(element, value);
       else element.value = value;
     }
     if (inputElement && typeof value === 'number') {
