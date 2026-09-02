@@ -499,7 +499,7 @@ function populateButtonLabelList() {
     
     row.innerHTML = `
       <input type="checkbox" data-index="${i}" ${config.visible ? 'checked' : ''} style="width:14px;height:14px;flex-shrink:0;cursor:pointer;">
-      <span class="btn-name" style="width:110px;color:#aaa;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">${BUTTON_NAMES[i]}</span>
+      <span class="btn-name" data-index="${i}" style="width:110px;color:#aaa;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">${BUTTON_NAMES[i]}</span>
       <div style="display:flex;flex:1;gap:2px;min-width:0;">
         <input type="text" data-index="${i}" value="${inputValue}" placeholder="${inputPlaceholder}" ${hasSvg ? 'readonly' : ''} style="flex:1;min-width:0;background:#1e1e22;border:1px solid #3a3a42;color:${hasSvg ? '#888' : '#fff'};padding:3px 6px;border-radius:4px;font-size:11px;font-family:inherit;height:22px;box-sizing:border-box;">
         <button type="button" class="svg-dropdown-btn" data-index="${i}" title="Select SVG glyph" style="width:26px;height:22px;flex-shrink:0;background:#2a2a30;border:1px solid #3a3a42;color:#ccc;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;line-height:1;">▼</button>

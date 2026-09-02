@@ -275,7 +275,7 @@
   .inspector-shell .row > span:first-child { color: #aaa; }
   .inspector-shell .row-stacked { display: flex; flex-direction: column; gap: 5px; }
   .inspector-shell .row-stacked > span { color: #aaa; font-size: 13px; }
-  .inspector-shell .label-with-icon { display: flex; justify-content: space-between; align-items: center; width: 100%; font-weight: 500; color: #aaaaaa; }
+  .inspector-shell .label-with-icon { display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; font-weight: 500; color: #aaaaaa; }
   .inspector-shell .control-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; margin: 2px 0; }
   .inspector-shell .control-row label { color: #aaaaaa; }
 
@@ -297,6 +297,7 @@
     cursor: pointer;
   }
   .inspector-shell select:hover { border-color: #5896ed; }
+  .inspector-shell select#buttonLabelFont { text-align: left; }
 
   .inspector-shell input[type="number"] {
     background-color: #1e1e22;
@@ -675,7 +676,7 @@
           <div class="slider-row">
             <div class="row">
               <div class="label-with-icon"><span>Font</span></div>
-              <select id="buttonLabelFont" class="drag-input" style="padding:4px 8px;border-radius:4px;background:#1e1e22;border:1px solid #3a3a42;color:#fff;font-size:12px;height:28px;">
+              <select id="buttonLabelFont" class="drag-input">
                 <option value='Rubik, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' selected>Rubik (Default)</option>
                 <option value='"Exo 2", sans-serif'>Exo 2</option>
                 <option value='"Michroma", sans-serif'>Michroma</option>
