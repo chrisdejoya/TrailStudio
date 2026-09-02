@@ -29,7 +29,7 @@ export class CompositionGrid {
     const ch = crossSize;
 
     return `
-      <svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="xMidYMid meet" width="100%" height="100%">
+      <svg viewBox="0 0 ${vw} ${vh}" preserveAspectRatio="none" width="100%" height="100%">
         <!-- Corner brackets -->
         <g class="grid-bracket">
           <!-- Top-left -->
@@ -40,6 +40,17 @@ export class CompositionGrid {
           <path d="M 0 ${vh} H ${bw} M 0 ${vh} V ${vh - bh}" />
           <!-- Bottom-right -->
           <path d="M ${vw} ${vh} H ${vw - bw} M ${vw} ${vh} V ${vh - bh}" />
+        </g>
+        <!-- Edge center T-markers -->
+        <g class="grid-bracket">
+          <!-- Top center -->
+          <path d="M ${vw / 2 - bw / 2} 0 H ${vw / 2 + bw / 2} M ${vw / 2} 0 V ${bh}" />
+          <!-- Bottom center -->
+          <path d="M ${vw / 2 - bw / 2} ${vh} H ${vw / 2 + bw / 2} M ${vw / 2} ${vh} V ${vh - bh}" />
+          <!-- Left center -->
+          <path d="M 0 ${vh / 2 - bh / 2} H ${bw} M 0 ${vh / 2} V ${vh / 2}" />
+          <!-- Right center -->
+          <path d="M ${vw} ${vh / 2 - bh / 2} H ${vw - bw} M ${vw} ${vh / 2} V ${vh / 2}" />
         </g>
         <!-- Center cross -->
         <g class="grid-cross">
