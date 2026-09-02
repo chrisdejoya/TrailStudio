@@ -825,6 +825,26 @@ function refreshPads() {
 }
 
 /* ================================================================= State Serialization & Persistence ================================================================= */
+// Helper to normalize color values (handles both hex numbers and CSS color strings)
+function normalizeColor(color) {
+  if (typeof color === 'number') {
+    return '#' + color.toString(16).padStart(6, '0');
+  }
+  if (typeof color === 'string') {
+    // Handle double-prefix from old corrupted data (e.g., "##aa0022")
+    if (color.startsWith('##')) {
+      return '#' + color.slice(2);
+    }
+    // Already a valid CSS color
+    if (color.startsWith('#')) {
+      return color;
+    }
+    // Hex string without prefix
+    return '#' + color;
+  }
+  return '#aa0022'; // default
+}
+
 function getSettingsState() {
   const trailConfig = trailManager.getTrailConfig ? trailManager.getTrailConfig() : {
     colorStart: 0xaa0022,
@@ -844,8 +864,8 @@ function getSettingsState() {
     },
     trail: {
       enabled: document.querySelector('#trailEnabled')?.checked ?? true,
-      colorStart: '#' + trailConfig.colorStart.toString(16).padStart(6, '0'),
-      colorEnd: '#' + trailConfig.colorEnd.toString(16).padStart(6, '0'),
+      colorStart: normalizeColor(trailConfig.colorStart),
+      colorEnd: normalizeColor(trailConfig.colorEnd),
       intensity: trailConfig.intensity,
       width: trailConfig.width,
       length: trailConfig.length,
@@ -921,14 +941,16 @@ if (state.model) {
     trailManager.setEnabled(t.enabled);
 
     if (t.colorStart) {
-      trailManager.setColorStart(t.colorStart);
+      const normalizedStart = normalizeColor(t.colorStart);
+      trailManager.setColorStart(normalizedStart);
       const trailColorStart = document.querySelector('#trailColorStart');
-      if (trailColorStart) trailColorStart.value = t.colorStart;
+      if (trailColorStart) trailColorStart.value = normalizedStart;
     }
     if (t.colorEnd) {
-      trailManager.setColorEnd(t.colorEnd);
+      const normalizedEnd = normalizeColor(t.colorEnd);
+      trailManager.setColorEnd(normalizedEnd);
       const trailColorEnd = document.querySelector('#trailColorEnd');
-      if (trailColorEnd) trailColorEnd.value = t.colorEnd;
+      if (trailColorEnd) trailColorEnd.value = normalizedEnd;
     }
     if (t.intensity !== undefined) {
       trailManager.setIntensity(t.intensity);
