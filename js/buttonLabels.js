@@ -342,7 +342,7 @@ export class ButtonLabelManager {
   buildStyle(config, isPressed, isHovered) {
     const styles = [];
 
-    styles.push(`font-family: "${config.fontFamily}"`);
+    styles.push(`font-family: ${config.fontFamily}`);
     styles.push(`font-size: ${config.fontSize}px`);
     styles.push(`font-weight: ${config.fontWeight}`);
     styles.push(`font-style: ${config.fontStyle}`);

@@ -439,9 +439,17 @@ function wireButtonLabelUI() {
     enabledEl.addEventListener('change', (e) => buttonLabelManager.setEnabled(e.target.checked));
   }
 
-  bindSliderAndInput('#buttonLabelSize', '#buttonLabelSizeInput', (val) => {
-    buttonLabelManager.setGlobalConfig({ labelScale: val });
-  }, 2);
+  const fontSelect = document.querySelector('#buttonLabelFont');
+  if (fontSelect) {
+    // Initialize dropdown with current font
+    const config0 = buttonLabelManager.getConfig(0);
+    if (config0 && config0.fontFamily) {
+      fontSelect.value = config0.fontFamily;
+    }
+    fontSelect.addEventListener('change', (e) => {
+      buttonLabelManager.setGlobalConfig({ fontFamily: e.target.value });
+    });
+  }
 
   bindSliderAndInput('#buttonLabelOffsetY', '#buttonLabelOffsetYInput', (val) => {
     buttonLabelManager.setGlobalConfig({ offset: { y: val } });
