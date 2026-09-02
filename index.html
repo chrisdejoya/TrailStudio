@@ -221,17 +221,18 @@
   .inspector-shell .inspector-group.active { display: flex; }
 
   .inspector-shell .panel {
-    background-color: #121214;
+    background-color: color-mix(in srgb, #121214 60%, transparent);
     border: 2px solid #333338;
     border-radius: 10px;
     padding: 12px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    backdrop-filter: none;
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
     display: flex;
     flex-direction: column;
     gap: 10px;
     margin: 0;
-    transition: gap 0.12s cubic-bezier(0.15, 1, 0.25, 1);
+    transition: gap 0.12s cubic-bezier(0.15, 1, 0.25, 1), opacity 0.05s ease;
   }
 
   .inspector-shell .panel-header {
@@ -441,14 +442,17 @@
   /* Lighting cards injected by lightingManager.renderLightingDock() — styled to match .panel */
   .inspector-shell .lighting-grid { display: flex; flex-direction: column; gap: 10px; }
   .inspector-shell .light-card {
-    background-color: #121214;
+    background-color: color-mix(in srgb, #121214 60%, transparent);
     border: 2px solid #333338;
     border-radius: 10px;
     padding: 12px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
     display: flex;
     flex-direction: column;
     gap: 10px;
+    transition: opacity 0.05s ease;
   }
   .inspector-shell .light-card.active-light-target {
     border-color: #5896ed;
@@ -458,6 +462,22 @@
   .inspector-shell .light-card .control-row label { color: #aaa; }
   .inspector-shell .light-card .pos-inputs { display: flex; gap: 4px; flex: 1; }
   .inspector-shell .light-card .light-type-select { padding: 4px 6px; font-size: 12px; }
+
+  .inspector-shell .panel.dimmed,
+  .inspector-shell .light-card.dimmed {
+    opacity: 0.02;
+    pointer-events: none;
+    transition: opacity 0.05s ease-out;
+  }
+
+  /* Global canvas drag dimming - fade all UI */
+  body.canvas-dragging .inspector-shell,
+  body.canvas-dragging #hud,
+  body.canvas-dragging .inspector-scroll {
+    opacity: 0.02;
+    pointer-events: none;
+    transition: opacity 0.05s ease-out;
+  }
 </style>
 </head>
 <body>
@@ -1197,6 +1217,61 @@
   function togglePanel(header) {
     const panel = header.closest('.panel');
     if (panel) panel.classList.toggle('collapsed');
+  }
+
+  // Get all dimmable elements in the active group (panels + light-cards)
+  function getDimmableElements(group) {
+    return group.querySelectorAll('.panel, .light-card');
+  }
+
+  // Panel/content focus dimming - dim entire panel on mousedown, restore on mouseup
+  document.addEventListener('mousedown', (e) => {
+    const target = e.target;
+    if (!target.matches('input, select, textarea, [contenteditable]')) return;
+
+    const panelBody = target.closest('.panel-body-content');
+    if (!panelBody) return;
+
+    const activePanel = panelBody.closest('.panel, .light-card');
+    const group = activePanel?.closest('.inspector-group.active');
+    if (!group) return;
+
+    getDimmableElements(group).forEach(p => {
+      if (p !== activePanel) p.classList.add('dimmed');
+    });
+  });
+
+  document.addEventListener('mouseup', () => {
+    document.querySelectorAll('.inspector-group.active .panel.dimmed, .inspector-group.active .light-card.dimmed').forEach(p => {
+      p.classList.remove('dimmed');
+    });
+  });
+
+  // Global drag dimming - fade all UI while dragging on canvas
+  const canvas = document.querySelector('#app canvas');
+  let isCanvasDrag = false;
+
+  if (canvas) {
+    canvas.addEventListener('mousedown', (e) => {
+      // Only start drag dimming for middle/right mouse or if not on UI
+      if (e.button === 0 && e.target.closest('.inspector-shell, #hud')) return;
+      isCanvasDrag = true;
+      document.body.classList.add('canvas-dragging');
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isCanvasDrag) {
+        isCanvasDrag = false;
+        document.body.classList.remove('canvas-dragging');
+      }
+    });
+
+    window.addEventListener('mouseleave', () => {
+      if (isCanvasDrag) {
+        isCanvasDrag = false;
+        document.body.classList.remove('canvas-dragging');
+      }
+    });
   }
 </script>
 
