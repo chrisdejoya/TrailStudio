@@ -11,6 +11,14 @@ import { DiagnosticsPanel } from './diagnosticsPanel.js';
 import { ModelManager } from './modelManager.js';
 import { ButtonLabelManager, SVG_PRESETS } from './buttonLabels.js';
 
+function loadGoogleFont(url) {
+  if (document.querySelector(`link[href="${url}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = url;
+  document.head.appendChild(link);
+}
+
 // Import isolated camera module
 import {
   camera,
@@ -440,14 +448,15 @@ async function wireButtonLabelUI() {
   }
 
   const fontSelect = document.querySelector('#buttonLabelFont');
+  let fontsData = [];
   if (fontSelect) {
     // Load fonts from JSON
     try {
       const response = await fetch('/assets/fonts.json');
       if (response.ok) {
-        const fonts = await response.json();
+        fontsData = await response.json();
         fontSelect.innerHTML = '';
-        fonts.forEach(font => {
+        fontsData.forEach(font => {
           const option = document.createElement('option');
           option.value = font.value;
           option.textContent = font.label;
@@ -464,6 +473,10 @@ async function wireButtonLabelUI() {
       fontSelect.value = config0.fontFamily;
     }
     fontSelect.addEventListener('change', (e) => {
+      const selectedFont = fontsData.find(f => f.value === e.target.value);
+      if (selectedFont?.url) {
+        loadGoogleFont(selectedFont.url);
+      }
       buttonLabelManager.setGlobalConfig({ fontFamily: e.target.value });
     });
   }

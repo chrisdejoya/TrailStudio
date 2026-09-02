@@ -1,18 +1,22 @@
 [
   {
     "value": "Rubik, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
-    "label": "Rubik"
+    "label": "Rubik",
+    "url": "https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&display=swap"
   },
   {
     "value": "\"Exo 2\", sans-serif",
-    "label": "Exo 2"
+    "label": "Exo 2",
+    "url": "https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&display=swap"
   },
   {
     "value": "\"Michroma\", sans-serif",
-    "label": "Michroma"
+    "label": "Michroma",
+    "url": "https://fonts.googleapis.com/css2?family=Michroma&display=swap"
   },
   {
     "value": "\"Rajdhani\", sans-serif",
-    "label": "Rajdhani"
+    "label": "Rajdhani",
+    "url": "https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap"
   }
 ]
