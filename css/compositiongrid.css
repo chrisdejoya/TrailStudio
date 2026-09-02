@@ -2,24 +2,24 @@
 :root {
   /* Colors */
   --grid-color: #ffffff;
-  --grid-opacity: 0.5;
+  --grid-opacity: 0.35;
 
   /* Line widths */
-  --grid-line-width: 2px;
-  --grid-bracket-width: 2px;
-  --grid-cross-width: 2px;
-  --grid-thirds-width: 2px;
+  --grid-line-width: 1px;
+  --grid-bracket-width: 4px;
+  --grid-cross-width: 1px;
+  --grid-thirds-width: 1px;
 
   /* Sizes */
-  --grid-bracket-size: 3px;
-  --grid-cross-size: 3px;
+  --grid-bracket-size: 10px;
+  --grid-cross-size: 30px;
 
   /* Rule of thirds dash pattern */
-  --grid-thirds-dash: 4px;
-  --grid-thirds-gap: 4px;
+  --grid-thirds-dash: 2px;
+  --grid-thirds-gap: 2px;
 
   /* Animation */
-  --grid-transition: opacity 0.15s ease-out;
+  --grid-transition: opacity 0.1s ease-out;
 }
 
 /* Composition Grid Overlay */
