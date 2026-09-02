@@ -219,7 +219,7 @@ export class ButtonLabelManager {
 
   async loadGlyphs() {
     try {
-      const response = await fetch('/svg/glyphs.json');
+      const response = await fetch('/assets/glyphs.json');
       if (response.ok) {
         this.glyphs = await response.json();
       }
@@ -238,7 +238,7 @@ export class ButtonLabelManager {
     if (!glyph) return null;
     
     try {
-      const response = await fetch(`/svg/glyphs/${filename}`);
+      const response = await fetch(`/assets/glyphs/${filename}`);
       if (response.ok) {
         let svgText = await response.text();
         // Adapt SVG for label system: use currentColor for stroke, ensure proper sizing

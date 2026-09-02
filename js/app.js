@@ -176,7 +176,7 @@ const gamepadManager = new GamepadManager({
 
 // Button Label Manager
 let buttonLabelManager = null;
-function createButtonLabelManager() {
+async function createButtonLabelManager() {
   if (buttonLabelManager) {
     buttonLabelManager.dispose();
   }
@@ -188,14 +188,14 @@ function createButtonLabelManager() {
     const idx = parseInt(index);
     buttonLabelManager.setButtonObject(idx, entry.node, modelManager.basePositions[idx]);
   }
-  wireButtonLabelUI();
+  await wireButtonLabelUI();
 }
 
 // Call after model is loaded
 const originalOnModelLoaded = modelManager.onModelLoaded;
-modelManager.onModelLoaded = () => {
+modelManager.onModelLoaded = async () => {
   if (originalOnModelLoaded) originalOnModelLoaded();
-  createButtonLabelManager();
+  await createButtonLabelManager();
 };
 
 // Also sync when register3DButton is called (for dynamic additions)
@@ -431,7 +431,7 @@ if (syncLeftStickDpadToggle) {
 }
 
 // Button Labels UI Wiring
-function wireButtonLabelUI() {
+async function wireButtonLabelUI() {
   if (!buttonLabelManager) return;
 
   const enabledEl = document.querySelector('#buttonLabelsEnabled');
@@ -441,6 +441,23 @@ function wireButtonLabelUI() {
 
   const fontSelect = document.querySelector('#buttonLabelFont');
   if (fontSelect) {
+    // Load fonts from JSON
+    try {
+      const response = await fetch('/assets/fonts.json');
+      if (response.ok) {
+        const fonts = await response.json();
+        fontSelect.innerHTML = '';
+        fonts.forEach(font => {
+          const option = document.createElement('option');
+          option.value = font.value;
+          option.textContent = font.label;
+          fontSelect.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to load fonts:', error);
+    }
+
     // Initialize dropdown with current font
     const config0 = buttonLabelManager.getConfig(0);
     if (config0 && config0.fontFamily) {
