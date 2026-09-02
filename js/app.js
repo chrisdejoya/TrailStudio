@@ -9,7 +9,7 @@ import { GamepadManager } from './gamepadManager.js';
 import { LightingManager } from './lightingManager.js';
 import { DiagnosticsPanel } from './diagnosticsPanel.js';
 import { ModelManager } from './modelManager.js';
-import { ButtonLabelManager } from './buttonLabels.js';
+import { ButtonLabelManager, SVG_PRESETS } from './buttonLabels.js';
 
 // Import isolated camera module
 import {
@@ -29,6 +29,14 @@ import {
   setTargetModelGroup,
   getFpsLimitState
 } from './cameraControls.js';
+
+// Button names shared between functions
+const BUTTON_NAMES = [
+  'South / A / Cross', 'East / B / Circle', 'West / X / Square', 'North / Y / Triangle',
+  'L1 / LB', 'R1 / RB', 'L2 / LT', 'R2 / RT',
+  'Select / Back', 'Start', 'L3', 'R3',
+  'D-Pad Up', 'D-Pad Down', 'D-Pad Left', 'D-Pad Right', 'Home / Guide'
+];
 
 /* ================================================================= IndexedDB Storage ================================================================= */
 const DB_NAME = 'TrailStudio';
@@ -457,12 +465,6 @@ function populateButtonLabelList() {
   if (!listEl || !buttonLabelManager) return;
 
   listEl.innerHTML = '';
-  const BUTTON_NAMES = [
-    'South / A / Cross', 'East / B / Circle', 'West / X / Square', 'North / Y / Triangle',
-    'L1 / LB', 'R1 / RB', 'L2 / LT', 'R2 / RT',
-    'Select / Back', 'Start', 'L3', 'R3',
-    'D-Pad Up', 'D-Pad Down', 'D-Pad Left', 'D-Pad Right', 'Home / Guide'
-  ];
 
   for (let i = 0; i < 17; i++) {
     const config = buttonLabelManager.getConfig(i);
@@ -482,11 +484,20 @@ function populateButtonLabelList() {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;min-height:24px;';
     row.dataset.index = i;
+    
+    const hasSvg = config.svg && config.svg.trim() !== '';
+    const inputValue = hasSvg ? '' : (config.text || '');
+    const inputPlaceholder = hasSvg ? '✕ SVG active — type to replace' : '';
+    
     row.innerHTML = `
       <input type="checkbox" data-index="${i}" ${config.visible ? 'checked' : ''} style="width:14px;height:14px;flex-shrink:0;cursor:pointer;">
       <span class="btn-name" style="width:110px;color:#aaa;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">${BUTTON_NAMES[i]}</span>
-      <input type="text" data-index="${i}" value="${config.text}" style="flex:1;min-width:0;background:#1e1e22;border:1px solid #3a3a42;color:#fff;padding:3px 6px;border-radius:4px;font-size:11px;font-family:inherit;height:22px;box-sizing:border-box;">
+      <div style="display:flex;flex:1;gap:2px;min-width:0;">
+        <input type="text" data-index="${i}" value="${inputValue}" placeholder="${inputPlaceholder}" ${hasSvg ? 'readonly' : ''} style="flex:1;min-width:0;background:#1e1e22;border:1px solid #3a3a42;color:${hasSvg ? '#888' : '#fff'};padding:3px 6px;border-radius:4px;font-size:11px;font-family:inherit;height:22px;box-sizing:border-box;">
+        <button type="button" class="svg-dropdown-btn" data-index="${i}" title="Select SVG glyph" style="width:26px;height:22px;flex-shrink:0;background:#2a2a30;border:1px solid #3a3a42;color:#ccc;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;line-height:1;">▼</button>
+      </div>
     `;
+
     const checkbox = row.querySelector('input[type="checkbox"]');
     checkbox.addEventListener('change', (e) => {
       buttonLabelManager.setVisibility(parseInt(e.target.dataset.index), e.target.checked);
@@ -508,9 +519,131 @@ function populateButtonLabelList() {
     });
     const input = row.querySelector('input[type="text"]');
     input.addEventListener('change', (e) => {
-      buttonLabelManager.setText(parseInt(e.target.dataset.index), e.target.value);
+      const idx = parseInt(e.target.dataset.index);
+      const text = e.target.value;
+      if (text) {
+        buttonLabelManager.setText(idx, text);
+      } else {
+        buttonLabelManager.updateConfig(idx, { text: '' });
+      }
+      refreshButtonLabelRow(idx);
     });
+    
+    // SVG dropdown button
+    const svgBtn = row.querySelector('.svg-dropdown-btn');
+    svgBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showSvgGlyphMenu(e.target, parseInt(e.target.dataset.index));
+    });
+
     listEl.appendChild(row);
+  }
+}
+
+function showSvgGlyphMenu(button, index) {
+  // Remove any existing menu
+  document.querySelectorAll('.svg-glyph-menu').forEach(m => m.remove());
+
+  const buttonName = BUTTON_NAMES[index];
+  
+  // Get glyphs for this specific button from each preset
+  const glyphOptions = [
+    { label: 'None (text only)', svg: null },
+    { label: 'PlayStation', svg: getSvgForButton('playstation', buttonName) },
+    { label: 'Xbox', svg: getSvgForButton('xbox', buttonName) },
+    { label: 'Nintendo', svg: getSvgForButton('nintendo', buttonName) },
+    { label: 'Generic', svg: getSvgForButton('generic', buttonName) }
+  ].filter(opt => opt.svg !== null || opt.label === 'None (text only)');
+
+  const menu = document.createElement('div');
+  menu.className = 'svg-glyph-menu';
+  menu.style.cssText = `
+    position:fixed;top:0;left:0;z-index:1000;
+    background:#1e1e22;border:1px solid #3a3a42;border-radius:6px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:180px;padding:4px;
+    font-size:11px;font-family:inherit;
+  `;
+
+  glyphOptions.forEach(opt => {
+    const item = document.createElement('div');
+    item.style.cssText = `
+      display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;border-radius:3px;
+      color:#e0e0e0;white-space:nowrap;
+    `;
+    
+    if (opt.svg) {
+      // Preview SVG
+      const preview = document.createElement('span');
+      preview.innerHTML = opt.svg;
+      preview.style.cssText = 'width:18px;height:18px;display:flex;align-items:center;justify-content:center;color:#ccc;flex-shrink:0;';
+      item.appendChild(preview);
+    }
+    
+    const label = document.createElement('span');
+    label.textContent = opt.label;
+    item.appendChild(label);
+
+    item.addEventListener('mouseenter', () => {
+      item.style.background = '#3a3a42';
+    });
+    item.addEventListener('mouseleave', () => {
+      item.style.background = 'transparent';
+    });
+    item.addEventListener('click', () => {
+      if (opt.svg) {
+        buttonLabelManager.updateConfig(index, { svg: opt.svg });
+      } else {
+        buttonLabelManager.updateConfig(index, { svg: null });
+      }
+      menu.remove();
+      refreshButtonLabelRow(index);
+    });
+    menu.appendChild(item);
+  });
+
+  document.body.appendChild(menu);
+
+  const rect = button.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.left = `${rect.left}px`;
+
+  // Close on outside click
+  const closeMenu = (e) => {
+    if (!menu.contains(e.target) && e.target !== button) {
+      menu.remove();
+      document.removeEventListener('click', closeMenu);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeMenu), 0);
+}
+
+function getSvgForButton(presetName, buttonName) {
+  if (SVG_PRESETS && SVG_PRESETS[presetName]) {
+    return SVG_PRESETS[presetName][buttonName] || null;
+  }
+  return null;
+}
+
+function refreshButtonLabelRow(index) {
+  const row = document.querySelector(`#buttonLabelList [data-index="${index}"]`);
+  if (!row) return;
+  
+  const config = buttonLabelManager.getConfig(index);
+  if (!config) return;
+
+  const input = row.querySelector('input[type="text"]');
+  const hasSvg = config.svg && config.svg.trim() !== '';
+  
+  if (hasSvg) {
+    input.value = '';
+    input.placeholder = '✕ SVG active — type to replace';
+    input.readOnly = true;
+    input.style.color = '#888';
+  } else {
+    input.value = config.text || '';
+    input.placeholder = '';
+    input.readOnly = false;
+    input.style.color = '#fff';
   }
 }
 
