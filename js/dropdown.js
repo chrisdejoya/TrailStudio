@@ -4,7 +4,7 @@
       if (wrapper === exceptWrapper) return;
       wrapper.classList.remove('open');
       const trigger = wrapper.querySelector('.custom-select-trigger');
-      const menu = wrapper.querySelector('.custom-select-menu');
+      const menu = wrapper.customDropdownMenu;
       if (trigger) trigger.setAttribute('aria-expanded', 'false');
       if (menu) menu.classList.remove('is-open');
     });
@@ -27,6 +27,20 @@
     const menu = document.createElement('div');
     menu.className = 'custom-select-menu';
     menu.setAttribute('role', 'listbox');
+    wrapper.customDropdownMenu = menu;
+
+    function positionMenu() {
+      const rect = trigger.getBoundingClientRect();
+      const menuHeight = Math.min(menu.scrollHeight, 220);
+      const spaceBelow = window.innerHeight - rect.bottom - 8;
+      const openAbove = spaceBelow < menuHeight && rect.top > menuHeight + 8;
+      const top = openAbove ? rect.top - menuHeight - 4 : rect.bottom + 4;
+      const maxTop = Math.max(8, window.innerHeight - menuHeight - 8);
+
+      menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8))}px`;
+      menu.style.top = `${Math.min(Math.max(8, top), maxTop)}px`;
+      menu.style.width = `${rect.width}px`;
+    }
 
     function syncDisplay() {
       const selectedOption = select.options[select.selectedIndex];
@@ -65,11 +79,12 @@
 
       const isOpen = wrapper.classList.toggle('open');
       menu.classList.toggle('is-open', isOpen);
+      if (isOpen) positionMenu();
       trigger.setAttribute('aria-expanded', String(isOpen));
     });
 
     wrapper.appendChild(trigger);
-    wrapper.appendChild(menu);
+    document.body.appendChild(menu);
     select.addEventListener('change', syncDisplay);
     select.dataset.customDropdownBound = 'true';
     syncDisplay();
