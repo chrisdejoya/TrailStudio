@@ -154,7 +154,7 @@ async function verifyPermission(fileHandle) {
 const app = document.querySelector('#app');
 const scene = new THREE.Scene();
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false });
+const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, premultipliedAlpha: false });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1));
 renderer.setSize(innerWidth, innerHeight);
 renderer.setClearColor(0x000000, 0);

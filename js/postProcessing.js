@@ -35,13 +35,27 @@ const ContrastSaturationShader = {
 };
 
 function createMainRenderTarget(width, height, samples = 2) {
-  // Clamp multi-sampling samples defensively to prevent overhead/crashes
-  const maxSamples = Math.min(samples, 4);
+  // Clamp multi-sampling samples defensively to prevent overhead/crashes.
+  // Zero samples disables MSAA and keeps the composer cheap when AA is off.
+  const maxSamples = Math.min(Math.max(samples, 0), 4);
   return new THREE.WebGLRenderTarget(width, height, {
     type: THREE.HalfFloatType,
     format: THREE.RGBAFormat,
     samples: maxSamples
   });
+}
+
+function resolveAASettings() {
+  const enabled = document.querySelector('#aaToggle')?.checked ?? true;
+  const mode = document.querySelector('#aaQualitySelect')?.value ?? '';
+
+  let samples = 0;
+  if (enabled) {
+    if (mode.includes('2msaa')) samples = 2;
+    else if (mode.includes('4msaa') || mode.includes('8msaa')) samples = 4;
+  }
+
+  return { enabled, samples };
 }
 
 export function createPostProcessing(renderer, scene, camera) {
@@ -86,20 +100,20 @@ export function createPostProcessing(renderer, scene, camera) {
   composer.addPass(fxaaPass);
 
   function updateAntiAliasing() {
-    const enabled = document.querySelector('#aaToggle')?.checked ?? true;
-    const mode = document.querySelector('#aaQualitySelect')?.value ?? '';
-
+    const { enabled, samples } = resolveAASettings();
     fxaaPass.enabled = enabled;
 
-    let samples = 0;
-    if (enabled) {
-      if (mode.includes('2msaa')) samples = 2;
-      else if (mode.includes('4msaa') || mode.includes('8msaa')) samples = 4;
-    }
+    const currentTarget = composer.renderTarget1;
+    const targetWidth = currentTarget?.width ?? 0;
+    const targetHeight = currentTarget?.height ?? 0;
+    const targetSamples = currentTarget?.samples ?? 0;
+    const needsReset = !currentTarget || targetWidth !== window.innerWidth || targetHeight !== window.innerHeight || targetSamples !== samples;
 
-    const oldTarget = composer.renderTarget1;
-    composer.reset(createMainRenderTarget(window.innerWidth, window.innerHeight, samples));
-    if (oldTarget) oldTarget.dispose();
+    if (needsReset) {
+      const oldTarget = currentTarget;
+      composer.reset(createMainRenderTarget(window.innerWidth, window.innerHeight, samples));
+      if (oldTarget) oldTarget.dispose();
+    }
   }
 
   function resize(w, h) {
