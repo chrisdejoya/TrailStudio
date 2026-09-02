@@ -5,7 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { FXAAShaderFixed } from './shaders/FXAAShaderFixed.js';
 
 const ContrastSaturationShader = {
   uniforms: {
@@ -79,8 +79,8 @@ export function createPostProcessing(renderer, scene, camera) {
   const outputPass = new OutputPass();
   composer.addPass(outputPass);
 
-  // 6. FXAA Pass (Runs on final sRGB buffer)
-  const fxaaPass = new ShaderPass(FXAAShader);
+  // 6. FXAA Pass (Runs on final sRGB buffer) - Using fixed shader to avoid compiler warnings
+  const fxaaPass = new ShaderPass(FXAAShaderFixed);
   const pixelRatio = renderer.getPixelRatio();
   fxaaPass.material.uniforms.resolution.value.set(1 / (width * pixelRatio), 1 / (height * pixelRatio));
   composer.addPass(fxaaPass);
