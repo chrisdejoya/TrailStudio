@@ -128,7 +128,7 @@ export class LightingManager {
     this.lightConfigs.forEach((cfg) => {
       const entry = this.lightsMap.get(cfg.id);
       const card = document.createElement('div');
-      card.className = 'panel light-card';
+      card.className = 'panel light-card collapsed';
       card.id = `light-card-${cfg.id}`;
 
       card.addEventListener('mousedown', (e) => {

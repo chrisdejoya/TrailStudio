@@ -604,7 +604,7 @@
     <!-- ============================ CONTROLLER / MODEL ============================ -->
     <div id="group-model" class="inspector-group active is-visible">
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Model</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -630,7 +630,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Load Model</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -641,7 +641,7 @@
         </div></div>
       </div>
 
-<div class="panel">
+<div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Material & Transform</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -663,7 +663,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
@@ -730,7 +730,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
             <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
@@ -786,7 +786,7 @@
 
     <!-- ============================ CAMERA ============================ -->
     <div id="group-camera" class="inspector-group">
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Settings</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -825,7 +825,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Rotation (X, Y, Z)</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -839,7 +839,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Target (X, Y, Z)</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -857,7 +857,7 @@
 
     <!-- ============================ ENVIRONMENT / IBL ============================ -->
     <div id="group-environment" class="inspector-group">
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Image Based Lighting</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -884,7 +884,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Sky Gradient</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -923,7 +923,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
             <input type="checkbox" id="iblSun1Visible" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
@@ -981,7 +981,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
             <input type="checkbox" id="iblSun2Visible" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
@@ -1039,7 +1039,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
             <input type="checkbox" id="iblRingVisible" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
@@ -1078,9 +1078,9 @@
 
     <!-- ============================ IMAGE QUALITY / POST-PROCESSING ============================ -->
     <div id="group-postprocessing" class="inspector-group">
-      <div class="panel">
+<div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Quality &amp; Shadows</span></div>
+          <div class="panel-header-left"><span>Quality & Shadows</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
@@ -1106,7 +1106,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
             <input type="checkbox" id="bloomToggle" style="width:16px;height:16px;" onclick="event.stopPropagation()">
@@ -1145,7 +1145,7 @@
         </div></div>
       </div>
 
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
             <input type="checkbox" id="aoToggle" style="width:16px;height:16px;" onclick="event.stopPropagation()">
@@ -1184,9 +1184,9 @@
         </div></div>
       </div>
 
-      <div class="panel">
+<div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Color &amp; Exposure</span></div>
+          <div class="panel-header-left"><span>Color & Exposure</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
@@ -1232,7 +1232,7 @@
 
     <!-- ============================ SCENE ============================ -->
     <div id="group-scene" class="inspector-group">
-      <div class="panel">
+      <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Scene</span></div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
