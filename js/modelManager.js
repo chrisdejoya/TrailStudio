@@ -23,6 +23,8 @@ export class ModelManager {
     this.basePositions = [];
     this.leftStick3DGroup = null;
     this.rightStick3DGroup = null;
+    this.washerLeft3D = null;
+    this.washerRight3D = null;
     this.dpadRockerPivot = null;
     this.motionBaseQuaternions = new WeakMap();
     this.boneHelpers = [];
@@ -186,6 +188,25 @@ export class ModelManager {
         this.dpadRockerPivot.quaternion.copy(this.motionBaseQuaternions.get(this.dpadRockerPivot)).multiply(new THREE.Quaternion().setFromEuler(combinedDpadRotation));
       }
     }
+
+    // Washer tracking: slide along X/Z plane following stick movement, maintain Y height
+    const washerTravel = 0.08;
+    if (this.washerLeft3D) {
+      const basePos = this.basePositions[17]; // Washer_Left index
+      if (basePos) {
+        this.washerLeft3D.position.x = basePos.x + lx * washerTravel;
+        this.washerLeft3D.position.z = basePos.z + ly * washerTravel;
+        this.washerLeft3D.position.y = basePos.y;
+      }
+    }
+    if (this.washerRight3D) {
+      const basePos = this.basePositions[18]; // Washer_Right index
+      if (basePos) {
+        this.washerRight3D.position.x = basePos.x + rx * washerTravel;
+        this.washerRight3D.position.z = basePos.z + ry * washerTravel;
+        this.washerRight3D.position.y = basePos.y;
+      }
+    }
   }
 
   applyGamepadInput(pad, buttonEmissionColor, buttonEmissionMultiplier = 1.0) {
@@ -207,6 +228,8 @@ export class ModelManager {
     this.basePositions = [];
     this.leftStick3DGroup = null;
     this.rightStick3DGroup = null;
+    this.washerLeft3D = null;
+    this.washerRight3D = null;
     this.dpadRockerPivot = null;
   }
 
@@ -331,6 +354,12 @@ export class ModelManager {
       if (node.name === 'DPad_Rocker') {
         this.dpadRockerPivot = node;
         this.registerMotionNode(node);
+      }
+      if (node.name === 'Washer_Left') {
+        this.washerLeft3D = node;
+      }
+      if (node.name === 'Washer_Right') {
+        this.washerRight3D = node;
       }
     }
 
