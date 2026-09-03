@@ -29,6 +29,12 @@
       "name": "Neon",
       "file": "neon.png",
       "description": "Vibrant neon cyberpunk lighting"
+    },
+    {
+      "id": "workshop",
+      "name": "Workshop",
+      "file": "workshop.png",
+      "description": "Arcade stick workshop"
     }
   ]
 }
