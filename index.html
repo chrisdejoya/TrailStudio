@@ -291,6 +291,57 @@
   .inspector-shell .caret { cursor: pointer; opacity: 0.7; transition: transform 0.12s cubic-bezier(0.15, 1, 0.25, 1), opacity 0.12s ease; color: #aaa; }
   .inspector-shell .caret:hover { opacity: 1; color: #fff; }
 
+  /* =========================================================================
+     BOTTOM DOCK (Mac OS style)
+     ========================================================================= */
+  .bottom-dock {
+    position: fixed;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    pointer-events: none;
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .bottom-dock.ui-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(20px);
+  }
+  .dock-item {
+    pointer-events: auto;
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.2s cubic-bezier(0.15, 1, 0.25, 1), filter 0.2s ease;
+    will-change: transform, filter;
+    z-index: 1;
+  }
+  .dock-item img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    transition: transform 0.2s cubic-bezier(0.15, 1, 0.25, 1);
+    transform-origin: center center;
+  }
+  .dock-item:hover {
+    transform: scale(1.6);
+    z-index: 10;
+  }
+  .dock-item:hover img {
+    filter: brightness(1.3);
+  }
+  .dock-item:active {
+    transform: scale(1.3);
+    transition: transform 0.05s ease;
+  }
+  .dock-item:focus-visible {
+    outline: 2px solid #62d8ff;
+    outline-offset: 4px;
+  }
+
   /* Form layouts */
   .inspector-shell .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; margin: 0; }
   .inspector-shell .row > span:first-child { color: #aaa; }
@@ -534,7 +585,8 @@
   /* Global canvas drag dimming - fade all UI */
   body.canvas-dragging .inspector-shell,
   body.canvas-dragging #hud,
-  body.canvas-dragging .inspector-scroll {
+  body.canvas-dragging .inspector-scroll,
+  body.canvas-dragging #bottom-dock {
     opacity: 0.02;
     pointer-events: none;
     transition: opacity 0.05s ease-out;
@@ -1264,6 +1316,36 @@
   </main>
 </div>
 
+<div id="bottom-dock" class="bottom-dock">
+    <div class="dock-item" data-label="Controller">
+      <img src="svg/ui/ic_controller.png" alt="Controller" width="40" height="40">
+    </div>
+    <div class="dock-item" data-label="Overlay">
+      <img src="svg/ui/ic_overlay.png" alt="Overlay" width="40" height="40">
+    </div>
+    <div class="dock-item" data-label="Camera">
+      <img src="svg/ui/ic_camera.png" alt="Camera" width="40" height="40">
+    </div>
+    <div class="dock-item" data-label="Lighting">
+      <img src="svg/ui/ic_lighting.png" alt="Lighting" width="40" height="40">
+    </div>
+    <div class="dock-item" data-label="Skybox">
+      <img src="svg/ui/ic_skybox.png" alt="Skybox" width="40" height="40">
+    </div>
+    <div class="dock-item" data-label="Post-Processing">
+      <img src="svg/ui/ic_postprocessing.png" alt="Post-Processing" width="40" height="40">
+    </div>
+    <div class="dock-item" data-label="Presets">
+      <img src="svg/ui/ic_presets.png" alt="Presets" width="40" height="40">
+    </div>
+    <div class="dock-item" data-label="Utilities">
+      <img src="svg/ui/ic_utilities.png" alt="Utilities" width="40" height="40">
+    </div>
+    <div class="dock-item" data-label="Settings">
+      <img src="svg/ui/ic_settings.png" alt="Settings" width="40" height="40">
+    </div>
+</div>
+
 <script>
   function switchMode(value) {
     const tabs = document.querySelectorAll('.mode-tab');
@@ -1357,17 +1439,20 @@
   // Auto-hide UI after inactivity
   const uiShell = document.querySelector('.inspector-shell');
   const hud = document.querySelector('#hud');
+  const bottomDock = document.querySelector('#bottom-dock');
   let hideTimer = null;
   const HIDE_DELAY = 5000;
 
   function showUI() {
     uiShell?.classList.remove('ui-hidden');
     hud?.classList.remove('ui-hidden');
+    bottomDock?.classList.remove('ui-hidden');
   }
 
   function hideUI() {
     uiShell?.classList.add('ui-hidden');
     hud?.classList.add('ui-hidden');
+    bottomDock?.classList.add('ui-hidden');
   }
 
   function resetHideTimer() {
@@ -1383,6 +1468,38 @@
 
   // Initialize timer
   resetHideTimer();
+
+  // Mac OS dock neighbor scaling
+  const dockItems = document.querySelectorAll('.dock-item');
+  dockItems.forEach((item, index) => {
+    item.addEventListener('mouseenter', () => {
+      dockItems.forEach((other, i) => {
+        const distance = Math.abs(i - index);
+        if (distance === 0) return; // hovered item handled by CSS
+        other.style.transition = 'transform 0.15s cubic-bezier(0.15, 1, 0.25, 1), filter 0.15s ease';
+        if (distance === 1) {
+          other.style.transform = 'scale(1.15)';
+          other.style.zIndex = '5';
+          const img = other.querySelector('img');
+          if (img) img.style.filter = 'brightness(1.15)';
+        } else if (distance === 2) {
+          other.style.transform = 'scale(1.05)';
+          other.style.zIndex = '3';
+          const img = other.querySelector('img');
+          if (img) img.style.filter = 'brightness(1.08)';
+        }
+      });
+    });
+    item.addEventListener('mouseleave', () => {
+      dockItems.forEach((other) => {
+        other.style.transition = 'transform 0.15s cubic-bezier(0.15, 1, 0.25, 1), filter 0.15s ease';
+        other.style.transform = '';
+        other.style.zIndex = '';
+        const img = other.querySelector('img');
+        if (img) img.style.filter = '';
+      });
+    });
+  });
 </script>
 
 <script type="importmap">
