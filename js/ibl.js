@@ -110,6 +110,8 @@ export class IBLEditor {
 
     this.environmentScene.add(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), material));
 
+    this.proceduralSkyMesh = this.environmentScene.children[this.environmentScene.children.length - 1];
+
     // Scaled down to fit properly inside the unit sphere (radius 1)
     this.ringGeometry = new THREE.TorusGeometry(0.5, 0.02, 16, 64);
     this.ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -216,9 +218,22 @@ export class IBLEditor {
 
     if (state.enabled) {
       if (state.mode === 'texture' && state.textureId !== 'procedural') {
+        // Texture mode: hide procedural sky, show texture
+        if (this.proceduralSkyMesh) this.proceduralSkyMesh.visible = false;
+        
         this.loadTexture(state.textureId).then(texture => {
           if (texture) {
-            this.createTextureMesh(texture, state.textureRotation, state.textureScale);
+            // Update or create texture mesh
+            if (this.textureMesh) {
+              // Update existing mesh transform
+              this.textureMesh.rotation.y = state.textureRotation;
+              this.textureMesh.scale.setScalar(state.textureScale);
+              this.textureMesh.material.map = texture;
+              this.textureMesh.material.needsUpdate = true;
+            } else {
+              this.createTextureMesh(texture, state.textureRotation, state.textureScale);
+            }
+
             const newTarget = this.pmremGenerator.fromScene(this.environmentScene);
             if (this.currentTarget) this.currentTarget.dispose();
             this.currentTarget = newTarget;
@@ -230,7 +245,9 @@ export class IBLEditor {
           }
         });
       } else {
-        // Procedural mode
+        // Procedural mode: show procedural sky, hide texture
+        if (this.proceduralSkyMesh) this.proceduralSkyMesh.visible = true;
+        
         if (this.textureMesh) {
           this.environmentScene.remove(this.textureMesh);
           this.textureMesh.geometry.dispose();
@@ -250,6 +267,7 @@ export class IBLEditor {
     } else {
       this.mainScene.environment = null;
       this.mainScene.background = null;
+      if (this.proceduralSkyMesh) this.proceduralSkyMesh.visible = false;
     }
   }
 
