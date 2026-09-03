@@ -1,12 +1,15 @@
 import * as THREE from 'three';
 
-export class ProceduralIBLEditor {
+export class IBLEditor {
   constructor(renderer, targetScene) {
     this.mainScene = targetScene;
     this.pmremGenerator = new THREE.PMREMGenerator(renderer);
     this.pmremGenerator.compileCubemapShader();
     this.environmentScene = new THREE.Scene();
     this.currentTarget = null;
+    this.textureIndex = null;
+    this.loadedTextures = new Map();
+    this.textureMesh = null;
 
     // Cache preview canvas and context to avoid DOM lookups every frame
     this.previewCanvas = document.querySelector('#iblPreview');
@@ -113,6 +116,70 @@ export class ProceduralIBLEditor {
     this.ringMesh = new THREE.Mesh(this.ringGeometry, this.ringMaterial);
     this.ringMesh.rotation.x = Math.PI / 2;
     this.environmentScene.add(this.ringMesh);
+
+    this.textureIndexPromise = this.loadTextureIndex();
+  }
+
+  async loadTextureIndex() {
+    try {
+      const response = await fetch('/textures/ibl/index.json');
+      if (response.ok) {
+        this.textureIndex = await response.json();
+      }
+    } catch (err) {
+      console.warn('Failed to load IBL texture index:', err);
+    }
+  }
+
+  getTextureOptions() {
+    if (!this.textureIndex) return [{ id: 'procedural', name: 'Procedural Sky' }];
+    return this.textureIndex.textures.map(t => ({ id: t.id, name: t.name }));
+  }
+
+  async loadTexture(textureId) {
+    if (textureId === 'procedural') return null;
+
+    if (this.loadedTextures.has(textureId)) {
+      return this.loadedTextures.get(textureId);
+    }
+
+    const textureInfo = this.textureIndex?.textures?.find(t => t.id === textureId);
+    if (!textureInfo || !textureInfo.file) return null;
+
+    return new Promise((resolve, reject) => {
+      const loader = new THREE.TextureLoader();
+      loader.setPath('/textures/ibl/');
+      loader.load(textureInfo.file, (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        texture.colorSpace = THREE.SRGBColorSpace;
+        this.loadedTextures.set(textureId, texture);
+        resolve(texture);
+      }, undefined, (err) => {
+        console.error(`Failed to load IBL texture ${textureInfo.file}:`, err);
+        reject(err);
+      });
+    });
+  }
+
+  createTextureMesh(texture, rotation = 0, scale = 1.0) {
+    if (this.textureMesh) {
+      this.environmentScene.remove(this.textureMesh);
+      this.textureMesh.geometry.dispose();
+      this.textureMesh.material.dispose();
+    }
+
+    const geometry = new THREE.SphereGeometry(1, 64, 32);
+    geometry.scale(scale, scale, scale);
+    geometry.rotateY(rotation);
+
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.BackSide,
+      depthWrite: false
+    });
+
+    this.textureMesh = new THREE.Mesh(geometry, material);
+    this.environmentScene.add(this.textureMesh);
   }
 
   update(state) {
@@ -148,19 +215,42 @@ export class ProceduralIBLEditor {
     this.ringMaterial.color.set(state.ringColor).multiplyScalar(state.ringIntensity ?? 1);
 
     if (state.enabled) {
-      const newTarget = this.pmremGenerator.fromScene(this.environmentScene);
-      if (this.currentTarget) this.currentTarget.dispose();
-      this.currentTarget = newTarget;
+      if (state.mode === 'texture' && state.textureId !== 'procedural') {
+        this.loadTexture(state.textureId).then(texture => {
+          if (texture) {
+            this.createTextureMesh(texture, state.textureRotation, state.textureScale);
+            const newTarget = this.pmremGenerator.fromScene(this.environmentScene);
+            if (this.currentTarget) this.currentTarget.dispose();
+            this.currentTarget = newTarget;
 
-      this.mainScene.environment = newTarget.texture;
-      this.mainScene.environmentIntensity = state.intensity;
-      this.mainScene.background = state.background ? newTarget.texture : null;
+            this.mainScene.environment = newTarget.texture;
+            this.mainScene.environmentIntensity = state.intensity;
+            this.mainScene.background = state.background ? newTarget.texture : null;
+            this.renderPreview(state);
+          }
+        });
+      } else {
+        // Procedural mode
+        if (this.textureMesh) {
+          this.environmentScene.remove(this.textureMesh);
+          this.textureMesh.geometry.dispose();
+          this.textureMesh.material.dispose();
+          this.textureMesh = null;
+        }
+
+        const newTarget = this.pmremGenerator.fromScene(this.environmentScene);
+        if (this.currentTarget) this.currentTarget.dispose();
+        this.currentTarget = newTarget;
+
+        this.mainScene.environment = newTarget.texture;
+        this.mainScene.environmentIntensity = state.intensity;
+        this.mainScene.background = state.background ? newTarget.texture : null;
+        this.renderPreview(state);
+      }
     } else {
       this.mainScene.environment = null;
       this.mainScene.background = null;
     }
-
-    this.renderPreview(state);
   }
 
   renderPreview(state) {
@@ -168,6 +258,17 @@ export class ProceduralIBLEditor {
     const ctx = this.previewContext;
     const w = this.previewCanvas.width;
     const h = this.previewCanvas.height;
+
+    if (state.mode === 'texture' && state.textureId !== 'procedural') {
+      // Draw a simple preview for texture mode
+      ctx.fillStyle = '#2a2a30';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#888';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Texture IBL', w / 2, h / 2);
+      return;
+    }
 
     // Clear and draw background vertical gradient with horizontal variance simulation
     const gradient = ctx.createLinearGradient(0, 0, 0, h);
@@ -204,5 +305,14 @@ export class ProceduralIBLEditor {
     this.pmremGenerator.dispose();
     this.ringGeometry.dispose();
     this.ringMaterial.dispose();
+    this.loadedTextures.forEach(t => t.dispose());
+    this.loadedTextures.clear();
+    if (this.textureMesh) {
+      this.textureMesh.geometry.dispose();
+      this.textureMesh.material.dispose();
+    }
   }
 }
+
+// Backward compatibility export
+export { IBLEditor as ProceduralIBLEditor };

@@ -3,37 +3,43 @@ export const DEFAULT_IBL_STATE = {
   intensity: 1.0,
   background: false,
 
-  // Soft, neutral studio backdrop (Neutral soft gray gradient)
-  skyColor: '#e2e8f0',       // Soft off-white upper dome
-  horizonColor: '#cbd5e1',   // Light neutral gray horizon
-  groundColor: '#64748b',    // Mid-tone gray floor (prevents harsh dark undersides)
+  // IBL Mode: 'procedural' or 'texture'
+  mode: 'procedural',
+  textureId: 'procedural',
+  textureRotation: 0,
+  textureScale: 1.0,
+
+  // Procedural Sky Settings (used when mode === 'procedural')
+  skyColor: '#e2e8f0',
+  horizonColor: '#cbd5e1',
+  groundColor: '#64748b',
   skyLevel: 0.3,
   horizonLevel: 0.0,
   groundLevel: -0.3,
 
   // Key Light (Main soft light: Warm white, offset 45° front-left, gentle atmosphere glow)
   sun1Visible: true,
-  sun1Color: '#fff7ed',      // Warm neutral white (approx 5500K-6000K)
-  sun1Elevation: 35,         // Classic studio key angle
-  sun1Azimuth: 135,          // Front-left positioning
-  sun1Size: 3.5,             // Broad size for soft, diffused specular highlights
-  sun1Intensity: 3.0,        // Primary illumination
-  sun1Atmosphere: 0.8,       // High diffusion for soft studio box feel
+  sun1Color: '#fff7ed',
+  sun1Elevation: 35,
+  sun1Azimuth: 135,
+  sun1Size: 3.5,
+  sun1Intensity: 3.0,
+  sun1Atmosphere: 0.8,
 
   // Fill Light (Secondary light: Cool white, lower intensity, opposite side to lift shadows)
   sun2Visible: true,
-  sun2Color: '#f1f5f9',      // Neutral cool fill
-  sun2Elevation: 25,         // Lower angle fill
-  sun2Azimuth: 225,          // Front-right positioning
-  sun2Size: 4.5,             // Very large soft box
-  sun2Intensity: 1.2,        // Soft shadow fill (~1:2.5 lighting ratio)
-  sun2Atmosphere: 0.9,       // Max diffusion
+  sun2Color: '#f1f5f9',
+  sun2Elevation: 25,
+  sun2Azimuth: 225,
+  sun2Size: 4.5,
+  sun2Intensity: 1.2,
+  sun2Atmosphere: 0.9,
 
   // Studio Rim/Floor Reflection Ring (Creates clean metallic edge highlights)
   ringVisible: true,
-  ringColor: '#ffffff',      // Pure white reflector
-  ringHeight: -2,            // Positioned near base level to catch lower product edges
-  ringIntensity: 1.5         // Subtle edge rim reflection
+  ringColor: '#ffffff',
+  ringHeight: -2,
+  ringIntensity: 1.5
 };
 
 export const LIGHT_CONFIGS = [

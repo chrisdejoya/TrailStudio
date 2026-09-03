@@ -2,7 +2,9 @@ import { DEFAULT_IBL_STATE } from './state.js';
 import { bindSliderAndInput } from './uiBridge.js';
 import { initializeColorPicker, setColorPickerValue } from './colorPicker.js';
 
-export function setupIBLControls(iblState, onUpdate) {
+export function setupIBLControls(iblState, onUpdate, iblEditor) {
+  let textureSelect = null;
+
   function bindIBLControl(id, key, type = 'float') {
     const element = document.querySelector(`#${id}`);
     const inputElement = document.querySelector(`#${id}Input`);
@@ -23,17 +25,32 @@ export function setupIBLControls(iblState, onUpdate) {
   }
 
   [
-    ['iblEnabled', 'enabled', 'boolean'], ['iblBackground', 'background', 'boolean'],
-    ['iblSkyColor', 'skyColor', 'color'], ['iblSkyLevel', 'skyLevel'],
-    ['iblHorizonColor', 'horizonColor', 'color'], ['iblHorizonLevel', 'horizonLevel'],
-    ['iblGroundColor', 'groundColor', 'color'], ['iblGroundLevel', 'groundLevel'],
-    ['iblSun1Visible', 'sun1Visible', 'boolean'], ['iblSun1Color', 'sun1Color', 'color'],
-    ['iblSun1Elevation', 'sun1Elevation', 'integer'], ['iblSun1Azimuth', 'sun1Azimuth', 'integer'],
-    ['iblSun1Size', 'sun1Size'], ['iblSun1Intensity', 'sun1Intensity'], ['iblSun1Atmosphere', 'sun1Atmosphere'],
-    ['iblSun2Visible', 'sun2Visible', 'boolean'], ['iblSun2Color', 'sun2Color', 'color'],
-    ['iblSun2Elevation', 'sun2Elevation', 'integer'], ['iblSun2Azimuth', 'sun2Azimuth', 'integer'],
-    ['iblSun2Size', 'sun2Size'], ['iblSun2Intensity', 'sun2Intensity'], ['iblSun2Atmosphere', 'sun2Atmosphere'],
-    ['iblRingVisible', 'ringVisible', 'boolean'], ['iblRingColor', 'ringColor', 'color'], ['iblRingHeight', 'ringHeight'], ['iblRingIntensity', 'ringIntensity']
+    ['iblEnabled', 'enabled', 'boolean'],
+    ['iblBackground', 'background', 'boolean'],
+    ['iblSkyColor', 'skyColor', 'color'],
+    ['iblSkyLevel', 'skyLevel'],
+    ['iblHorizonColor', 'horizonColor', 'color'],
+    ['iblHorizonLevel', 'horizonLevel'],
+    ['iblGroundColor', 'groundColor', 'color'],
+    ['iblGroundLevel', 'groundLevel'],
+    ['iblSun1Visible', 'sun1Visible', 'boolean'],
+    ['iblSun1Color', 'sun1Color', 'color'],
+    ['iblSun1Elevation', 'sun1Elevation', 'integer'],
+    ['iblSun1Azimuth', 'sun1Azimuth', 'integer'],
+    ['iblSun1Size', 'sun1Size'],
+    ['iblSun1Intensity', 'sun1Intensity'],
+    ['iblSun1Atmosphere', 'sun1Atmosphere'],
+    ['iblSun2Visible', 'sun2Visible', 'boolean'],
+    ['iblSun2Color', 'sun2Color', 'color'],
+    ['iblSun2Elevation', 'sun2Elevation', 'integer'],
+    ['iblSun2Azimuth', 'sun2Azimuth', 'integer'],
+    ['iblSun2Size', 'sun2Size'],
+    ['iblSun2Intensity', 'sun2Intensity'],
+    ['iblSun2Atmosphere', 'sun2Atmosphere'],
+    ['iblRingVisible', 'ringVisible', 'boolean'],
+    ['iblRingColor', 'ringColor', 'color'],
+    ['iblRingHeight', 'ringHeight'],
+    ['iblRingIntensity', 'ringIntensity']
   ].forEach(([id, key, type]) => bindIBLControl(id, key, type));
 
   bindSliderAndInput('#iblIntensity', '#iblIntensityInput', (value) => {
@@ -115,27 +132,175 @@ export function setupIBLControls(iblState, onUpdate) {
     iblState.ringIntensity = value;
     onUpdate();
   }, 2);
+
+  // Texture mode controls
+  bindSliderAndInput('#iblTextureRotation', '#iblTextureRotationInput', (value) => {
+    iblState.textureRotation = value;
+    onUpdate();
+  }, 3);
+
+  bindSliderAndInput('#iblTextureScale', '#iblTextureScaleInput', (value) => {
+    iblState.textureScale = value;
+    onUpdate();
+  }, 2);
+
+  // Texture selection dropdown
+  textureSelect = document.querySelector('#iblTextureSelect');
+  if (textureSelect && iblEditor) {
+    const updateTextureOptions = () => {
+      const options = iblEditor.getTextureOptions();
+      const currentValue = textureSelect.value;
+      textureSelect.innerHTML = '';
+      options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.id;
+        option.textContent = opt.name;
+        textureSelect.appendChild(option);
+      });
+      textureSelect.value = currentValue;
+    };
+
+    // Wait for texture index to load before populating (preserves hardcoded HTML as fallback)
+    if (iblEditor.textureIndexPromise) {
+      iblEditor.textureIndexPromise.then(() => updateTextureOptions());
+    } else {
+      // Fallback if no promise (already loaded)
+      updateTextureOptions();
+    }
+
+    textureSelect.addEventListener('change', () => {
+      iblState.textureId = textureSelect.value;
+      iblState.mode = textureSelect.value === 'procedural' ? 'procedural' : 'texture';
+      updateControlStates();
+      onUpdate();
+    });
+  }
+
+  // Mode toggle (procedural vs texture)
+  const modeRadios = document.querySelectorAll('input[name="iblMode"]');
+  modeRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      if (radio.checked) {
+        iblState.mode = radio.value;
+        iblState.textureId = radio.value === 'procedural' ? 'procedural' : (textureSelect?.value || 'studio');
+        if (textureSelect) textureSelect.value = iblState.textureId;
+        updateControlStates();
+        onUpdate();
+      }
+    });
+  });
+
+  function updateControlStates() {
+    const isProcedural = iblState.mode === 'procedural';
+    const isTexture = iblState.mode === 'texture';
+
+    // Show/hide container divs
+    const proceduralContainer = document.querySelector('#iblProceduralControls');
+    const textureContainer = document.querySelector('#iblTextureControls');
+    const textureTransformContainer = document.querySelector('#iblTextureTransformControls');
+    const textureScaleContainer = document.querySelector('#iblTextureScaleControls');
+
+    if (proceduralContainer) proceduralContainer.style.display = isProcedural ? '' : 'none';
+    if (textureContainer) textureContainer.style.display = isTexture ? '' : 'none';
+    if (textureTransformContainer) textureTransformContainer.style.display = isTexture ? '' : 'none';
+    if (textureScaleContainer) textureScaleContainer.style.display = isTexture ? '' : 'none';
+
+    // Procedural controls
+    const proceduralIds = [
+      'iblSkyColor', 'iblSkyLevel', 'iblHorizonColor', 'iblHorizonLevel',
+      'iblGroundColor', 'iblGroundLevel', 'iblSun1Visible', 'iblSun1Color',
+      'iblSun1Elevation', 'iblSun1Azimuth', 'iblSun1Size', 'iblSun1Intensity',
+      'iblSun1Atmosphere', 'iblSun2Visible', 'iblSun2Color', 'iblSun2Elevation',
+      'iblSun2Azimuth', 'iblSun2Size', 'iblSun2Intensity', 'iblSun2Atmosphere',
+      'iblRingVisible', 'iblRingColor', 'iblRingHeight', 'iblRingIntensity'
+    ];
+
+    // Texture controls
+    const textureIds = ['iblTextureSelect', 'iblTextureRotation', 'iblTextureScale'];
+
+    proceduralIds.forEach(id => {
+      const el = document.querySelector(`#${id}`);
+      const inputEl = document.querySelector(`#${id}Input`);
+      const labelEl = document.querySelector(`label[for="${id}"]`);
+      if (el) {
+        el.disabled = !isProcedural;
+        el.style.opacity = isProcedural ? '1' : '0.5';
+      }
+      if (inputEl) {
+        inputEl.disabled = !isProcedural;
+        inputEl.style.opacity = isProcedural ? '1' : '0.5';
+      }
+      if (labelEl) labelEl.style.opacity = isProcedural ? '1' : '0.5';
+    });
+
+    textureIds.forEach(id => {
+      const el = document.querySelector(`#${id}`);
+      const inputEl = document.querySelector(`#${id}Input`);
+      const labelEl = document.querySelector(`label[for="${id}"]`);
+      if (el) {
+        el.disabled = !isTexture;
+        el.style.opacity = isTexture ? '1' : '0.5';
+      }
+      if (inputEl) {
+        inputEl.disabled = !isTexture;
+        inputEl.style.opacity = isTexture ? '1' : '0.5';
+      }
+      if (labelEl) labelEl.style.opacity = isTexture ? '1' : '0.5';
+    });
+
+    // Update radio buttons
+    modeRadios.forEach(radio => {
+      radio.checked = radio.value === iblState.mode;
+    });
+  }
+
+  // Initial state
+  updateControlStates();
 }
 
 export function applyIBLStateToUI(iblState, state, onUpdate) {
   Object.assign(iblState, DEFAULT_IBL_STATE, state || {});
   Object.entries(iblState).forEach(([key, value]) => {
     const elementMap = {
-      enabled: 'iblEnabled', background: 'iblBackground', intensity: 'iblIntensity',
-      skyColor: 'iblSkyColor', skyLevel: 'iblSkyLevel', horizonColor: 'iblHorizonColor',
-      horizonLevel: 'iblHorizonLevel', groundColor: 'iblGroundColor', groundLevel: 'iblGroundLevel',
-      sun1Visible: 'iblSun1Visible', sun1Color: 'iblSun1Color', sun1Elevation: 'iblSun1Elevation',
-      sun1Azimuth: 'iblSun1Azimuth', sun1Size: 'iblSun1Size', sun1Intensity: 'iblSun1Intensity',
-      sun1Atmosphere: 'iblSun1Atmosphere', sun2Visible: 'iblSun2Visible', sun2Color: 'iblSun2Color',
-      sun2Elevation: 'iblSun2Elevation', sun2Azimuth: 'iblSun2Azimuth', sun2Size: 'iblSun2Size',
-      sun2Intensity: 'iblSun2Intensity', sun2Atmosphere: 'iblSun2Atmosphere',
-      ringVisible: 'iblRingVisible', ringColor: 'iblRingColor', ringHeight: 'iblRingHeight', ringIntensity: 'iblRingIntensity'
+      enabled: 'iblEnabled',
+      background: 'iblBackground',
+      intensity: 'iblIntensity',
+      mode: 'iblMode',
+      textureId: 'iblTextureSelect',
+      textureRotation: 'iblTextureRotation',
+      textureScale: 'iblTextureScale',
+      skyColor: 'iblSkyColor',
+      skyLevel: 'iblSkyLevel',
+      horizonColor: 'iblHorizonColor',
+      horizonLevel: 'iblHorizonLevel',
+      groundColor: 'iblGroundColor',
+      groundLevel: 'iblGroundLevel',
+      sun1Visible: 'iblSun1Visible',
+      sun1Color: 'iblSun1Color',
+      sun1Elevation: 'iblSun1Elevation',
+      sun1Azimuth: 'iblSun1Azimuth',
+      sun1Size: 'iblSun1Size',
+      sun1Intensity: 'iblSun1Intensity',
+      sun1Atmosphere: 'iblSun1Atmosphere',
+      sun2Visible: 'iblSun2Visible',
+      sun2Color: 'iblSun2Color',
+      sun2Elevation: 'iblSun2Elevation',
+      sun2Azimuth: 'iblSun2Azimuth',
+      sun2Size: 'iblSun2Size',
+      sun2Intensity: 'iblSun2Intensity',
+      sun2Atmosphere: 'iblSun2Atmosphere',
+      ringVisible: 'iblRingVisible',
+      ringColor: 'iblRingColor',
+      ringHeight: 'iblRingHeight',
+      ringIntensity: 'iblRingIntensity'
     };
     const element = document.querySelector(`#${elementMap[key] || ''}`);
     const inputElement = document.querySelector(`#${elementMap[key] || ''}Input`);
     if (element) {
       if (element.type === 'checkbox') element.checked = value;
+      else if (element.type === 'radio') element.checked = element.value === value;
       else if (element.classList.contains('custom-color-picker')) setColorPickerValue(element, value);
+      else if (element.tagName === 'SELECT') element.value = value;
       else element.value = value;
     }
     if (inputElement && typeof value === 'number') {

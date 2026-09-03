@@ -1,0 +1,34 @@
+{
+  "textures": [
+    {
+      "id": "procedural",
+      "name": "Procedural Sky",
+      "file": null,
+      "description": "Built-in procedural sky with sun/ring controls"
+    },
+    {
+      "id": "studio",
+      "name": "Studio",
+      "file": "studio.png",
+      "description": "Clean studio lighting environment"
+    },
+    {
+      "id": "studio2",
+      "name": "Studio 2",
+      "file": "studio2.png",
+      "description": "Alternative studio lighting setup"
+    },
+    {
+      "id": "outdoors",
+      "name": "Outdoors",
+      "file": "outdoors.png",
+      "description": "Natural outdoor lighting"
+    },
+    {
+      "id": "neon",
+      "name": "Neon",
+      "file": "neon.png",
+      "description": "Vibrant neon cyberpunk lighting"
+    }
+  ]
+}

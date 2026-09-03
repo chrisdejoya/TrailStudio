@@ -361,7 +361,7 @@ if (inspectorShellElem) {
 function updateIBL() {
   proceduralIBLEditor.update(iblState);
 }
-setupIBLControls(iblState, updateIBL);
+setupIBLControls(iblState, updateIBL, proceduralIBLEditor);
 setupCameraInputs(saveToLocalStorage);
 lightingManager.renderLightingDock();
 if (window.CustomDropdown) window.CustomDropdown.bindAll();
