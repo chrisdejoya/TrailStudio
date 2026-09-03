@@ -15,16 +15,18 @@
   #app { position:fixed; inset:0; }
   canvas { display:block; }
    
-  /* --- TRANSPARENT TOP HUD (diagnostics, untouched) --- */
+  /* --- DIAGNOSTICS PANEL (upper right, toggled with backtick) --- */
   #hud { 
-    position:absolute; 
+    position:fixed; 
     top:14px; 
-    left:14px; 
     right:14px; 
+    left:auto;
     pointer-events:none; 
-    display:flex; 
+    display:none; 
+    flex-direction:column; 
     gap:12px; 
-    z-index: 10;
+    z-index: 50;
+    max-width: 420px;
   }
    
   .panel { 
@@ -45,6 +47,7 @@
     flex-direction: column;
     gap: 8px;
     background: color-mix(in srgb, var(--panel) 60%, transparent);
+    pointer-events: auto;
   }
 
   .hud-row {
@@ -276,15 +279,12 @@
   .inspector-shell .panel.collapsed .panel-body-content { opacity: 0; }
 
   /* Auto-hide UI transitions */
-  .inspector-shell, #hud {
+  .inspector-shell {
     transition: opacity 0.15s ease, transform 0.15s ease;
   }
-  .inspector-shell.ui-hidden, #hud.ui-hidden {
+  .inspector-shell.ui-hidden {
     opacity: 0;
     pointer-events: none;
-    transform: translateX(-10px);
-  }
-  .inspector-shell.ui-hidden {
     transform: translateX(-20px);
   }
 
@@ -605,7 +605,6 @@
 
   /* Global canvas drag dimming - fade all UI */
   body.canvas-dragging .inspector-shell,
-  body.canvas-dragging #hud,
   body.canvas-dragging .inspector-scroll,
   body.canvas-dragging #bottom-dock {
     opacity: 0.02;
@@ -618,9 +617,9 @@
 <div id="app"></div>
 
 <!-- =========================================================================
-     DIAGNOSTICS HUD (left untouched per request)
+     DIAGNOSTICS PANEL (upper right, toggled with backtick)
      ========================================================================= -->
-<div id="hud" style="display:none;">
+<div id="hud">
   <section id="left" class="panel">
     <div class="hud-row">
       <h1>Gamepad Diagnostics</h1>

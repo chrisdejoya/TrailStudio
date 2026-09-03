@@ -298,11 +298,12 @@ window.addEventListener('keydown', (e) => {
     lightingManager.setActiveLight(null);
   } else if (e.key === 'Tab') {
     e.preventDefault();
-    const hud = document.querySelector('#hud');
     const inspector = document.querySelector('#inspector-shell');
-    const isHidden = (hud && hud.style.display === 'none');
-    if (hud) hud.style.display = isHidden ? 'flex' : 'none';
-    if (inspector) inspector.style.display = isHidden ? 'flex' : 'none';
+    if (inspector) inspector.style.display = (inspector.style.display === 'none') ? 'flex' : 'none';
+  } else if (e.key === '`') {
+    e.preventDefault();
+    const hud = document.querySelector('#hud');
+    if (hud) hud.style.display = (hud.style.display === 'none') ? 'flex' : 'none';
   }
 });
 
