@@ -32,6 +32,8 @@ BUTTON_MAPPINGS = [
     ("DPad_Down", "D-Pad Down", "D-Pad Down"),
     ("DPad_Left", "D-Pad Left", "D-Pad Left"),
     ("DPad_Right", "D-Pad Right", "D-Pad Right"),
+    ("Washer_Left", "Washer Left", "Left Washer"),
+    ("Washer_Right", "Washer Right", "Right Washer"),
 ]
 
 class OBJECT_OT_tag_trailpad_part(bpy.types.Operator):

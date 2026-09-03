@@ -6,7 +6,8 @@ const MESH_MAPPINGS = {
   Btn_West: 2, Btn_X: 2, Btn_North: 3, Btn_Y: 3,
   Bumper_Left: 4, Bumper_Right: 5, Trigger_Left: 6, Trigger_Right: 7,
   Btn_Select: 8, Btn_Start: 9, Btn_L3: 10, Btn_R3: 11,
-  DPad_Up: 12, DPad_Down: 13, DPad_Left: 14, DPad_Right: 15, Btn_Home: 16
+  DPad_Up: 12, DPad_Down: 13, DPad_Left: 14, DPad_Right: 15, Btn_Home: 16,
+  Washer_Left: 17, Washer_Right: 18
 };
 
 const baseBtnMat = new THREE.MeshPhysicalMaterial({ color: 0x333333, roughness: 0.35, metalness: 0 });
