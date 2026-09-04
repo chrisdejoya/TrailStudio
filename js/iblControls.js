@@ -294,8 +294,10 @@ export function applyIBLStateToUI(iblState, state, onUpdate) {
       ringHeight: 'iblRingHeight',
       ringIntensity: 'iblRingIntensity'
     };
-    const element = document.querySelector(`#${elementMap[key] || ''}`);
-    const inputElement = document.querySelector(`#${elementMap[key] || ''}Input`);
+    const elementId = elementMap[key];
+    if (!elementId) return;
+    const element = document.querySelector(`#${elementId}`);
+    const inputElement = document.querySelector(`#${elementId}Input`);
     if (element) {
       if (element.type === 'checkbox') element.checked = value;
       else if (element.type === 'radio') element.checked = element.value === value;
