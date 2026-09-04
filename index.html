@@ -98,7 +98,6 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Model</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="slider-row">
@@ -124,8 +123,7 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Load Model</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <input type="file" id="glbFile" accept=".glb,.gltf">
           <button id="openPickerBtn" class="btn">Pick Persistent File</button>
@@ -135,8 +133,7 @@
 <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Material & Transform</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="row-stacked">
             <span>Glow Color</span>
@@ -162,8 +159,7 @@
             </label>
             <span>Trail</span>
           </div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="row-stacked">
             <span>Start Color</span>
@@ -229,8 +225,7 @@
             </label>
             <span>Button Labels</span>
           </div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="slider-row">
             <div class="row">
@@ -280,8 +275,7 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Settings</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="slider-row">
             <div class="row">
@@ -319,8 +313,7 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Rotation (X, Y, Z)</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="vec3-group">
             <input type="number" id="camRotX" value="0" step="1" title="Pitch (X)">
@@ -333,8 +326,7 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Target (X, Y, Z)</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="vec3-group">
             <input type="number" id="camTargetX" value="0" step="0.1">
@@ -351,8 +343,7 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Image Based Lighting</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <canvas id="iblPreview" class="ibl-preview" width="256" height="56"></canvas>
           <div class="checkbox-row">
@@ -429,8 +420,7 @@
       <div class="panel collapsed" id="iblProceduralControls">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Sky Gradient</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="row-stacked"><span>Sky Color</span><div id="iblSkyColor" class="custom-color-picker" data-value="#1e293b"></div></div>
           <div class="slider-row">
@@ -471,8 +461,7 @@
             <input type="checkbox" id="iblSun1Visible" checked onclick="event.stopPropagation()">
             <label for="iblSun1Visible" class="inline-label" onclick="event.stopPropagation()">Sun 1</label>
           </div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="row-stacked"><span>Color</span><div id="iblSun1Color" class="custom-color-picker" data-value="#ffffff"></div></div>
           <div class="slider-row">
@@ -529,8 +518,7 @@
             <input type="checkbox" id="iblSun2Visible" checked onclick="event.stopPropagation()">
             <label for="iblSun2Visible" class="inline-label" onclick="event.stopPropagation()">Sun 2</label>
           </div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="row-stacked"><span>Color</span><div id="iblSun2Color" class="custom-color-picker" data-value="#f59e0b"></div></div>
           <div class="slider-row">
@@ -587,8 +575,7 @@
             <input type="checkbox" id="iblRingVisible" checked onclick="event.stopPropagation()">
             <label for="iblRingVisible" class="inline-label" onclick="event.stopPropagation()">Studio Ring</label>
           </div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="row-stacked"><span>Color</span><div id="iblRingColor" class="custom-color-picker" data-value="#38bdf8"></div></div>
           <div class="slider-row">
@@ -623,8 +610,7 @@
 <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Quality & Shadows</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="checkbox-row"><input type="checkbox" id="aaToggle" checked><label for="aaToggle">Enable AA</label></div>
           <div class="control-row">
@@ -654,8 +640,7 @@
             <input type="checkbox" id="bloomToggle" onclick="event.stopPropagation()">
             <label for="bloomToggle" class="inline-label" onclick="event.stopPropagation()">Bloom</label>
           </div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="slider-row">
             <div class="row">
@@ -693,8 +678,7 @@
             <input type="checkbox" id="aoToggle" onclick="event.stopPropagation()">
             <label for="aoToggle" class="inline-label" onclick="event.stopPropagation()">Ambient Occlusion</label>
           </div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="slider-row">
             <div class="row">
@@ -729,8 +713,7 @@
 <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Color & Exposure</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <div class="control-row">
             <label>Tone Mapping</label>
@@ -777,8 +760,7 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left"><span>Scene</span></div>
-          <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
-        </div>
+          </div>
         <div class="panel-body"><div class="panel-body-content">
           <button id="loadDefaultBtn" class="btn">Reset Scene</button>
           <button id="exportSettingsBtn" class="btn">Save Scene</button>
