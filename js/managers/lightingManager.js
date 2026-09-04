@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { createLightConfigState } from './state.js';
-import { initializeColorPicker } from './colorPicker.js';
+import { createLightConfigState } from '../core/state.js';
+import { initializeColorPicker } from '../ui/colorPicker.js';
 
 export class LightingManager {
   constructor(scene) {

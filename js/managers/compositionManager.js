@@ -2,7 +2,7 @@
  * Composition Grid Overlay
  * Displays corner brackets, center cross, and rule-of-thirds lines during canvas drag/scroll
  */
-export class CompositionGrid {
+export class CompositionManager {
   constructor() {
     this.container = null;
     this.visible = false;

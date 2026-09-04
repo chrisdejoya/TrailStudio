@@ -1,6 +1,6 @@
-import { STANDARD_BUTTONS } from './gamepadManager.js';
+import { STANDARD_BUTTONS } from '../managers/gamepadManager.js';
 
-export class DiagnosticsPanel {
+export class DiagnosticsManager {
   constructor() {
     this.hudUI = {
       mapping: document.querySelector('#mapping'),

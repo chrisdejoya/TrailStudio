@@ -1,4 +1,4 @@
-import { DEFAULT_IBL_STATE } from './state.js';
+import { DEFAULT_IBL_STATE } from '../../core/state.js';
 import { bindSliderAndInput } from './uiBridge.js';
 import { initializeColorPicker, setColorPickerValue } from './colorPicker.js';
 

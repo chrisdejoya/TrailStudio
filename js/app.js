@@ -1,17 +1,17 @@
 import * as THREE from 'three';
-import { TrailManager } from './trail.js';
-import { DEFAULT_IBL_STATE, LOCAL_STORAGE_KEY } from './state.js';
-import { bindSliderAndInput, exposeAppApi, registerParentMessageBridge } from './uiBridge.js';
-import { ProceduralIBLEditor } from './ibl.js';
-import { setupIBLControls, applyIBLStateToUI } from './iblControls.js';
-import { createPostProcessing } from './postProcessing.js';
-import { GamepadManager } from './gamepadManager.js';
-import { LightingManager } from './lightingManager.js';
-import { DiagnosticsPanel } from './diagnosticsPanel.js';
-import { ModelManager } from './modelManager.js';
-import { ButtonLabelManager, SVG_PRESETS } from './buttonLabels.js';
-import { CompositionGrid } from './compositionGrid.js';
-import { getColorPickerValue, initializeColorPicker, setColorPickerValue } from './colorPicker.js';
+import { TrailManager } from './managers/trailManager.js';
+import { DEFAULT_IBL_STATE, LOCAL_STORAGE_KEY } from './core/state.js';
+import { bindSliderAndInput, exposeAppApi, registerParentMessageBridge } from './ui/uiBridge.js';
+import { ProceduralIBLEditor } from './rendering/ibl.js';
+import { setupIBLControls, applyIBLStateToUI } from './ui/iblControls.js';
+import { createPostProcessing } from './rendering/postProcessing.js';
+import { GamepadManager } from './managers/gamepadManager.js';
+import { LightingManager } from './managers/lightingManager.js';
+import { DiagnosticsManager } from './managers/diagnosticsManager.js';
+import { ModelManager } from './managers/modelManager.js';
+import { ButtonLabelManager, SVG_PRESETS } from './managers/buttonLabelManager.js';
+import { CompositionManager } from './managers/compositionManager.js';
+import { getColorPickerValue, initializeColorPicker, setColorPickerValue } from './ui/colorPicker.js';
 
 function loadGoogleFont(url) {
   if (document.querySelector(`link[href="${url}"]`)) return;
@@ -38,7 +38,7 @@ import {
   cameraApi,
   setTargetModelGroup,
   getFpsLimitState
-} from './cameraControls.js';
+} from './ui/cameraControls.js';
 
 // Button names shared between functions
 const BUTTON_NAMES = [
@@ -166,7 +166,7 @@ renderer.toneMappingExposure = 1.1;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 app.appendChild(renderer.domElement);
-const compositionGrid = new CompositionGrid();
+const compositionGrid = new CompositionManager();
 const pressedCanvasButtons = new Set();
 let compositionGridWheelTimer = null;
 
@@ -180,7 +180,7 @@ const {
 } = createPostProcessing(renderer, scene, camera);
 
 // Managers Setup
-const diagnosticsPanel = new DiagnosticsPanel();
+const diagnosticsPanel = new DiagnosticsManager();
 const lightingManager = new LightingManager(scene);
 const proceduralIBLEditor = new ProceduralIBLEditor(renderer, scene);
 const iblState = { ...DEFAULT_IBL_STATE };
