@@ -1228,6 +1228,7 @@ updateIBL();
 loadFromLocalStorage();
 initModelPersistence();
 refreshPads();
+updateCameraPosition();
 loop();
 
 // Expose Application APIs
