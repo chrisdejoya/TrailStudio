@@ -1,820 +1,898 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TrailStudio</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&family=Michroma&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./css/compositiongrid.css" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="./css/style.css">
-<link rel="modulepreload" href="./js/app.js">
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
-  }
-}
-</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrailStudio</title>
+
+  <!-- Preconnect and Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Michroma&family=Rajdhani:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="./css/compositiongrid.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="./css/style.css">
+
+  <!-- Module Preloading & Import Maps -->
+  <link rel="modulepreload" href="./js/app.js">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
-<div id="app"></div>
 
-<!-- =========================================================================
-     DIAGNOSTICS PANEL (upper right, toggled with backtick)
-     ========================================================================= -->
-<div id="hud">
-  <section id="left" class="panel">
-    <div class="hud-row">
-      <h1>Gamepad Diagnostics</h1>
-      <select id="padSelect" class="pad-select"><option>No controller detected</option></select>
-      <div class="row"><span>Status</span><span id="status" class="status">Waiting</span></div>
-      <div class="row"><span>Mapping</span><span id="mapping" class="value">—</span></div>
-      <div class="row"><span>Axes</span><span id="axisCount" class="value">—</span></div>
-      <div class="row"><span>Buttons</span><span id="buttonCount" class="value">—</span></div>
-      <div class="flex-auto-gap">
-        <button id="scan">Rescan</button>
-        <button id="rumble">Rumble</button>
-      </div>
-    </div>
+  <!-- Root Application Container -->
+  <div id="app"></div>
 
-    <div class="hud-row">
-      <div class="hud-sticks">
-        <div class="hud-stick-item">
-          <h2>L</h2>
-          <div class="meter"><div class="cross x"></div><div class="cross y"></div><div id="leftDot" class="dot"></div></div>
-          <div class="row"><div class="bar"><div id="lxBar" class="fill"></div></div><span id="lx" class="value">0.000</span></div>
+  <!-- Diagnostics HUD Panel (Upper Right, Toggled via Backtick) -->
+  <aside id="hud" aria-label="Gamepad Diagnostics">
+    <section id="left" class="panel">
+      
+      <!-- Controller Status Block -->
+      <div class="hud-row">
+        <h1>Gamepad Diagnostics</h1>
+        <select id="padSelect" class="pad-select" aria-label="Select connected gamepad">
+          <option>No controller detected</option>
+        </select>
+        <div class="row">
+          <span>Status</span>
+          <span id="status" class="status">Waiting</span>
         </div>
-        <div class="hud-stick-item">
-          <h2>R</h2>
-          <div class="meter"><div class="cross x"></div><div class="cross y"></div><div id="rightDot" class="dot"></div></div>
-          <div class="row"><div class="bar"><div id="rxBar" class="fill"></div></div><span id="rx" class="value">0.000</span></div>
+        <div class="row">
+          <span>Mapping</span>
+          <span id="mapping" class="value">—</span>
+        </div>
+        <div class="row">
+          <span>Axes</span>
+          <span id="axisCount" class="value">—</span>
+        </div>
+        <div class="row">
+          <span>Buttons</span>
+          <span id="buttonCount" class="value">—</span>
+        </div>
+        <div class="flex-auto-gap">
+          <button id="scan" type="button">Rescan</button>
+          <button id="rumble" type="button">Rumble</button>
         </div>
       </div>
-       
-      <div id="buttons" class="buttons"></div>
-    </div>
-  </section>
-</div>
 
-<!-- =========================================================================
-     INSPECTOR SHELL (sidebar, matches ui.html design)
-     ========================================================================= -->
-<div class="inspector-shell" id="inspector-shell">
-  <div class="mode-header" aria-label="Inspector sections">
-    <button class="mode-tab active" type="button" data-mode="group-model" onclick="switchMode('group-model')">
-      <span class="mode-tab-icon">◈</span>
-      <span class="mode-tab-label">Controller</span>
-    </button>
-    <button class="mode-tab" type="button" data-mode="group-camera" onclick="switchMode('group-camera')">
-      <span class="mode-tab-icon">◎</span>
-      <span class="mode-tab-label">Camera</span>
-    </button>
-    <button class="mode-tab" type="button" data-mode="group-environment" onclick="switchMode('group-environment')">
-      <span class="mode-tab-icon">◌</span>
-      <span class="mode-tab-label">Environment</span>
-    </button>
-    <button class="mode-tab" type="button" data-mode="group-lighting" onclick="switchMode('group-lighting')">
-      <span class="mode-tab-icon">✦</span>
-      <span class="mode-tab-label">Lighting</span>
-    </button>
-    <button class="mode-tab" type="button" data-mode="group-postprocessing" onclick="switchMode('group-postprocessing')">
-      <span class="mode-tab-icon">◍</span>
-      <span class="mode-tab-label">Image Quality</span>
-    </button>
-    <button class="mode-tab" type="button" data-mode="group-scene" onclick="switchMode('group-scene')">
-      <span class="mode-tab-icon">▣</span>
-      <span class="mode-tab-label">Scene</span>
-    </button>
+      <!-- Analog Sticks & Input Display -->
+      <div class="hud-row">
+        <div class="hud-sticks">
+          <div class="hud-stick-item">
+            <h2>L</h2>
+            <div class="meter" aria-hidden="true">
+              <div class="cross x"></div>
+              <div class="cross y"></div>
+              <div id="leftDot" class="dot"></div>
+            </div>
+            <div class="row">
+              <div class="bar"><div id="lxBar" class="fill"></div></div>
+              <span id="lx" class="value">0.000</span>
+            </div>
+          </div>
+          <div class="hud-stick-item">
+            <h2>R</h2>
+            <div class="meter" aria-hidden="true">
+              <div class="cross x"></div>
+              <div class="cross y"></div>
+              <div id="rightDot" class="dot"></div>
+            </div>
+            <div class="row">
+              <div class="bar"><div id="rxBar" class="fill"></div></div>
+              <span id="rx" class="value">0.000</span>
+            </div>
+          </div>
+        </div>
+        <div id="buttons" class="buttons"></div>
+      </div>
+
+    </section>
+  </aside>
+
+  <!-- Inspector Shell Sidebar -->
+  <div class="inspector-shell" id="inspector-shell">
+    
+    <!-- Navigation Tabs -->
+    <nav class="mode-header" aria-label="Inspector Sections">
+      <button class="mode-tab active" type="button" data-mode="group-model" onclick="switchMode('group-model')">
+        <span class="mode-tab-icon" aria-hidden="true">◈</span>
+        <span class="mode-tab-label">Controller</span>
+      </button>
+      <button class="mode-tab" type="button" data-mode="group-camera" onclick="switchMode('group-camera')">
+        <span class="mode-tab-icon" aria-hidden="true">◎</span>
+        <span class="mode-tab-label">Camera</span>
+      </button>
+      <button class="mode-tab" type="button" data-mode="group-environment" onclick="switchMode('group-environment')">
+        <span class="mode-tab-icon" aria-hidden="true">◌</span>
+        <span class="mode-tab-label">Environment</span>
+      </button>
+      <button class="mode-tab" type="button" data-mode="group-lighting" onclick="switchMode('group-lighting')">
+        <span class="mode-tab-icon" aria-hidden="true">✦</span>
+        <span class="mode-tab-label">Lighting</span>
+      </button>
+      <button class="mode-tab" type="button" data-mode="group-postprocessing" onclick="switchMode('group-postprocessing')">
+        <span class="mode-tab-icon" aria-hidden="true">◍</span>
+        <span class="mode-tab-label">Image Quality</span>
+      </button>
+      <button class="mode-tab" type="button" data-mode="group-scene" onclick="switchMode('group-scene')">
+        <span class="mode-tab-icon" aria-hidden="true">▣</span>
+        <span class="mode-tab-label">Scene</span>
+      </button>
+    </nav>
+
+    <!-- Scrollable Inspector Content Container -->
+    <main class="inspector-scroll" id="inspectorScroll">
+
+      <!-- ============================ CONTROLLER / MODEL ============================ -->
+      <section id="group-model" class="inspector-group active is-visible">
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Model</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Scale</span></div>
+                  <input type="number" id="modelScaleInput" class="drag-input" min="0.01" max="10" step="0.05" value="1.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="modelScale" min="0.1" max="3" step="0.05" value="1">
+                </div>
+              </div>
+              <div class="checkbox-row">
+                <input type="checkbox" id="boneVisibilityToggle">
+                <label for="boneVisibilityToggle">Show Bones</label>
+              </div>
+              <div class="checkbox-row">
+                <input type="checkbox" id="syncLeftStickDpadToggle">
+                <label for="syncLeftStickDpadToggle">Sync Direction Inputs</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Load Model</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <input type="file" id="glbFile" accept=".glb,.gltf">
+              <button id="openPickerBtn" class="btn" type="button">Pick Persistent File</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Material & Transform</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="row-stacked">
+                <span>Glow Color</span>
+                <div id="emissionColor" class="custom-color-picker" data-value="#ffffff"></div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Glow Intensity</span></div>
+                  <input type="number" id="emissionIntensityInput" class="drag-input" min="0" max="100" step="0.05" value="1.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="emissionIntensity" min="0" max="100" step="0.05" value="1.0">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left">
+              <label class="inline-label-lg">
+                <input type="checkbox" id="trailEnabled" checked onclick="event.stopPropagation()">
+              </label>
+              <span>Trail</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="row-stacked">
+                <span>Start Color</span>
+                <div id="trailColorStart" class="custom-color-picker" data-value="#aa0022"></div>
+              </div>
+              <div class="row-stacked">
+                <span>End Color</span>
+                <div id="trailColorEnd" class="custom-color-picker" data-value="#00aaaa"></div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Intensity</span></div>
+                  <input type="number" id="trailIntensityInput" class="drag-input" min="0" max="10" step="0.05" value="1.25">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="trailIntensity" min="0" max="5" step="0.05" value="1.25">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Width</span></div>
+                  <input type="number" id="trailWidthInput" class="drag-input" min="0.001" max="1" step="0.001" value="0.050">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="trailWidth" min="0.001" max="0.5" step="0.001" value="0.05">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Length</span></div>
+                  <input type="number" id="trailLengthInput" class="drag-input" min="0.1" max="20" step="0.1" value="10.0">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="trailLength" min="0.1" max="20" step="0.1" value="10">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Offset</span></div>
+                  <input type="number" id="trailOffsetInput" class="drag-input" min="-10" max="10" step="0.01" value="0.20">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="trailOffset" min="-5" max="5" step="0.01" value="0.20">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Radius</span></div>
+                  <input type="number" id="trailRadiusInput" class="drag-input" min="0" max="5" step="0.01" value="0.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="trailRadius" min="0" max="5" step="0.01" value="0">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left">
+              <label class="inline-label-lg">
+                <input type="checkbox" id="buttonLabelsEnabled" checked onclick="event.stopPropagation()">
+              </label>
+              <span>Button Labels</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Font</span></div>
+                  <select id="buttonLabelFont" class="drag-input">
+                    <option value='Rubik, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' selected>Rubik (Default)</option>
+                    <option value='"Exo 2", sans-serif'>Exo 2</option>
+                    <option value='"Michroma", sans-serif'>Michroma</option>
+                    <option value='"Rajdhani", sans-serif'>Rajdhani</option>
+                  </select>
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Label Offset Y</span></div>
+                  <input type="number" id="buttonLabelOffsetYInput" class="drag-input" min="-1" max="1" step="0.01" value="0.20">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="buttonLabelOffsetY" min="-1" max="1" step="0.01" value="0.20">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Font Size</span></div>
+                  <input type="number" id="buttonLabelFontSizeInput" class="drag-input" min="8" max="48" step="1" value="16">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="buttonLabelFontSize" min="8" max="48" step="1" value="16">
+                </div>
+              </div>
+              <div class="row-stacked">
+                <span>Label Color</span>
+                <div id="buttonLabelColor" class="custom-color-picker" data-value="#ffffff"></div>
+              </div>
+              <hr class="divider">
+              <div class="row-stacked muted-small">
+                <span>Labels auto-generate from connected gamepad button mappings. Edit labels below once detected.</span>
+              </div>
+              <div id="buttonLabelList" class="vertical-gap-4"></div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================ CAMERA ============================ -->
+      <section id="group-camera" class="inspector-group">
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Settings</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>FOV</span></div>
+                  <input type="number" id="camFovInput" class="drag-input" min="1" max="170" step="1" value="50">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="camFov" min="15" max="100" step="1" value="50">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Zoom</span></div>
+                  <input type="number" id="camRadiusInput" class="drag-input" min="0.5" max="50" step="0.1" value="6.5">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="camRadius" min="2" max="15" step="0.1" value="6.5">
+                </div>
+              </div>
+              <div class="control-row">
+                <label for="fpsSelect">Target FPS</label>
+                <select id="fpsSelect">
+                  <option value="30">30 FPS</option>
+                  <option value="60" selected>60 FPS</option>
+                  <option value="120">120 FPS</option>
+                </select>
+              </div>
+              <div class="checkbox-row">
+                <input type="checkbox" id="fpsToggle">
+                <label for="fpsToggle">Limit FPS</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Rotation (X, Y, Z)</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="vec3-group">
+                <input type="number" id="camRotX" value="0" step="1" aria-label="Pitch (X)">
+                <input type="number" id="camRotY" value="0" step="1" aria-label="Yaw (Y)">
+                <input type="number" id="camRotZ" value="0" step="1" aria-label="Roll (Z)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Target (X, Y, Z)</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="vec3-group">
+                <input type="number" id="camTargetX" value="0" step="0.1" aria-label="Target X">
+                <input type="number" id="camTargetY" value="-0.2" step="0.1" aria-label="Target Y">
+                <input type="number" id="camTargetZ" value="0" step="0.1" aria-label="Target Z">
+              </div>
+              <button id="resetCamBtn" class="btn mt-8" type="button">Reset Camera</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ ENVIRONMENT / IBL ============================ -->
+      <section id="group-environment" class="inspector-group">
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Image Based Lighting</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <canvas id="iblPreview" class="ibl-preview" width="256" height="56"></canvas>
+              <div class="checkbox-row">
+                <input type="checkbox" id="iblEnabled" checked>
+                <label for="iblEnabled">Enable IBL</label>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Intensity</span></div>
+                  <input type="number" id="iblIntensityInput" class="drag-input" min="0" max="10" step="0.05" value="1.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblIntensity" min="0" max="5" step="0.05" value="1">
+                </div>
+              </div>
+
+              <!-- IBL Mode Selection -->
+              <div class="row-stacked mt-8">
+                <span>Mode</span>
+                <div class="flex-gap-12-wrap">
+                  <label class="inline-label">
+                    <input type="radio" name="iblMode" value="procedural" checked> Procedural
+                  </label>
+                  <label class="inline-label">
+                    <input type="radio" name="iblMode" value="texture"> Texture
+                  </label>
+                </div>
+              </div>
+
+              <!-- Texture Selection (Texture Mode) -->
+              <div class="row-stacked hidden" id="iblTextureControls">
+                <label for="iblTextureSelect">Environment Texture</label>
+                <select id="iblTextureSelect" class="ibl-texture-select">
+                  <option value="procedural">Procedural Sky</option>
+                  <option value="studio">Studio</option>
+                  <option value="studio2">Studio 2</option>
+                  <option value="outdoors">Outdoors</option>
+                  <option value="neon">Neon</option>
+                </select>
+              </div>
+
+              <!-- Texture Rotation & Scale (Texture Mode) -->
+              <div class="slider-row hidden" id="iblTextureTransformControls">
+                <div class="row">
+                  <div class="label-with-icon">
+                    <span>Rotation</span>
+                  </div>
+                  <input type="text" class="drag-input" value="0.0" id="iblTextureRotationInput">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblTextureRotation" min="-3.14" max="3.14" step="0.01" value="0.0">
+                </div>
+              </div>
+
+              <div class="slider-row hidden" id="iblTextureScaleControls">
+                <div class="row">
+                  <div class="label-with-icon">
+                    <span>Scale</span>
+                  </div>
+                  <input type="text" class="drag-input" value="1.0" id="iblTextureScaleInput">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblTextureScale" min="0.1" max="5.0" step="0.05" value="1.0">
+                </div>
+              </div>
+
+              <div class="checkbox-row">
+                <input type="checkbox" id="iblBackground">
+                <label for="iblBackground">Background</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed" id="iblProceduralControls">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Sky Gradient</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="row-stacked"><span>Sky Color</span><div id="iblSkyColor" class="custom-color-picker" data-value="#1e293b"></div></div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Sky Level</span></div>
+                  <input type="number" id="iblSkyLevelInput" class="drag-input" min="0.01" max="1" step="0.01" value="0.40">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSkyLevel" min="0.01" max="1" step="0.01" value="0.4">
+                </div>
+              </div>
+              <div class="row-stacked"><span>Horizon Color</span><div id="iblHorizonColor" class="custom-color-picker" data-value="#38bdf8"></div></div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Horizon Level</span></div>
+                  <input type="number" id="iblHorizonLevelInput" class="drag-input" min="-0.5" max="0.5" step="0.01" value="0.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblHorizonLevel" min="-0.5" max="0.5" step="0.01" value="0">
+                </div>
+              </div>
+              <div class="row-stacked"><span>Ground Color</span><div id="iblGroundColor" class="custom-color-picker" data-value="#0f172a"></div></div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Ground Level</span></div>
+                  <input type="number" id="iblGroundLevelInput" class="drag-input" min="-1" max="-0.01" step="0.01" value="-0.40">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblGroundLevel" min="-1" max="-0.01" step="0.01" value="-0.4">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left">
+              <input type="checkbox" id="iblSun1Visible" checked onclick="event.stopPropagation()">
+              <label for="iblSun1Visible" class="inline-label" onclick="event.stopPropagation()">Sun 1</label>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="row-stacked"><span>Color</span><div id="iblSun1Color" class="custom-color-picker" data-value="#ffffff"></div></div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Elevation</span></div>
+                  <input type="number" id="iblSun1ElevationInput" class="drag-input" min="0" max="90" step="1" value="45">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSun1Elevation" min="0" max="90" step="1" value="45">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Azimuth</span></div>
+                  <input type="number" id="iblSun1AzimuthInput" class="drag-input" min="0" max="360" step="1" value="180">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSun1Azimuth" min="0" max="360" step="1" value="180">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Size</span></div>
+                  <input type="number" id="iblSun1SizeInput" class="drag-input" min="0.1" max="5" step="0.05" value="1.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSun1Size" min="0.1" max="5" step="0.05" value="1">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Intensity</span></div>
+                  <input type="number" id="iblSun1IntensityInput" class="drag-input" min="0" max="10" step="0.1" value="5.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSun1Intensity" min="0" max="10" step="0.1" value="5">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Atmosphere</span></div>
+                  <input type="number" id="iblSun1AtmosphereInput" class="drag-input" min="0" max="1" step="0.01" value="0.50">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSun1Atmosphere" min="0" max="1" step="0.01" value="0.5">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left">
+              <input type="checkbox" id="iblSun2Visible" checked onclick="event.stopPropagation()">
+              <label for="iblSun2Visible" class="inline-label" onclick="event.stopPropagation()">Sun 2</label>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="row-stacked"><span>Color</span><div id="iblSun2Color" class="custom-color-picker" data-value="#f59e0b"></div></div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Elevation</span></div>
+                  <input type="number" id="iblSun2ElevationInput" class="drag-input" min="0" max="90" step="1" value="20">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSun2Elevation" min="0" max="90" step="1" value="20">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Azimuth</span></div>
+                  <input type="number" id="iblSun2AzimuthInput" class="drag-input" min="0" max="360" step="1" value="45">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSun2Azimuth" min="0" max="360" step="1" value="45">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Size</span></div>
+                  <input type="number" id="iblSun2SizeInput" class="drag-input" min="0.1" max="5" step="0.05" value="1.50">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSun2Size" min="0.1" max="5" step="0.05" value="1.5">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Intensity</span></div>
+                  <input type="number" id="iblSun2IntensityInput" class="drag-input" min="0" max="10" step="0.1" value="0.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSun2Intensity" min="0" max="10" step="0.1" value="0">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Atmosphere</span></div>
+                  <input type="number" id="iblSun2AtmosphereInput" class="drag-input" min="0" max="1" step="0.01" value="0.70">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblSun2Atmosphere" min="0" max="1" step="0.01" value="0.7">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left">
+              <input type="checkbox" id="iblRingVisible" checked onclick="event.stopPropagation()">
+              <label for="iblRingVisible" class="inline-label" onclick="event.stopPropagation()">Studio Ring</label>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="row-stacked"><span>Color</span><div id="iblRingColor" class="custom-color-picker" data-value="#38bdf8"></div></div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Height</span></div>
+                  <input type="number" id="iblRingHeightInput" class="drag-input" min="-1" max="1" step="0.05" value="0.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblRingHeight" min="-1" max="1" step="0.05" value="0">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Intensity</span></div>
+                  <input type="number" id="iblRingIntensityInput" class="drag-input" min="0" max="10" step="0.1" value="3.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="iblRingIntensity" min="0" max="10" step="0.1" value="3">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ LIGHTING ============================ -->
+      <section id="group-lighting" class="inspector-group">
+        <div id="dockContent" class="lighting-grid"></div>
+      </section>
+
+      <!-- ============================ IMAGE QUALITY / POST-PROCESSING ============================ -->
+      <section id="group-postprocessing" class="inspector-group">
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Quality & Shadows</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="checkbox-row"><input type="checkbox" id="aaToggle" checked><label for="aaToggle">Enable AA</label></div>
+              <div class="control-row">
+                <label for="aaQualitySelect">AA Mode</label>
+                <select id="aaQualitySelect">
+                  <option value="fxaa+2msaa">FXAA + 2x MSAA</option>
+                  <option value="fxaa+4msaa" selected>FXAA + 4x MSAA</option>
+                  <option value="fxaa+8msaa">FXAA + 8x MSAA</option>
+                  <option value="fxaa">FXAA Only</option>
+                </select>
+              </div>
+              <div class="control-row">
+                <label for="shadowQualitySelect">Shadow Res</label>
+                <select id="shadowQualitySelect">
+                  <option value="512">Low (512px)</option>
+                  <option value="1024">Medium (1024px)</option>
+                  <option value="2048" selected>High (2048px)</option>
+                  <option value="4096">Ultra (4096px)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left">
+              <input type="checkbox" id="bloomToggle" onclick="event.stopPropagation()">
+              <label for="bloomToggle" class="inline-label" onclick="event.stopPropagation()">Bloom</label>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Strength</span></div>
+                  <input type="number" id="bloomStrengthInput" class="drag-input" min="0" max="5" step="0.05" value="1.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="bloomStrength" min="0" max="3" step="0.05" value="1.0">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Radius</span></div>
+                  <input type="number" id="bloomRadiusInput" class="drag-input" min="0" max="5" step="0.05" value="0.75">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="bloomRadius" min="0" max="2" step="0.05" value="0.75">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Threshold</span></div>
+                  <input type="number" id="bloomThresholdInput" class="drag-input" min="0" max="1" step="0.05" value="0.90">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="bloomThreshold" min="0" max="1" step="0.05" value="0.9">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left">
+              <input type="checkbox" id="aoToggle" onclick="event.stopPropagation()">
+              <label for="aoToggle" class="inline-label" onclick="event.stopPropagation()">Ambient Occlusion</label>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Radius</span></div>
+                  <input type="number" id="aoRadiusInput" class="drag-input" min="0" max="32" step="0.5" value="8.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="aoRadius" min="0" max="32" step="0.5" value="8">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Min Distance</span></div>
+                  <input type="number" id="aoMinDistanceInput" class="drag-input" min="0" max="0.1" step="0.001" value="0.001">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="aoMinDistance" min="0" max="0.1" step="0.001" value="0.001">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Max Distance</span></div>
+                  <input type="number" id="aoMaxDistanceInput" class="drag-input" min="0.01" max="1" step="0.01" value="0.10">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="aoMaxDistance" min="0.01" max="1" step="0.01" value="0.1">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Color & Exposure</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <div class="control-row">
+                <label for="toneMappingSelect">Tone Mapping</label>
+                <select id="toneMappingSelect">
+                  <option value="ACESFilmic" selected>ACES Filmic</option>
+                  <option value="Linear">Linear</option>
+                  <option value="Reinhard">Reinhard</option>
+                  <option value="Cineon">Cineon</option>
+                </select>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Exposure</span></div>
+                  <input type="number" id="exposureInput" class="drag-input" min="0.01" max="10" step="0.05" value="1.10">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="exposureRange" min="0.1" max="3" step="0.05" value="1.1">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Contrast</span></div>
+                  <input type="number" id="contrastInput" class="drag-input" min="0.5" max="1.5" step="0.05" value="1.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="contrastRange" min="0.5" max="1.5" step="0.05" value="1.0">
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="row">
+                  <div class="label-with-icon"><span>Saturation</span></div>
+                  <input type="number" id="saturationInput" class="drag-input" min="0" max="5" step="0.05" value="1.00">
+                </div>
+                <div class="slider-controls">
+                  <input type="range" id="saturationRange" min="0" max="2" step="0.05" value="1.0">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ SCENE ============================ -->
+      <section id="group-scene" class="inspector-group">
+        <div class="panel collapsed">
+          <div class="panel-header" onclick="togglePanel(this)" role="button" tabindex="0">
+            <div class="panel-header-left"><span>Scene</span></div>
+          </div>
+          <div class="panel-body">
+            <div class="panel-body-content">
+              <button id="loadDefaultBtn" class="btn" type="button">Reset Scene</button>
+              <button id="exportSettingsBtn" class="btn" type="button">Save Scene</button>
+              <label class="file-btn-label">
+                Load Scene
+                <input type="file" id="importSettingsInput" accept=".json" class="hidden">
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
   </div>
 
-  <main class="inspector-scroll" id="inspectorScroll">
-
-    <!-- ============================ CONTROLLER / MODEL ============================ -->
-    <div id="group-model" class="inspector-group active is-visible">
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Model</span></div>
-        </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Scale</span></div>
-              <input type="number" id="modelScaleInput" class="drag-input" min="0.01" max="10" step="0.05" value="1.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="modelScale" min="0.1" max="3" step="0.05" value="1">
-            </div>
-          </div>
-          <div class="checkbox-row">
-            <input type="checkbox" id="boneVisibilityToggle">
-            <label for="boneVisibilityToggle">Show Bones</label>
-          </div>
-          <div class="checkbox-row">
-            <input type="checkbox" id="syncLeftStickDpadToggle">
-            <label for="syncLeftStickDpadToggle">Sync Direction Inputs</label>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Load Model</span></div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <input type="file" id="glbFile" accept=".glb,.gltf">
-          <button id="openPickerBtn" class="btn">Pick Persistent File</button>
-        </div></div>
-      </div>
-
-<div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Material & Transform</span></div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="row-stacked">
-            <span>Glow Color</span>
-            <div id="emissionColor" class="custom-color-picker" data-value="#ffffff"></div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Glow Intensity</span></div>
-              <input type="number" id="emissionIntensityInput" class="drag-input" min="0" max="100" step="0.05" value="1.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="emissionIntensity" min="0" max="100" step="0.05" value="1.0">
-            </div>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left">
-            <label class="inline-label-lg">
-              <input type="checkbox" id="trailEnabled" checked onclick="event.stopPropagation()">
-            </label>
-            <span>Trail</span>
-          </div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="row-stacked">
-            <span>Start Color</span>
-            <div id="trailColorStart" class="custom-color-picker" data-value="#aa0022"></div>
-          </div>
-          <div class="row-stacked">
-            <span>End Color</span>
-            <div id="trailColorEnd" class="custom-color-picker" data-value="#00aaaa"></div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Intensity</span></div>
-              <input type="number" id="trailIntensityInput" class="drag-input" min="0" max="10" step="0.05" value="1.25">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="trailIntensity" min="0" max="5" step="0.05" value="1.25">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Width</span></div>
-              <input type="number" id="trailWidthInput" class="drag-input" min="0.001" max="1" step="0.001" value="0.050">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="trailWidth" min="0.001" max="0.5" step="0.001" value="0.05">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Length</span></div>
-              <input type="number" id="trailLengthInput" class="drag-input" min="0.1" max="20" step="0.1" value="10.0">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="trailLength" min="0.1" max="20" step="0.1" value="10">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Offset</span></div>
-              <input type="number" id="trailOffsetInput" class="drag-input" min="-10" max="10" step="0.01" value="0.20">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="trailOffset" min="-5" max="5" step="0.01" value="0.20">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Radius</span></div>
-              <input type="number" id="trailRadiusInput" class="drag-input" min="0" max="5" step="0.01" value="0.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="trailRadius" min="0" max="5" step="0.01" value="0">
-            </div>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left">
-            <label class="inline-label-lg">
-              <input type="checkbox" id="buttonLabelsEnabled" checked onclick="event.stopPropagation()">
-            </label>
-            <span>Button Labels</span>
-          </div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Font</span></div>
-              <select id="buttonLabelFont" class="drag-input">
-                <option value='Rubik, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' selected>Rubik (Default)</option>
-                <option value='"Exo 2", sans-serif'>Exo 2</option>
-                <option value='"Michroma", sans-serif'>Michroma</option>
-                <option value='"Rajdhani", sans-serif'>Rajdhani</option>
-              </select>
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Label Offset Y</span></div>
-              <input type="number" id="buttonLabelOffsetYInput" class="drag-input" min="-1" max="1" step="0.01" value="0.20">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="buttonLabelOffsetY" min="-1" max="1" step="0.01" value="0.20">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Font Size</span></div>
-              <input type="number" id="buttonLabelFontSizeInput" class="drag-input" min="8" max="48" step="1" value="16">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="buttonLabelFontSize" min="8" max="48" step="1" value="16">
-            </div>
-          </div>
-          <div class="row-stacked">
-            <span>Label Color</span>
-            <div id="buttonLabelColor" class="custom-color-picker" data-value="#ffffff"></div>
-          </div>
-          <hr class="divider">
-          <div class="row-stacked muted-small">
-            <span>Labels auto-generate from connected gamepad button mappings. Edit labels below once detected.</span>
-          </div>
-          <div id="buttonLabelList" class="vertical-gap-4"></div>
-        </div></div>
-      </div>
-
-    </div>
-
-    <!-- ============================ CAMERA ============================ -->
-    <div id="group-camera" class="inspector-group">
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Settings</span></div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>FOV</span></div>
-              <input type="number" id="camFovInput" class="drag-input" min="1" max="170" step="1" value="50">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="camFov" min="15" max="100" step="1" value="50">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Zoom</span></div>
-              <input type="number" id="camRadiusInput" class="drag-input" min="0.5" max="50" step="0.1" value="6.5">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="camRadius" min="2" max="15" step="0.1" value="6.5">
-            </div>
-          </div>
-          <div class="control-row">
-            <label>Target FPS</label>
-            <select id="fpsSelect">
-              <option value="30">30 FPS</option>
-              <option value="60" selected>60 FPS</option>
-              <option value="120">120 FPS</option>
-            </select>
-          </div>
-          <div class="checkbox-row">
-            <input type="checkbox" id="fpsToggle">
-            <label for="fpsToggle">Limit FPS</label>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Rotation (X, Y, Z)</span></div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="vec3-group">
-            <input type="number" id="camRotX" value="0" step="1" title="Pitch (X)">
-            <input type="number" id="camRotY" value="0" step="1" title="Yaw (Y)">
-            <input type="number" id="camRotZ" value="0" step="1" title="Roll (Z)">
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Target (X, Y, Z)</span></div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="vec3-group">
-            <input type="number" id="camTargetX" value="0" step="0.1">
-            <input type="number" id="camTargetY" value="-0.2" step="0.1">
-            <input type="number" id="camTargetZ" value="0" step="0.1">
-          </div>
-          <button id="resetCamBtn" class="btn mt-8">Reset Camera</button>
-        </div></div>
-      </div>
-    </div>
-
-    <!-- ============================ ENVIRONMENT / IBL ============================ -->
-    <div id="group-environment" class="inspector-group">
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Image Based Lighting</span></div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <canvas id="iblPreview" class="ibl-preview" width="256" height="56"></canvas>
-          <div class="checkbox-row">
-            <input type="checkbox" id="iblEnabled" checked>
-            <label for="iblEnabled">Enable IBL</label>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Intensity</span></div>
-              <input type="number" id="iblIntensityInput" class="drag-input" min="0" max="10" step="0.05" value="1.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblIntensity" min="0" max="5" step="0.05" value="1">
-            </div>
-          </div>
-
-          <!-- IBL Mode Selection -->
-          <div class="row-stacked mt-8">
-            <span>Mode</span>
-            <div class="flex-gap-12-wrap">
-              <label class="inline-label">
-                <input type="radio" name="iblMode" value="procedural" checked> Procedural
-              </label>
-              <label class="inline-label">
-                <input type="radio" name="iblMode" value="texture"> Texture
-              </label>
-            </div>
-          </div>
-
-          <!-- Texture Selection (Texture Mode) -->
-          <div class="row-stacked hidden" id="iblTextureControls">
-            <span>Environment Texture</span>
-            <select id="iblTextureSelect" class="ibl-texture-select">
-              <option value="procedural">Procedural Sky</option>
-              <option value="studio">Studio</option>
-              <option value="studio2">Studio 2</option>
-              <option value="outdoors">Outdoors</option>
-              <option value="neon">Neon</option>
-            </select>
-          </div>
-
-          <!-- Texture Rotation & Scale (Texture Mode) -->
-          <div class="slider-row hidden" id="iblTextureTransformControls">
-            <div class="row">
-              <div class="label-with-icon">
-                <span>Rotation</span>
-              </div>
-              <input type="text" class="drag-input" value="0.0" id="iblTextureRotationInput">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblTextureRotation" min="-3.14" max="3.14" step="0.01" value="0.0">
-            </div>
-          </div>
-
-          <div class="slider-row hidden" id="iblTextureScaleControls">
-            <div class="row">
-              <div class="label-with-icon">
-                <span>Scale</span>
-              </div>
-              <input type="text" class="drag-input" value="1.0" id="iblTextureScaleInput">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblTextureScale" min="0.1" max="5.0" step="0.05" value="1.0">
-            </div>
-          </div>
-
-          <div class="checkbox-row">
-            <input type="checkbox" id="iblBackground">
-            <label for="iblBackground">Background</label>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed" id="iblProceduralControls">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Sky Gradient</span></div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="row-stacked"><span>Sky Color</span><div id="iblSkyColor" class="custom-color-picker" data-value="#1e293b"></div></div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Sky Level</span></div>
-              <input type="number" id="iblSkyLevelInput" class="drag-input" min="0.01" max="1" step="0.01" value="0.40">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSkyLevel" min="0.01" max="1" step="0.01" value="0.4">
-            </div>
-          </div>
-          <div class="row-stacked"><span>Horizon Color</span><div id="iblHorizonColor" class="custom-color-picker" data-value="#38bdf8"></div></div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Horizon Level</span></div>
-              <input type="number" id="iblHorizonLevelInput" class="drag-input" min="-0.5" max="0.5" step="0.01" value="0.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblHorizonLevel" min="-0.5" max="0.5" step="0.01" value="0">
-            </div>
-          </div>
-          <div class="row-stacked"><span>Ground Color</span><div id="iblGroundColor" class="custom-color-picker" data-value="#0f172a"></div></div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Ground Level</span></div>
-              <input type="number" id="iblGroundLevelInput" class="drag-input" min="-1" max="-0.01" step="0.01" value="-0.40">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblGroundLevel" min="-1" max="-0.01" step="0.01" value="-0.4">
-            </div>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left">
-            <input type="checkbox" id="iblSun1Visible" checked onclick="event.stopPropagation()">
-            <label for="iblSun1Visible" class="inline-label" onclick="event.stopPropagation()">Sun 1</label>
-          </div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="row-stacked"><span>Color</span><div id="iblSun1Color" class="custom-color-picker" data-value="#ffffff"></div></div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Elevation</span></div>
-              <input type="number" id="iblSun1ElevationInput" class="drag-input" min="0" max="90" step="1" value="45">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSun1Elevation" min="0" max="90" step="1" value="45">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Azimuth</span></div>
-              <input type="number" id="iblSun1AzimuthInput" class="drag-input" min="0" max="360" step="1" value="180">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSun1Azimuth" min="0" max="360" step="1" value="180">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Size</span></div>
-              <input type="number" id="iblSun1SizeInput" class="drag-input" min="0.1" max="5" step="0.05" value="1.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSun1Size" min="0.1" max="5" step="0.05" value="1">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Intensity</span></div>
-              <input type="number" id="iblSun1IntensityInput" class="drag-input" min="0" max="10" step="0.1" value="5.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSun1Intensity" min="0" max="10" step="0.1" value="5">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Atmosphere</span></div>
-              <input type="number" id="iblSun1AtmosphereInput" class="drag-input" min="0" max="1" step="0.01" value="0.50">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSun1Atmosphere" min="0" max="1" step="0.01" value="0.5">
-            </div>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left">
-            <input type="checkbox" id="iblSun2Visible" checked onclick="event.stopPropagation()">
-            <label for="iblSun2Visible" class="inline-label" onclick="event.stopPropagation()">Sun 2</label>
-          </div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="row-stacked"><span>Color</span><div id="iblSun2Color" class="custom-color-picker" data-value="#f59e0b"></div></div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Elevation</span></div>
-              <input type="number" id="iblSun2ElevationInput" class="drag-input" min="0" max="90" step="1" value="20">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSun2Elevation" min="0" max="90" step="1" value="20">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Azimuth</span></div>
-              <input type="number" id="iblSun2AzimuthInput" class="drag-input" min="0" max="360" step="1" value="45">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSun2Azimuth" min="0" max="360" step="1" value="45">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Size</span></div>
-              <input type="number" id="iblSun2SizeInput" class="drag-input" min="0.1" max="5" step="0.05" value="1.50">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSun2Size" min="0.1" max="5" step="0.05" value="1.5">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Intensity</span></div>
-              <input type="number" id="iblSun2IntensityInput" class="drag-input" min="0" max="10" step="0.1" value="0.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSun2Intensity" min="0" max="10" step="0.1" value="0">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Atmosphere</span></div>
-              <input type="number" id="iblSun2AtmosphereInput" class="drag-input" min="0" max="1" step="0.01" value="0.70">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblSun2Atmosphere" min="0" max="1" step="0.01" value="0.7">
-            </div>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left">
-            <input type="checkbox" id="iblRingVisible" checked onclick="event.stopPropagation()">
-            <label for="iblRingVisible" class="inline-label" onclick="event.stopPropagation()">Studio Ring</label>
-          </div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="row-stacked"><span>Color</span><div id="iblRingColor" class="custom-color-picker" data-value="#38bdf8"></div></div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Height</span></div>
-              <input type="number" id="iblRingHeightInput" class="drag-input" min="-1" max="1" step="0.05" value="0.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblRingHeight" min="-1" max="1" step="0.05" value="0">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Intensity</span></div>
-              <input type="number" id="iblRingIntensityInput" class="drag-input" min="0" max="10" step="0.1" value="3.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="iblRingIntensity" min="0" max="10" step="0.1" value="3">
-            </div>
-          </div>
-        </div></div>
-      </div>
-    </div>
-
-    <!-- ============================ LIGHTING ============================ -->
-    <div id="group-lighting" class="inspector-group">
-      <div id="dockContent" class="lighting-grid"></div>
-    </div>
-
-    <!-- ============================ IMAGE QUALITY / POST-PROCESSING ============================ -->
-    <div id="group-postprocessing" class="inspector-group">
-<div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Quality & Shadows</span></div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="checkbox-row"><input type="checkbox" id="aaToggle" checked><label for="aaToggle">Enable AA</label></div>
-          <div class="control-row">
-            <label>AA Mode</label>
-            <select id="aaQualitySelect">
-              <option value="fxaa+2msaa">FXAA + 2x MSAA</option>
-              <option value="fxaa+4msaa" selected>FXAA + 4x MSAA</option>
-              <option value="fxaa+8msaa">FXAA + 8x MSAA</option>
-              <option value="fxaa">FXAA Only</option>
-            </select>
-          </div>
-          <div class="control-row">
-            <label>Shadow Res</label>
-            <select id="shadowQualitySelect">
-              <option value="512">Low (512px)</option>
-              <option value="1024">Medium (1024px)</option>
-              <option value="2048" selected>High (2048px)</option>
-              <option value="4096">Ultra (4096px)</option>
-            </select>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left">
-            <input type="checkbox" id="bloomToggle" onclick="event.stopPropagation()">
-            <label for="bloomToggle" class="inline-label" onclick="event.stopPropagation()">Bloom</label>
-          </div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Strength</span></div>
-              <input type="number" id="bloomStrengthInput" class="drag-input" min="0" max="5" step="0.05" value="1.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="bloomStrength" min="0" max="3" step="0.05" value="1.0">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Radius</span></div>
-              <input type="number" id="bloomRadiusInput" class="drag-input" min="0" max="5" step="0.05" value="0.75">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="bloomRadius" min="0" max="2" step="0.05" value="0.75">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Threshold</span></div>
-              <input type="number" id="bloomThresholdInput" class="drag-input" min="0" max="1" step="0.05" value="0.90">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="bloomThreshold" min="0" max="1" step="0.05" value="0.9">
-            </div>
-          </div>
-        </div></div>
-      </div>
-
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left">
-            <input type="checkbox" id="aoToggle" onclick="event.stopPropagation()">
-            <label for="aoToggle" class="inline-label" onclick="event.stopPropagation()">Ambient Occlusion</label>
-          </div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Radius</span></div>
-              <input type="number" id="aoRadiusInput" class="drag-input" min="0" max="32" step="0.5" value="8.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="aoRadius" min="0" max="32" step="0.5" value="8">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Min Distance</span></div>
-              <input type="number" id="aoMinDistanceInput" class="drag-input" min="0" max="0.1" step="0.001" value="0.001">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="aoMinDistance" min="0" max="0.1" step="0.001" value="0.001">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Max Distance</span></div>
-              <input type="number" id="aoMaxDistanceInput" class="drag-input" min="0.01" max="1" step="0.01" value="0.10">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="aoMaxDistance" min="0.01" max="1" step="0.01" value="0.1">
-            </div>
-          </div>
-        </div></div>
-      </div>
-
-<div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Color & Exposure</span></div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <div class="control-row">
-            <label>Tone Mapping</label>
-            <select id="toneMappingSelect">
-              <option value="ACESFilmic" selected>ACES Filmic</option>
-              <option value="Linear">Linear</option>
-              <option value="Reinhard">Reinhard</option>
-              <option value="Cineon">Cineon</option>
-            </select>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Exposure</span></div>
-              <input type="number" id="exposureInput" class="drag-input" min="0.01" max="10" step="0.05" value="1.10">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="exposureRange" min="0.1" max="3" step="0.05" value="1.1">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Contrast</span></div>
-              <input type="number" id="contrastInput" class="drag-input" min="0.5" max="1.5" step="0.05" value="1.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="contrastRange" min="0.5" max="1.5" step="0.05" value="1.0">
-            </div>
-          </div>
-          <div class="slider-row">
-            <div class="row">
-              <div class="label-with-icon"><span>Saturation</span></div>
-              <input type="number" id="saturationInput" class="drag-input" min="0" max="5" step="0.05" value="1.00">
-            </div>
-            <div class="slider-controls">
-              <input type="range" id="saturationRange" min="0" max="2" step="0.05" value="1.0">
-            </div>
-          </div>
-        </div></div>
-      </div>
-    </div>
-
-    <!-- ============================ SCENE ============================ -->
-    <div id="group-scene" class="inspector-group">
-      <div class="panel collapsed">
-        <div class="panel-header" onclick="togglePanel(this)">
-          <div class="panel-header-left"><span>Scene</span></div>
-          </div>
-        <div class="panel-body"><div class="panel-body-content">
-          <button id="loadDefaultBtn" class="btn">Reset Scene</button>
-          <button id="exportSettingsBtn" class="btn">Save Scene</button>
-          <label class="file-btn-label">
-            Load Scene
-            <input type="file" id="importSettingsInput" accept=".json" class="hidden">
-          </label>
-        </div></div>
-      </div>
-    </div>
-
-  </main>
-</div>
-
-<div id="bottom-dock" class="bottom-dock">
-    <div class="dock-item" data-label="Controller">
-      <img src="svg/ui/ic_controller.png" alt="Controller" width="40" height="40">
+  <!-- Bottom Dock Navigation Bar -->
+  <nav id="bottom-dock" class="bottom-dock" aria-label="Bottom Tools">
+    <div class="dock-item" data-label="Controller" role="button" tabindex="0">
+      <img src="svg/ui/ic_controller.png" alt="" width="40" height="40">
       <span class="dock-item-label">Controller</span>
     </div>
-    <div class="dock-item" data-label="Overlay">
-      <img src="svg/ui/ic_overlay.png" alt="Overlay" width="40" height="40">
+    <div class="dock-item" data-label="Overlay" role="button" tabindex="0">
+      <img src="svg/ui/ic_overlay.png" alt="" width="40" height="40">
       <span class="dock-item-label">Overlay</span>
     </div>
-    <div class="dock-item" data-label="Camera">
-      <img src="svg/ui/ic_camera.png" alt="Camera" width="40" height="40">
+    <div class="dock-item" data-label="Camera" role="button" tabindex="0">
+      <img src="svg/ui/ic_camera.png" alt="" width="40" height="40">
       <span class="dock-item-label">Camera</span>
     </div>
-    <div class="dock-item" data-label="Lighting">
-      <img src="svg/ui/ic_lighting.png" alt="Lighting" width="40" height="40">
+    <div class="dock-item" data-label="Lighting" role="button" tabindex="0">
+      <img src="svg/ui/ic_lighting.png" alt="" width="40" height="40">
       <span class="dock-item-label">Lighting</span>
     </div>
-    <div class="dock-item" data-label="Skybox">
-      <img src="svg/ui/ic_skybox.png" alt="Skybox" width="40" height="40">
+    <div class="dock-item" data-label="Skybox" role="button" tabindex="0">
+      <img src="svg/ui/ic_skybox.png" alt="" width="40" height="40">
       <span class="dock-item-label">Skybox</span>
     </div>
-    <div class="dock-item" data-label="Post-Processing">
-      <img src="svg/ui/ic_postprocessing.png" alt="Post-Processing" width="40" height="40">
+    <div class="dock-item" data-label="Post-Processing" role="button" tabindex="0">
+      <img src="svg/ui/ic_postprocessing.png" alt="" width="40" height="40">
       <span class="dock-item-label">Post-Processing</span>
     </div>
-    <div class="dock-item" data-label="Presets">
-      <img src="svg/ui/ic_presets.png" alt="Presets" width="40" height="40">
+    <div class="dock-item" data-label="Presets" role="button" tabindex="0">
+      <img src="svg/ui/ic_presets.png" alt="" width="40" height="40">
       <span class="dock-item-label">Presets</span>
     </div>
-    <div class="dock-item" data-label="Utilities">
-      <img src="svg/ui/ic_utilities.png" alt="Utilities" width="40" height="40">
+    <div class="dock-item" data-label="Utilities" role="button" tabindex="0">
+      <img src="svg/ui/ic_utilities.png" alt="" width="40" height="40">
       <span class="dock-item-label">Utilities</span>
     </div>
-    <div class="dock-item" data-label="Settings">
-      <img src="svg/ui/ic_settings.png" alt="Settings" width="40" height="40">
+    <div class="dock-item" data-label="Settings" role="button" tabindex="0">
+      <img src="svg/ui/ic_settings.png" alt="" width="40" height="40">
       <span class="dock-item-label">Settings</span>
     </div>
-</div>
-<script src="./js/dropdown.js" defer></script>
-<script type="module" src="./js/ui.js"></script>
-<script type="module" src="./js/app.js"></script>
+  </nav>
+
+  <!-- Script Imports -->
+  <script src="./js/dropdown.js" defer></script>
+  <script type="module" src="./js/ui.js"></script>
+  <script type="module" src="./js/app.js"></script>
+
 </body>
 </html>
