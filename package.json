@@ -1,5 +1,12 @@
 {
   "name": "trailstudio",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "build": "esbuild js/entry.js --bundle --format=iife --target=es2018 --outfile=js/app.bundle.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "three": "^0.179.1"
+  }
 }
