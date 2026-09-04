@@ -9,6 +9,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Exo+2:wght@400;500;600;700&family=Michroma&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./css/compositiongrid.css">
 <link rel="stylesheet" href="./css/style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
+  }
+}
+</script>
 </head>
 <body>
 <div id="app"></div>
@@ -20,12 +28,12 @@
   <section id="left" class="panel">
     <div class="hud-row">
       <h1>Gamepad Diagnostics</h1>
-      <select id="padSelect" style="max-width: 180px;"><option>No controller detected</option></select>
+      <select id="padSelect" class="pad-select"><option>No controller detected</option></select>
       <div class="row"><span>Status</span><span id="status" class="status">Waiting</span></div>
       <div class="row"><span>Mapping</span><span id="mapping" class="value">—</span></div>
       <div class="row"><span>Axes</span><span id="axisCount" class="value">—</span></div>
       <div class="row"><span>Buttons</span><span id="buttonCount" class="value">—</span></div>
-      <div style="display:flex; gap:4px; margin-left:auto;">
+      <div class="flex-auto-gap">
         <button id="scan">Rescan</button>
         <button id="rumble">Rumble</button>
       </div>
@@ -148,8 +156,8 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-              <input type="checkbox" id="trailEnabled" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
+            <label class="inline-label-lg">
+              <input type="checkbox" id="trailEnabled" checked onclick="event.stopPropagation()">
             </label>
             <span>Trail</span>
           </div>
@@ -215,8 +223,8 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-              <input type="checkbox" id="buttonLabelsEnabled" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
+            <label class="inline-label-lg">
+              <input type="checkbox" id="buttonLabelsEnabled" checked onclick="event.stopPropagation()">
             </label>
             <span>Button Labels</span>
           </div>
@@ -256,11 +264,11 @@
             <span>Label Color</span>
             <div id="buttonLabelColor" class="custom-color-picker" data-value="#ffffff"></div>
           </div>
-          <hr style="border:none;border-top:1px solid #222;margin:8px 0;">
-          <div class="row-stacked" style="font-size:11px;color:#888;">
+          <hr class="divider">
+          <div class="row-stacked muted-small">
             <span>Labels auto-generate from connected gamepad button mappings. Edit labels below once detected.</span>
           </div>
-          <div id="buttonLabelList" style="display:flex;flex-direction:column;gap:4px;"></div>
+          <div id="buttonLabelList" class="vertical-gap-4"></div>
         </div></div>
       </div>
 
@@ -332,7 +340,7 @@
             <input type="number" id="camTargetY" value="-0.2" step="0.1">
             <input type="number" id="camTargetZ" value="0" step="0.1">
           </div>
-          <button id="resetCamBtn" class="btn" style="margin-top:8px;">Reset Camera</button>
+          <button id="resetCamBtn" class="btn mt-8">Reset Camera</button>
         </div></div>
       </div>
     </div>
@@ -361,22 +369,22 @@
           </div>
 
           <!-- IBL Mode Selection -->
-          <div class="row-stacked" style="margin-top: 8px;">
+          <div class="row-stacked mt-8">
             <span>Mode</span>
-            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+            <div class="flex-gap-12-wrap">
+              <label class="inline-label">
                 <input type="radio" name="iblMode" value="procedural" checked> Procedural
               </label>
-              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <label class="inline-label">
                 <input type="radio" name="iblMode" value="texture"> Texture
               </label>
             </div>
           </div>
 
           <!-- Texture Selection (Texture Mode) -->
-          <div class="row-stacked" id="iblTextureControls" style="display: none;">
+          <div class="row-stacked hidden" id="iblTextureControls">
             <span>Environment Texture</span>
-            <select id="iblTextureSelect" style="width: 100%; padding: 6px 8px; background: #2a2a30; border: 1px solid #3a3a42; color: #fff; border-radius: 4px; font-size: 12px; font-family: inherit;">
+            <select id="iblTextureSelect" class="ibl-texture-select">
               <option value="procedural">Procedural Sky</option>
               <option value="studio">Studio</option>
               <option value="studio2">Studio 2</option>
@@ -386,7 +394,7 @@
           </div>
 
           <!-- Texture Rotation & Scale (Texture Mode) -->
-          <div class="slider-row" id="iblTextureTransformControls" style="display: none;">
+          <div class="slider-row hidden" id="iblTextureTransformControls">
             <div class="row">
               <div class="label-with-icon">
                 <span>Rotation</span>
@@ -398,7 +406,7 @@
             </div>
           </div>
 
-          <div class="slider-row" id="iblTextureScaleControls" style="display: none;">
+          <div class="slider-row hidden" id="iblTextureScaleControls">
             <div class="row">
               <div class="label-with-icon">
                 <span>Scale</span>
@@ -459,8 +467,8 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="iblSun1Visible" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
-            <label for="iblSun1Visible" onclick="event.stopPropagation()">Sun 1</label>
+            <input type="checkbox" id="iblSun1Visible" checked onclick="event.stopPropagation()">
+            <label for="iblSun1Visible" class="inline-label" onclick="event.stopPropagation()">Sun 1</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
@@ -517,8 +525,8 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="iblSun2Visible" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
-            <label for="iblSun2Visible" onclick="event.stopPropagation()">Sun 2</label>
+            <input type="checkbox" id="iblSun2Visible" checked onclick="event.stopPropagation()">
+            <label for="iblSun2Visible" class="inline-label" onclick="event.stopPropagation()">Sun 2</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
@@ -575,8 +583,8 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="iblRingVisible" checked style="width:16px;height:16px;" onclick="event.stopPropagation()">
-            <label for="iblRingVisible" onclick="event.stopPropagation()">Studio Ring</label>
+            <input type="checkbox" id="iblRingVisible" checked onclick="event.stopPropagation()">
+            <label for="iblRingVisible" class="inline-label" onclick="event.stopPropagation()">Studio Ring</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
@@ -642,8 +650,8 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="bloomToggle" style="width:16px;height:16px;" onclick="event.stopPropagation()">
-            <label for="bloomToggle" onclick="event.stopPropagation()">Bloom</label>
+            <input type="checkbox" id="bloomToggle" onclick="event.stopPropagation()">
+            <label for="bloomToggle" class="inline-label" onclick="event.stopPropagation()">Bloom</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
@@ -681,8 +689,8 @@
       <div class="panel collapsed">
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="aoToggle" style="width:16px;height:16px;" onclick="event.stopPropagation()">
-            <label for="aoToggle" onclick="event.stopPropagation()">Ambient Occlusion</label>
+            <input type="checkbox" id="aoToggle" onclick="event.stopPropagation()">
+            <label for="aoToggle" class="inline-label" onclick="event.stopPropagation()">Ambient Occlusion</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
         </div>
@@ -775,7 +783,7 @@
           <button id="exportSettingsBtn" class="btn">Save Scene</button>
           <label class="file-btn-label">
             Load Scene
-            <input type="file" id="importSettingsInput" accept=".json" style="display:none;">
+            <input type="file" id="importSettingsInput" accept=".json" class="hidden">
           </label>
         </div></div>
       </div>
