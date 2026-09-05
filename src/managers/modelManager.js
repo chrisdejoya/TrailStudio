@@ -37,7 +37,9 @@ export class ModelManager {
   constructor(controllerGroup, trailManager, onModelLoaded) {
     this.controllerGroup = controllerGroup;
     this.trailManager = trailManager;
-    this.onModelLoaded = onModelLoaded;
+    this.modelLoadedListeners = new Set();
+    this.buttonRegisteredListeners = new Set();
+    if (onModelLoaded) this.modelLoadedListeners.add(onModelLoaded);
 
     this.currentModel = null;
     this.buttons3D = [];
@@ -48,9 +50,21 @@ export class ModelManager {
     this.washerRight3D = null;
     this.dpadRockerPivot = null;
     this.motionBaseQuaternions = new WeakMap();
+    this.motionEuler = new THREE.Euler();
+    this.motionQuaternion = new THREE.Quaternion();
     this.boneHelpers = [];
     this.showBones = false;
     this.syncLeftStickDpad = false;
+  }
+
+  onModelLoaded(listener) {
+    this.modelLoadedListeners.add(listener);
+    return () => this.modelLoadedListeners.delete(listener);
+  }
+
+  onButtonRegistered(listener) {
+    this.buttonRegisteredListeners.add(listener);
+    return () => this.buttonRegisteredListeners.delete(listener);
   }
 
   setSyncLeftStickDpad(enabled) {
@@ -66,6 +80,15 @@ export class ModelManager {
 
   registerMotionNode(node) {
     this.motionBaseQuaternions.set(node, node.quaternion.clone());
+  }
+
+  applyMotionRotation(node, x, y, z) {
+    const baseQuaternion = this.motionBaseQuaternions.get(node);
+    if (!baseQuaternion) return;
+
+    this.motionEuler.set(x, y, z);
+    this.motionQuaternion.setFromEuler(this.motionEuler);
+    node.quaternion.copy(baseQuaternion).multiply(this.motionQuaternion);
   }
 
   cloneNodeMaterials(node) {
@@ -92,6 +115,7 @@ export class ModelManager {
 
     this.buttons3D[index] = { node, isStick, emissiveMaterials: materials };
     this.basePositions[index] = node.position.clone();
+    this.buttonRegisteredListeners.forEach((listener) => listener(index, node));
   }
 
   updateButtonStates(pad, buttonEmissionColor, buttonEmissionMultiplier = 1.0) {
@@ -152,18 +176,11 @@ export class ModelManager {
     const ry = ax[3] || 0;
 
     const maxTilt = 0.35;
-    const leftStickRotation = new THREE.Euler(ly * maxTilt, 0, -lx * maxTilt);
-    const rightStickRotation = new THREE.Euler(ry * maxTilt, 0, -rx * maxTilt);
-
     if (this.leftStick3DGroup) {
-      this.leftStick3DGroup.quaternion
-        .copy(this.motionBaseQuaternions.get(this.leftStick3DGroup))
-        .multiply(new THREE.Quaternion().setFromEuler(leftStickRotation));
+      this.applyMotionRotation(this.leftStick3DGroup, ly * maxTilt, 0, -lx * maxTilt);
     }
     if (this.rightStick3DGroup) {
-      this.rightStick3DGroup.quaternion
-        .copy(this.motionBaseQuaternions.get(this.rightStick3DGroup))
-        .multiply(new THREE.Quaternion().setFromEuler(rightStickRotation));
+      this.applyMotionRotation(this.rightStick3DGroup, ry * maxTilt, 0, -rx * maxTilt);
     }
 
     if (this.dpadRockerPivot) {
@@ -173,14 +190,12 @@ export class ModelManager {
       const dpadRight = pad.buttons[15]?.value || 0;
 
       const rockerTiltMax = 0.22;
-      const dpadRotation = new THREE.Euler(
+      this.applyMotionRotation(
+        this.dpadRockerPivot,
         (dpadDown - dpadUp) * rockerTiltMax,
         0,
         (dpadLeft - dpadRight) * rockerTiltMax
       );
-      this.dpadRockerPivot.quaternion
-        .copy(this.motionBaseQuaternions.get(this.dpadRockerPivot))
-        .multiply(new THREE.Quaternion().setFromEuler(dpadRotation));
     }
 
     // Sync left stick and dpad: both respond to both input sources
@@ -195,14 +210,12 @@ export class ModelManager {
         const combinedLx = lx + (dpadRight - dpadLeft);
         const combinedLy = ly + (dpadDown - dpadUp);
 
-        const combinedLeftStickRotation = new THREE.Euler(
+        this.applyMotionRotation(
+          this.leftStick3DGroup,
           Math.max(-1, Math.min(1, combinedLy)) * maxTilt,
           0,
           Math.max(-1, Math.min(1, -combinedLx)) * maxTilt
         );
-        this.leftStick3DGroup.quaternion
-          .copy(this.motionBaseQuaternions.get(this.leftStick3DGroup))
-          .multiply(new THREE.Quaternion().setFromEuler(combinedLeftStickRotation));
       }
 
       // Combine dpad buttons with left stick axes for dpad rocker
@@ -211,14 +224,12 @@ export class ModelManager {
         const combinedDpadY = (pad.buttons[13]?.value || 0) - (pad.buttons[12]?.value || 0) + ly;
 
         const rockerTiltMax = 0.22;
-        const combinedDpadRotation = new THREE.Euler(
+        this.applyMotionRotation(
+          this.dpadRockerPivot,
           Math.max(-1, Math.min(1, combinedDpadY)) * rockerTiltMax,
           0,
           Math.max(-1, Math.min(1, combinedDpadX)) * rockerTiltMax
         );
-        this.dpadRockerPivot.quaternion
-          .copy(this.motionBaseQuaternions.get(this.dpadRockerPivot))
-          .multiply(new THREE.Quaternion().setFromEuler(combinedDpadRotation));
       }
     }
 
@@ -248,6 +259,20 @@ export class ModelManager {
     this.updateMotionTransforms(pad);
   }
 
+  disposeObjectResources(root) {
+    const geometries = new Set();
+    const materials = new Set();
+
+    root.traverse((node) => {
+      if (node.geometry) geometries.add(node.geometry);
+      const nodeMaterials = Array.isArray(node.material) ? node.material : [node.material];
+      nodeMaterials.filter(Boolean).forEach((material) => materials.add(material));
+    });
+
+    geometries.forEach((geometry) => geometry.dispose());
+    materials.forEach((material) => material.dispose());
+  }
+
   clearController3D() {
     this.trailManager.destroy();
     this.boneHelpers.forEach((helper) => {
@@ -256,7 +281,10 @@ export class ModelManager {
       helper.material.dispose();
     });
     this.boneHelpers = [];
-    if (this.currentModel) this.controllerGroup.remove(this.currentModel);
+    if (this.currentModel) {
+      this.controllerGroup.remove(this.currentModel);
+      this.disposeObjectResources(this.currentModel);
+    }
     this.buttons3D = [];
     this.basePositions = [];
     this.leftStick3DGroup = null;
@@ -464,7 +492,7 @@ export class ModelManager {
 
     this.currentModel = proceduralGroup;
     this.controllerGroup.add(this.currentModel);
-    if (this.onModelLoaded) this.onModelLoaded();
+    this.modelLoadedListeners.forEach((listener) => listener());
   }
 
   processModelNode(node, visited = new Set()) {
@@ -524,7 +552,7 @@ export class ModelManager {
         this.controllerGroup.add(this.currentModel);
         this.processModelNode(this.currentModel);
         this.trailManager.syncTarget(this.leftStick3DGroup);
-        if (this.onModelLoaded) this.onModelLoaded();
+        this.modelLoadedListeners.forEach((listener) => listener());
       },
       (err) => {
         console.error('Error parsing GLB:', err);

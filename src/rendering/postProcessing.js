@@ -140,6 +140,10 @@ export function createPostProcessing(renderer, scene, camera) {
     fxaaPass.material.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr));
   }
 
+  function dispose() {
+    composer.dispose();
+  }
+
   return {
     composer,
     renderPass,
@@ -150,5 +154,6 @@ export function createPostProcessing(renderer, scene, camera) {
     outputPass,
     updateAntiAliasing,
     resize,
+    dispose,
   };
 }

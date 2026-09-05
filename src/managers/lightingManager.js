@@ -117,6 +117,11 @@ export class LightingManager {
     }
   }
 
+  dispose() {
+    this.lightsMap.forEach((entry) => this.disposeLightEntry(entry));
+    this.lightsMap.clear();
+  }
+
   replaceLightInstance(cfg) {
     const entry = this.lightsMap.get(cfg.id);
     if (!entry) return;

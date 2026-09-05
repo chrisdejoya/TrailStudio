@@ -32,6 +32,8 @@ Run the production build after source changes:
 npm run check
 ```
 
+`npm test` covers pure settings normalization and `npm run format:check` verifies the maintained source tree. Runtime startup validates required inspector controls, imported settings are versioned and range-checked, hidden tabs pause rendering, and page teardown releases WebGL resources.
+
 The generated bundle and source map are checked in because the application is also usable as a static site. Do not edit either generated file directly; update the source modules and run the build.
 
 ## Browser support

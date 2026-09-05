@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { TrailManager } from './managers/trailManager.js';
-import { DEFAULT_IBL_STATE, LOCAL_STORAGE_KEY } from './core/state.js';
+import { DEFAULT_IBL_STATE } from './core/state.js';
+import { normalizeColor, normalizeSettingsState, SETTINGS_VERSION } from './core/settings.js';
+import { createSettingsPersistence } from './core/settingsPersistence.js';
 import { bindSliderAndInput, exposeAppApi, registerParentMessageBridge } from './ui/uiBridge.js';
 import { ProceduralIBLEditor } from './rendering/ibl.js';
 import { setupIBLControls, applyIBLStateToUI } from './ui/iblControls.js';
@@ -24,6 +26,8 @@ import {
   saveFileHandle,
   verifyFilePermission,
 } from './core/modelStorage.js';
+import { setupNumberInputScrubbing } from './ui/numberInputScrubber.js';
+import { setupSceneInteraction } from './ui/sceneInteraction.js';
 
 function loadGoogleFont(url) {
   if (document.querySelector(`link[href="${url}"]`)) return;
@@ -31,6 +35,14 @@ function loadGoogleFont(url) {
   link.rel = 'stylesheet';
   link.href = url;
   document.head.appendChild(link);
+}
+
+function requireElement(selector) {
+  const element = document.querySelector(selector);
+  if (!element) {
+    throw new Error(`TrailStudio startup failed: missing required element ${selector}`);
+  }
+  return element;
 }
 
 // Import isolated camera module
@@ -74,7 +86,30 @@ const BUTTON_NAMES = [
 ];
 
 /* ================================================================= Three.js Scene & Engine Setup ================================================================= */
-const app = document.querySelector('#app');
+const app = requireElement('#app');
+[
+  '#inspector-shell',
+  '#aaToggle',
+  '#aaQualitySelect',
+  '#shadowQualitySelect',
+  '#bloomToggle',
+  '#aoToggle',
+  '#toneMappingSelect',
+  '#modelScale',
+  '#modelScaleInput',
+  '#emissionIntensity',
+  '#emissionIntensityInput',
+  '#trailOffset',
+  '#trailOffsetInput',
+  '#trailRadius',
+  '#trailRadiusInput',
+  '#trailIntensity',
+  '#trailIntensityInput',
+  '#trailWidth',
+  '#trailWidthInput',
+  '#trailLength',
+  '#trailLengthInput',
+].forEach(requireElement);
 const scene = new THREE.Scene();
 
 const renderer = new THREE.WebGLRenderer({
@@ -82,7 +117,7 @@ const renderer = new THREE.WebGLRenderer({
   alpha: true,
   premultipliedAlpha: false,
 });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -92,8 +127,6 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 app.appendChild(renderer.domElement);
 const compositionGrid = new CompositionManager();
-const pressedCanvasButtons = new Set();
-let compositionGridWheelTimer = null;
 
 const {
   composer,
@@ -102,6 +135,7 @@ const {
   postShaderPass,
   updateAntiAliasing,
   resize: resizePostProcessing,
+  dispose: disposePostProcessing,
 } = createPostProcessing(renderer, scene, camera);
 
 // Managers Setup
@@ -118,7 +152,7 @@ setTargetModelGroup(controllerGroup);
 let buttonEmissionMultiplier = 1.0;
 let buttonEmissionColor = new THREE.Color(0xffffff);
 const trailManager = new TrailManager(scene, camera);
-const modelManager = new ModelManager(controllerGroup, trailManager, () => {});
+const modelManager = new ModelManager(controllerGroup, trailManager);
 
 const gamepadManager = new GamepadManager({
   hudUI: diagnosticsPanel.getHudUI(),
@@ -127,6 +161,8 @@ const gamepadManager = new GamepadManager({
     diagnosticsPanel.resetSnapshot();
   },
 });
+
+setupNumberInputScrubbing();
 
 // Button Label Manager
 let buttonLabelManager = null;
@@ -145,139 +181,17 @@ async function createButtonLabelManager() {
   await wireButtonLabelUI();
 }
 
-// Call after model is loaded
-const originalOnModelLoaded = modelManager.onModelLoaded;
-modelManager.onModelLoaded = async () => {
-  if (originalOnModelLoaded) originalOnModelLoaded();
+modelManager.onModelLoaded(async () => {
   await createButtonLabelManager();
-};
+});
 
-// Also sync when register3DButton is called (for dynamic additions)
-const originalRegister3DButton = modelManager.register3DButton.bind(modelManager);
-modelManager.register3DButton = (index, node, isStick, emissiveTargets) => {
-  originalRegister3DButton(index, node, isStick, emissiveTargets);
+modelManager.onButtonRegistered((index, node) => {
   if (buttonLabelManager) {
     buttonLabelManager.setButtonObject(index, node, modelManager.basePositions[index]);
   }
-};
-
-/* ================================================================= Global Number Input Scrubbing Logic ================================================================= */
-let isPotentialScrub = false;
-let isScrubbing = false;
-let scrubInput = null;
-let scrubStartX = 0;
-let scrubStartY = 0;
-let scrubStartVal = 0;
-let scrubStep = 1;
-
-document.addEventListener('mousedown', (e) => {
-  if (e.target.tagName === 'INPUT' && e.target.type === 'number') {
-    isPotentialScrub = true;
-    scrubInput = e.target;
-    scrubStartX = e.clientX;
-    scrubStartY = e.clientY;
-    scrubStartVal = parseFloat(scrubInput.value) || 0;
-    scrubStep = parseFloat(scrubInput.step) || 1;
-  }
-});
-
-window.addEventListener('mousemove', (e) => {
-  if (!isPotentialScrub || !scrubInput) return;
-
-  const deltaX = e.clientX - scrubStartX;
-
-  if (!isScrubbing && Math.abs(deltaX) > 4) {
-    isScrubbing = true;
-    scrubInput.blur();
-  }
-
-  if (isScrubbing) {
-    let modMultiplier = 1.0;
-    if (e.ctrlKey) modMultiplier = 0.2;
-    else if (e.shiftKey) modMultiplier = 5.0;
-
-    const sensitivity = scrubStep < 0.1 ? 0.005 : scrubStep < 1 ? 0.02 : 0.1;
-    let newVal = scrubStartVal + deltaX * scrubStep * sensitivity * 5 * modMultiplier;
-
-    const min = scrubInput.min !== '' ? parseFloat(scrubInput.min) : -Infinity;
-    const max = scrubInput.max !== '' ? parseFloat(scrubInput.max) : Infinity;
-    newVal = Math.max(min, Math.min(max, newVal));
-
-    const decimals = (scrubStep.toString().split('.')[1] || '').length;
-    scrubInput.value = newVal.toFixed(decimals > 0 ? decimals : 2);
-    scrubInput.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-});
-
-window.addEventListener('mouseup', () => {
-  isPotentialScrub = false;
-  isScrubbing = false;
-  scrubInput = null;
 });
 
 /* ================================================================= UI & Inspector Event Bindings ================================================================= */
-
-// Shortcut Listeners
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    lightingManager.setActiveLight(null);
-  } else if (e.key === 'Tab') {
-    e.preventDefault();
-    const inspector = document.querySelector('#inspector-shell');
-    if (inspector) inspector.style.display = inspector.style.display === 'none' ? 'flex' : 'none';
-  } else if (e.key === '`') {
-    e.preventDefault();
-    const hud = document.querySelector('#hud');
-    if (hud) hud.style.display = hud.style.display === 'none' ? 'flex' : 'none';
-  }
-});
-
-window.addEventListener('contextmenu', (e) => e.preventDefault());
-
-renderer.domElement.addEventListener('mousedown', (e) => {
-  lightingManager.setActiveLight(null);
-  handleCameraMouseDown(e);
-  trailManager.setDragging(true);
-  pressedCanvasButtons.add(e.button);
-  compositionGrid.show();
-});
-
-window.addEventListener('mouseup', (e) => {
-  trailManager.setDragging(false);
-  pressedCanvasButtons.delete(e.button);
-  if (pressedCanvasButtons.size === 0) compositionGrid.hide();
-  saveToLocalStorage();
-});
-
-window.addEventListener('blur', () => {
-  pressedCanvasButtons.clear();
-  compositionGrid.hide();
-});
-
-window.addEventListener('mousemove', (e) => {
-  handleCameraMouseMove(e, lightingManager.activeLightId, lightingManager.lightsMap);
-});
-
-renderer.domElement.addEventListener(
-  'wheel',
-  (e) => {
-    handleCameraWheel(e, scheduleSave);
-    compositionGrid.show();
-    clearTimeout(compositionGridWheelTimer);
-    compositionGridWheelTimer = setTimeout(() => {
-      if (pressedCanvasButtons.size === 0) compositionGrid.hide();
-    }, 150);
-  },
-  { passive: false }
-);
-
-window.addEventListener('resize', () => {
-  handleCameraResize();
-  renderer.setSize(innerWidth, innerHeight);
-  resizePostProcessing(innerWidth, innerHeight);
-  if (buttonLabelManager) buttonLabelManager.onResize();
-  compositionGrid.onResize();
-});
 
 // Settings / LocalStorage Triggers
 const inspectorShellElem = document.querySelector('#inspector-shell');
@@ -615,16 +529,41 @@ function populateButtonLabelList() {
     const inputValue = hasSvg ? '' : config.text || '';
     const inputPlaceholder = hasSvg ? '✕ SVG active — type to replace' : '';
 
-    row.innerHTML = `
-      <input type="checkbox" data-index="${i}" ${config.visible ? 'checked' : ''} style="width:14px;height:14px;flex-shrink:0;cursor:pointer;">
-      <span class="btn-name" data-index="${i}" style="width:110px;color:#aaa;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">${BUTTON_NAMES[i]}</span>
-      <div style="display:flex;flex:1;gap:2px;min-width:0;">
-        <input type="text" data-index="${i}" value="${inputValue}" placeholder="${inputPlaceholder}" ${hasSvg ? 'readonly' : ''} style="flex:1;min-width:0;background:#1e1e22;border:1px solid #3a3a42;color:${hasSvg ? '#888' : '#fff'};padding:3px 6px;border-radius:4px;font-size:11px;font-family:inherit;height:22px;box-sizing:border-box;">
-        <button type="button" class="svg-dropdown-btn" data-index="${i}" title="Select SVG glyph" style="width:26px;height:22px;flex-shrink:0;background:#2a2a30;border:1px solid #3a3a42;color:#ccc;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;line-height:1;">▼</button>
-      </div>
-    `;
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.dataset.index = i;
+    checkbox.checked = config.visible;
+    checkbox.style.cssText = 'width:14px;height:14px;flex-shrink:0;cursor:pointer;';
 
-    const checkbox = row.querySelector('input[type="checkbox"]');
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'btn-name';
+    nameSpan.dataset.index = i;
+    nameSpan.textContent = BUTTON_NAMES[i];
+    nameSpan.style.cssText =
+      'width:110px;color:#aaa;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.dataset.index = i;
+    input.value = inputValue;
+    input.placeholder = inputPlaceholder;
+    input.readOnly = hasSvg;
+    input.style.cssText = `flex:1;min-width:0;background:#1e1e22;border:1px solid #3a3a42;color:${hasSvg ? '#888' : '#fff'};padding:3px 6px;border-radius:4px;font-size:11px;font-family:inherit;height:22px;box-sizing:border-box;`;
+
+    const svgBtn = document.createElement('button');
+    svgBtn.type = 'button';
+    svgBtn.className = 'svg-dropdown-btn';
+    svgBtn.dataset.index = i;
+    svgBtn.title = 'Select SVG glyph';
+    svgBtn.textContent = '▼';
+    svgBtn.style.cssText =
+      'width:26px;height:22px;flex-shrink:0;background:#2a2a30;border:1px solid #3a3a42;color:#ccc;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;line-height:1;';
+
+    const inputGroup = document.createElement('div');
+    inputGroup.style.cssText = 'display:flex;flex:1;gap:2px;min-width:0;';
+    inputGroup.append(input, svgBtn);
+    row.append(checkbox, nameSpan, inputGroup);
+
     checkbox.addEventListener('change', (e) => {
       buttonLabelManager.setVisibility(parseInt(e.target.dataset.index), e.target.checked);
     });
@@ -634,7 +573,6 @@ function populateButtonLabelList() {
     row.addEventListener('mouseleave', (e) => {
       buttonLabelManager.updateLabelHover(parseInt(e.currentTarget.dataset.index), false);
     });
-    const nameSpan = row.querySelector('.btn-name');
     nameSpan.addEventListener('click', (e) => {
       const idx = parseInt(e.currentTarget.dataset.index);
       const currentConfig = buttonLabelManager.getConfig(idx);
@@ -643,7 +581,6 @@ function populateButtonLabelList() {
         checkbox.checked = !currentConfig.visible;
       }
     });
-    const input = row.querySelector('input[type="text"]');
     input.addEventListener('change', (e) => {
       const idx = parseInt(e.target.dataset.index);
       const text = e.target.value;
@@ -656,7 +593,6 @@ function populateButtonLabelList() {
     });
 
     // SVG dropdown button
-    const svgBtn = row.querySelector('.svg-dropdown-btn');
     svgBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       showSvgGlyphMenu(e.target, parseInt(e.target.dataset.index));
@@ -787,17 +723,17 @@ if (loadDefaultBtn) {
 
 const fileInput = document.querySelector('#glbFile');
 if (fileInput) {
-  fileInput.addEventListener('change', (e) => {
+  fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const buffer = evt.target.result;
+    try {
+      const buffer = await file.arrayBuffer();
       modelManager.parseAndLoadGLTF(buffer);
       await saveBinaryModel(buffer, file.name);
-    };
-    reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error('Failed to load model file:', error);
+    }
   });
 }
 
@@ -917,41 +853,6 @@ function refreshPads() {
 }
 
 /* ================================================================= State Serialization & Persistence ================================================================= */
-// Helper to normalize color values (handles both hex numbers and CSS color strings)
-function normalizeColor(color) {
-  if (typeof color === 'number' && Number.isFinite(color)) {
-    return '#' + (color >>> 0).toString(16).padStart(6, '0');
-  }
-
-  if (typeof color !== 'string') {
-    return '#aa0022';
-  }
-
-  const trimmed = color.trim();
-  if (!trimmed) return '#aa0022';
-
-  const cleaned = trimmed.replace(/^#+/, '').replace(/[^0-9a-fA-F]/g, '');
-  if (!cleaned) return '#aa0022';
-
-  let hex = cleaned;
-  if (hex.length === 3) {
-    hex = hex
-      .split('')
-      .map((ch) => ch + ch)
-      .join('');
-  }
-
-  if (hex.length > 6) {
-    hex = hex.slice(-6);
-  }
-
-  if (hex.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(hex)) {
-    return '#aa0022';
-  }
-
-  return '#' + hex.toLowerCase();
-}
-
 function getSettingsState() {
   const trailConfig = trailManager.getTrailConfig
     ? trailManager.getTrailConfig()
@@ -963,6 +864,7 @@ function getSettingsState() {
         length: 10,
       };
   return {
+    version: SETTINGS_VERSION,
     camera: getCameraState(),
     model: {
       scale: parseFloat(document.querySelector('#modelScale').value),
@@ -1010,6 +912,7 @@ function getSettingsState() {
 }
 
 function applySettingsState(state) {
+  state = normalizeSettingsState(state);
   if (!state) return;
 
   if (state.ibl) applyIBLStateToUI(iblState, state.ibl, updateIBL);
@@ -1202,28 +1105,26 @@ function applySettingsState(state) {
   updateCameraPosition();
 }
 
-function saveToLocalStorage() {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(getSettingsState()));
-  } catch (err) {
-    console.error('Failed to save settings:', err);
-  }
-}
+const settingsPersistence = createSettingsPersistence({
+  getState: getSettingsState,
+  applyState: applySettingsState,
+});
+const { save: saveToLocalStorage, scheduleSave, load: loadFromLocalStorage } = settingsPersistence;
 
-let saveTimer = null;
-function scheduleSave() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveToLocalStorage, 150);
-}
-
-function loadFromLocalStorage() {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (raw) applySettingsState(JSON.parse(raw));
-  } catch (err) {
-    console.error('Failed to parse settings from localStorage:', err);
-  }
-}
+const disposeSceneInteraction = setupSceneInteraction({
+  renderer,
+  lightingManager,
+  trailManager,
+  compositionGrid,
+  handleCameraMouseDown,
+  handleCameraMouseMove,
+  handleCameraWheel,
+  handleCameraResize,
+  resizePostProcessing,
+  scheduleSave,
+  saveSettings: saveToLocalStorage,
+  getButtonLabelManager: () => buttonLabelManager,
+});
 
 async function initModelPersistence() {
   const handle = await getStoredFileHandle();
@@ -1253,9 +1154,14 @@ async function initModelPersistence() {
 
 /* ================================================================= Main Execution Loop & App API ================================================================= */
 let lastFrameTime = performance.now();
+let animationFrameId = null;
 
 function loop() {
-  requestAnimationFrame(loop);
+  if (document.hidden) {
+    animationFrameId = null;
+    return;
+  }
+  animationFrameId = requestAnimationFrame(loop);
 
   const { enabled, fps } = getFpsLimitState();
 
@@ -1286,6 +1192,29 @@ function loop() {
   if (buttonLabelManager) buttonLabelManager.render();
   composer.render();
 }
+
+function disposeApp() {
+  if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+  animationFrameId = null;
+  settingsPersistence.dispose();
+  disposeSceneInteraction();
+  gamepadManager.stopPolling();
+  buttonLabelManager?.dispose();
+  modelManager.clearController3D();
+  lightingManager.dispose();
+  proceduralIBLEditor.dispose();
+  disposePostProcessing();
+  renderer.dispose();
+}
+
+window.addEventListener('pagehide', disposeApp, { once: true });
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && animationFrameId === null) {
+    lastFrameTime = performance.now();
+    loop();
+  }
+});
 
 // Initializers Execution
 updateIBL();

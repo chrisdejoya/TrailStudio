@@ -4,7 +4,10 @@
   "type": "module",
   "scripts": {
     "build": "node esbuild.config.mjs",
-    "check": "npm run build",
+    "test": "node --test",
+    "format": "prettier --write \"src/**/*.{js,mjs}\" \"test/**/*.js\" index.html \"css/*.css\" package.json esbuild.config.mjs \"tools/*.cjs\"",
+    "format:check": "prettier --check \"src/**/*.{js,mjs}\" \"test/**/*.js\" index.html \"css/*.css\" package.json esbuild.config.mjs \"tools/*.cjs\"",
+    "check": "npm run test && npm run build",
     "update-three": "npm install three@latest --save-dev && npm run build"
   },
   "devDependencies": {
