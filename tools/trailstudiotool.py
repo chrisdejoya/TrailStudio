@@ -32,6 +32,10 @@ BUTTON_MAPPINGS = [
     ("DPad_Down", "D-Pad Down", "D-Pad Down"),
     ("DPad_Left", "D-Pad Left", "D-Pad Left"),
     ("DPad_Right", "D-Pad Right", "D-Pad Right"),
+    ("DPad_Up_Right", "D-Pad Up-Right", "D-Pad Up-Right"),
+    ("DPad_Up_Left", "D-Pad Up-Left", "D-Pad Up-Left"),
+    ("DPad_Down_Right", "D-Pad Down-Right", "D-Pad Down-Right"),
+    ("DPad_Down_Left", "D-Pad Down-Left", "D-Pad Down-Left"),
     ("Washer_Left", "Washer Left", "Left Washer"),
     ("Washer_Right", "Washer Right", "Right Washer"),
 ]
