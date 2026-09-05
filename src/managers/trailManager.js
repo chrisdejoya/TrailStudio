@@ -10,21 +10,21 @@ const DEFAULT_CONFIG = {
 
   // Geometry & Sizing
   width: 0.01,
-  widthPower: 0.5,            // Curve power for tapering width along length
-  headTaperStart: 0.9,        // Progress point where head starts tapering inward
+  widthPower: 0.5, // Curve power for tapering width along length
+  headTaperStart: 0.9, // Progress point where head starts tapering inward
 
   // Opacity & Fade Regions
-  opaqueHeadRegion: 0.10,      // Portion of head kept fully opaque (0.10 = top 10%)
-  tailFadeLength: 0.05,        // Length of tail-end alpha fadeout
-  edgeSoftness: 0.2,          // Softness of mesh edges across width (0.0 to 0.5)
+  opaqueHeadRegion: 0.1, // Portion of head kept fully opaque (0.10 = top 10%)
+  tailFadeLength: 0.05, // Length of tail-end alpha fadeout
+  edgeSoftness: 0.2, // Softness of mesh edges across width (0.0 to 0.5)
 
   // Colors & Bloom
   colorStart: 0xff0055,
   colorEnd: 0x00ffff,
-  emissiveIntensity: 1.25,     // Values > 1.0 push color into HDR space to trigger bloom
+  emissiveIntensity: 1.25, // Values > 1.0 push color into HDR space to trigger bloom
 
   // Performance Optimization
-  minDistanceSq: 1e-3,         // Minimum squared distance before registering new point
+  minDistanceSq: 1e-3, // Minimum squared distance before registering new point
   renderOrder: 9999,
 };
 
@@ -115,13 +115,13 @@ export class LightTrail {
         uColorStart: { value: this.colorStart },
         uColorEnd: { value: this.colorEnd },
         uEmissiveIntensity: { value: this.config.emissiveIntensity },
-        
+
         // Dynamic Config Uniforms
         uWidthPower: { value: this.config.widthPower },
         uHeadTaperStart: { value: this.config.headTaperStart },
         uHeadOpaqueStart: { value: headOpaqueStart },
         uTailFadeLength: { value: this.config.tailFadeLength },
-        uEdgeSoftStart: { value: edgeSoftStart }
+        uEdgeSoftStart: { value: edgeSoftStart },
       },
       vertexShader: `
         uniform vec3 uHistoryPositions[${this.maxHistory}];
@@ -257,7 +257,7 @@ export class LightTrail {
       blendSrcAlpha: THREE.OneFactor,
       blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
 
-      side: THREE.DoubleSide
+      side: THREE.DoubleSide,
     });
 
     this.mesh = new THREE.Mesh(this.geometry, this.material);
@@ -273,17 +273,17 @@ export class LightTrail {
     this.target.getWorldPosition(this._lastWorldPos);
 
     const lastItem = this.rawHistory[this.rawHistory.length - 1];
-    if (!lastItem || lastItem.pos.distanceToSquared(this._lastWorldPos) > this.config.minDistanceSq) {
+    if (
+      !lastItem ||
+      lastItem.pos.distanceToSquared(this._lastWorldPos) > this.config.minDistanceSq
+    ) {
       this.rawHistory.push({
         pos: this._lastWorldPos.clone(),
-        time: currentTime
+        time: currentTime,
       });
     }
 
-    while (
-      this.rawHistory.length > 0 &&
-      currentTime - this.rawHistory[0].time > this.maxLifetime
-    ) {
+    while (this.rawHistory.length > 0 && currentTime - this.rawHistory[0].time > this.maxLifetime) {
       this.rawHistory.shift();
     }
 
@@ -327,7 +327,7 @@ export class TrailManager {
       colorStart: 0xaa0022,
       colorEnd: 0x00aaaa,
       intensity: 1.25,
-      radius: 0
+      radius: 0,
     };
   }
 
@@ -405,7 +405,7 @@ export class TrailManager {
         width: this._trailConfig.width,
         colorStart: this._trailConfig.colorStart,
         colorEnd: this._trailConfig.colorEnd,
-        emissiveIntensity: this._trailConfig.intensity
+        emissiveIntensity: this._trailConfig.intensity,
       });
     }
 

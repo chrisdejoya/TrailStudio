@@ -60,9 +60,9 @@ export class CompositionManager {
         <!-- Rule of thirds -->
         <g class="grid-thirds">
           <line x1="${vw / 3}" y1="0" x2="${vw / 3}" y2="${vh}" />
-          <line x1="${2 * vw / 3}" y1="0" x2="${2 * vw / 3}" y2="${vh}" />
+          <line x1="${(2 * vw) / 3}" y1="0" x2="${(2 * vw) / 3}" y2="${vh}" />
           <line x1="0" y1="${vh / 3}" x2="${vw}" y2="${vh / 3}" />
-          <line x1="0" y1="${2 * vh / 3}" x2="${vw}" y2="${2 * vh / 3}" />
+          <line x1="0" y1="${(2 * vh) / 3}" x2="${vw}" y2="${(2 * vh) / 3}" />
         </g>
       </svg>
     `;

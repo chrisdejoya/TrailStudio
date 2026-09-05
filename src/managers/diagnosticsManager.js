@@ -16,7 +16,7 @@ export class DiagnosticsManager {
       buttons: document.querySelector('#buttons'),
       buttonElements: [],
       buttonValues: [],
-      buttonPressureBars: []
+      buttonPressureBars: [],
     };
 
     this.lastSnapshot = null;
@@ -85,17 +85,27 @@ export class DiagnosticsManager {
     if (this.hudUI.buttonCount) this.hudUI.buttonCount.textContent = String(pad.buttons.length);
 
     const ax = pad.axes;
-    const lx = ax[0] || 0, ly = ax[1] || 0, rx = ax[2] || 0, ry = ax[3] || 0;
+    const lx = ax[0] || 0,
+      ly = ax[1] || 0,
+      rx = ax[2] || 0,
+      ry = ax[3] || 0;
 
     if (this.hudUI.leftValue) this.hudUI.leftValue.textContent = `${this.fmt(lx)}, ${this.fmt(ly)}`;
-    if (this.hudUI.rightValue) this.hudUI.rightValue.textContent = `${this.fmt(rx)}, ${this.fmt(ry)}`;
-    if (this.hudUI.leftBar) this.hudUI.leftBar.style.width = `${Math.min(100, Math.hypot(lx, ly) * 100)}%`;
-    if (this.hudUI.rightBar) this.hudUI.rightBar.style.width = `${Math.min(100, Math.hypot(rx, ry) * 100)}%`;
+    if (this.hudUI.rightValue)
+      this.hudUI.rightValue.textContent = `${this.fmt(rx)}, ${this.fmt(ry)}`;
+    if (this.hudUI.leftBar)
+      this.hudUI.leftBar.style.width = `${Math.min(100, Math.hypot(lx, ly) * 100)}%`;
+    if (this.hudUI.rightBar)
+      this.hudUI.rightBar.style.width = `${Math.min(100, Math.hypot(rx, ry) * 100)}%`;
 
-    this.setDot('leftDot', lx, ly); 
+    this.setDot('leftDot', lx, ly);
     this.setDot('rightDot', rx, ry);
 
-    if (!this.lastSnapshot || this.lastSnapshot.id !== pad.id || this.lastSnapshot.buttons.length !== pad.buttons.length) {
+    if (
+      !this.lastSnapshot ||
+      this.lastSnapshot.id !== pad.id ||
+      this.lastSnapshot.buttons.length !== pad.buttons.length
+    ) {
       this.buildUI(pad);
       this.lastSnapshot = { id: pad.id, axes: [], buttons: pad.buttons.map((b) => b.value) };
     }
@@ -111,11 +121,14 @@ export class DiagnosticsManager {
         }
         const valueText = this.fmt(val);
         const pressureWidth = `${(val || 0) * 100}%`;
-        
+
         if (this.hudUI.buttonValues[i] && this.hudUI.buttonValues[i].textContent !== valueText) {
           this.hudUI.buttonValues[i].textContent = valueText;
         }
-        if (this.hudUI.buttonPressureBars[i] && this.hudUI.buttonPressureBars[i].style.width !== pressureWidth) {
+        if (
+          this.hudUI.buttonPressureBars[i] &&
+          this.hudUI.buttonPressureBars[i].style.width !== pressureWidth
+        ) {
           this.hudUI.buttonPressureBars[i].style.width = pressureWidth;
         }
       }

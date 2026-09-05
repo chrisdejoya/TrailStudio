@@ -1,10 +1,23 @@
 // gamepadManager.js
 
 export const STANDARD_BUTTONS = [
-  'A / Cross', 'B / Circle', 'X / Square', 'Y / Triangle',
-  'L1 / LB', 'R1 / RB', 'L2 / LT', 'R2 / RT',
-  'Select / Back', 'Start', 'L3 / Thumb', 'R3 / Thumb',
-  'D-Pad Up', 'D-Pad Down', 'D-Pad Left', 'D-Pad Right', 'Vendor'
+  'A / Cross',
+  'B / Circle',
+  'X / Square',
+  'Y / Triangle',
+  'L1 / LB',
+  'R1 / RB',
+  'L2 / LT',
+  'R2 / RT',
+  'Select / Back',
+  'Start',
+  'L3 / Thumb',
+  'R3 / Thumb',
+  'D-Pad Up',
+  'D-Pad Down',
+  'D-Pad Left',
+  'D-Pad Right',
+  'Vendor',
 ];
 
 export class GamepadManager {
@@ -14,7 +27,7 @@ export class GamepadManager {
     this.onButtonChange = options.onButtonChange || (() => {});
     this.onAxisChange = options.onAxisChange || (() => {});
     this.onPadChange = options.onPadChange || (() => {}); // Added callback for pad selection/changes
-    
+
     this.activePadIndex = null;
     this.rafId = null;
     this.previousState = { buttons: [], axes: [] };
@@ -53,14 +66,14 @@ export class GamepadManager {
   selectPad(index) {
     this.activePadIndex = index;
     this.startPolling();
-    
+
     const pad = this.getSelectedPad();
     if (pad) {
       // Pass the controller's browser ID (name) and details to the callback
-      this.onPadChange({ 
-        id: pad.id, 
-        index: pad.index, 
-        mapping: pad.mapping 
+      this.onPadChange({
+        id: pad.id,
+        index: pad.index,
+        mapping: pad.mapping,
       });
     }
   }
@@ -73,12 +86,12 @@ export class GamepadManager {
 
   startPolling() {
     if (this.rafId) cancelAnimationFrame(this.rafId);
-    
+
     const poll = () => {
       this.processPad();
       this.rafId = requestAnimationFrame(poll);
     };
-    
+
     this.rafId = requestAnimationFrame(poll);
   }
 
@@ -101,7 +114,7 @@ export class GamepadManager {
           index: idx,
           name: STANDARD_BUTTONS[idx] || `Button ${idx}`,
           pressed: btn.pressed,
-          value: btn.value
+          value: btn.value,
         });
       }
     });
@@ -109,18 +122,19 @@ export class GamepadManager {
     // Process Axes
     pad.axes.forEach((val, idx) => {
       const prevVal = this.previousState.axes[idx] || 0;
-      if (Math.abs(val - prevVal) > 0.01) { // Deadzone threshold
+      if (Math.abs(val - prevVal) > 0.01) {
+        // Deadzone threshold
         this.onAxisChange({
           index: idx,
-          value: val
+          value: val,
         });
       }
     });
 
     // Cache current state
     this.previousState = {
-      buttons: pad.buttons.map(b => ({ pressed: b.pressed, value: b.value })),
-      axes: [...pad.axes]
+      buttons: pad.buttons.map((b) => ({ pressed: b.pressed, value: b.value })),
+      axes: [...pad.axes],
     };
   }
 }

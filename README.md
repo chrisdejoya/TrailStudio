@@ -13,14 +13,16 @@ npm run build
 
 Serve the project from a local HTTP server and open `index.html`. A local server is required for model loading, module assets, and browser storage APIs.
 
-The release entrypoint is `index.html`, which loads the generated `js/app.bundle.js`. Source code is organized by responsibility:
+The release entrypoint is `index.html`, which loads the generated `dist/app.bundle.js`. Source code is organized by responsibility:
 
-- `js/entry.js` is the bundle entrypoint.
-- `js/app.js` coordinates the scene, managers, and UI bindings.
-- `js/core/` contains shared state and persistence adapters.
-- `js/managers/` owns gamepad, model, lighting, trail, and diagnostics behavior.
-- `js/rendering/` owns Three.js rendering and post-processing.
-- `js/ui/` owns browser controls and integration bridges.
+- `src/entry.js` is the bundle entrypoint.
+- `src/app.js` coordinates the scene, managers, and UI bindings.
+- `src/core/` contains shared state and persistence adapters.
+- `src/managers/` owns gamepad, model, lighting, trail, and diagnostics behavior.
+- `src/rendering/` owns Three.js rendering and post-processing.
+- `src/ui/` owns browser controls and integration bridges.
+- `tools/` contains Blender add-ons and one-off migration/debug utilities; it is not part of the browser bundle.
+- `dist/` contains generated release artifacts.
 
 ## Quality checks
 

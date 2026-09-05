@@ -9,8 +9,8 @@ const startIdx = content.indexOf(startMarker);
 const endIdx = content.indexOf(endMarker, startIdx);
 
 if (startIdx === -1 || endIdx === -1) {
-    console.log('Could not find panel boundaries');
-    process.exit(1);
+  console.log('Could not find panel boundaries');
+  process.exit(1);
 }
 
 console.log('Found panel from index', startIdx, 'to', endIdx);

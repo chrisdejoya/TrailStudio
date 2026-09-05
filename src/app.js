@@ -11,14 +11,18 @@ import { DiagnosticsManager } from './managers/diagnosticsManager.js';
 import { ModelManager } from './managers/modelManager.js';
 import { ButtonLabelManager, SVG_PRESETS } from './managers/buttonLabelManager.js';
 import { CompositionManager } from './managers/compositionManager.js';
-import { getColorPickerValue, initializeColorPicker, setColorPickerValue } from './ui/colorPicker.js';
+import {
+  getColorPickerValue,
+  initializeColorPicker,
+  setColorPickerValue,
+} from './ui/colorPicker.js';
 import {
   clearStoredModel,
   getStoredBinaryModel,
   getStoredFileHandle,
   saveBinaryModel,
   saveFileHandle,
-  verifyFilePermission
+  verifyFilePermission,
 } from './core/modelStorage.js';
 
 function loadGoogleFont(url) {
@@ -45,22 +49,39 @@ import {
   handleCameraResize,
   cameraApi,
   setTargetModelGroup,
-  getFpsLimitState
+  getFpsLimitState,
 } from './ui/cameraControls.js';
 
 // Button names shared between functions
 const BUTTON_NAMES = [
-  'South / A / Cross', 'East / B / Circle', 'West / X / Square', 'North / Y / Triangle',
-  'L1 / LB', 'R1 / RB', 'L2 / LT', 'R2 / RT',
-  'Select / Back', 'Start', 'L3', 'R3',
-  'D-Pad Up', 'D-Pad Down', 'D-Pad Left', 'D-Pad Right', 'Home / Guide'
+  'South / A / Cross',
+  'East / B / Circle',
+  'West / X / Square',
+  'North / Y / Triangle',
+  'L1 / LB',
+  'R1 / RB',
+  'L2 / LT',
+  'R2 / RT',
+  'Select / Back',
+  'Start',
+  'L3',
+  'R3',
+  'D-Pad Up',
+  'D-Pad Down',
+  'D-Pad Left',
+  'D-Pad Right',
+  'Home / Guide',
 ];
 
 /* ================================================================= Three.js Scene & Engine Setup ================================================================= */
 const app = document.querySelector('#app');
 const scene = new THREE.Scene();
 
-const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, premultipliedAlpha: false });
+const renderer = new THREE.WebGLRenderer({
+  antialias: false,
+  alpha: true,
+  premultipliedAlpha: false,
+});
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1));
 renderer.setSize(innerWidth, innerHeight);
 renderer.setClearColor(0x000000, 0);
@@ -80,7 +101,7 @@ const {
   bloomPass,
   postShaderPass,
   updateAntiAliasing,
-  resize: resizePostProcessing
+  resize: resizePostProcessing,
 } = createPostProcessing(renderer, scene, camera);
 
 // Managers Setup
@@ -90,7 +111,7 @@ const proceduralIBLEditor = new ProceduralIBLEditor(renderer, scene);
 const iblState = { ...DEFAULT_IBL_STATE };
 
 const controllerGroup = new THREE.Group();
-controllerGroup.rotation.x = 0.30;
+controllerGroup.rotation.x = 0.3;
 scene.add(controllerGroup);
 setTargetModelGroup(controllerGroup);
 
@@ -104,7 +125,7 @@ const gamepadManager = new GamepadManager({
   meshMappings: modelManager.MESH_MAPPINGS,
   onPadChange: () => {
     diagnosticsPanel.resetSnapshot();
-  }
+  },
 });
 
 // Button Label Manager
@@ -114,7 +135,7 @@ async function createButtonLabelManager() {
     buttonLabelManager.dispose();
   }
   buttonLabelManager = new ButtonLabelManager(controllerGroup, camera, renderer, {
-    onConfigChange: scheduleSave
+    onConfigChange: scheduleSave,
   });
   // Sync existing buttons
   for (const [index, entry] of Object.entries(modelManager.buttons3D)) {
@@ -175,8 +196,8 @@ window.addEventListener('mousemove', (e) => {
     if (e.ctrlKey) modMultiplier = 0.2;
     else if (e.shiftKey) modMultiplier = 5.0;
 
-    const sensitivity = scrubStep < 0.1 ? 0.005 : (scrubStep < 1 ? 0.02 : 0.1);
-    let newVal = scrubStartVal + (deltaX * scrubStep * sensitivity * 5 * modMultiplier);
+    const sensitivity = scrubStep < 0.1 ? 0.005 : scrubStep < 1 ? 0.02 : 0.1;
+    let newVal = scrubStartVal + deltaX * scrubStep * sensitivity * 5 * modMultiplier;
 
     const min = scrubInput.min !== '' ? parseFloat(scrubInput.min) : -Infinity;
     const max = scrubInput.max !== '' ? parseFloat(scrubInput.max) : Infinity;
@@ -203,11 +224,11 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === 'Tab') {
     e.preventDefault();
     const inspector = document.querySelector('#inspector-shell');
-    if (inspector) inspector.style.display = (inspector.style.display === 'none') ? 'flex' : 'none';
+    if (inspector) inspector.style.display = inspector.style.display === 'none' ? 'flex' : 'none';
   } else if (e.key === '`') {
     e.preventDefault();
     const hud = document.querySelector('#hud');
-    if (hud) hud.style.display = (hud.style.display === 'none') ? 'flex' : 'none';
+    if (hud) hud.style.display = hud.style.display === 'none' ? 'flex' : 'none';
   }
 });
 
@@ -237,14 +258,18 @@ window.addEventListener('mousemove', (e) => {
   handleCameraMouseMove(e, lightingManager.activeLightId, lightingManager.lightsMap);
 });
 
-renderer.domElement.addEventListener('wheel', (e) => {
-  handleCameraWheel(e, scheduleSave);
-  compositionGrid.show();
-  clearTimeout(compositionGridWheelTimer);
-  compositionGridWheelTimer = setTimeout(() => {
-    if (pressedCanvasButtons.size === 0) compositionGrid.hide();
-  }, 150);
-}, { passive: false });
+renderer.domElement.addEventListener(
+  'wheel',
+  (e) => {
+    handleCameraWheel(e, scheduleSave);
+    compositionGrid.show();
+    clearTimeout(compositionGridWheelTimer);
+    compositionGridWheelTimer = setTimeout(() => {
+      if (pressedCanvasButtons.size === 0) compositionGrid.hide();
+    }, 150);
+  },
+  { passive: false }
+);
 
 window.addEventListener('resize', () => {
   handleCameraResize();
@@ -273,30 +298,107 @@ if (window.CustomDropdown) window.CustomDropdown.bindAll();
 // Post-processing UI Bindings
 document.querySelector('#aaToggle').addEventListener('change', updateAntiAliasing);
 document.querySelector('#aaQualitySelect').addEventListener('change', updateAntiAliasing);
-document.querySelector('#shadowQualitySelect').addEventListener('change', (e) => lightingManager.updateShadowQuality(e.target.value));
+document
+  .querySelector('#shadowQualitySelect')
+  .addEventListener('change', (e) => lightingManager.updateShadowQuality(e.target.value));
 
-document.querySelector('#bloomToggle').addEventListener('change', (e) => { bloomPass.enabled = e.target.checked; });
-bindSliderAndInput('#bloomStrength', '#bloomStrengthInput', (val) => { bloomPass.strength = val; }, 2);
-bindSliderAndInput('#bloomRadius', '#bloomRadiusInput', (val) => { bloomPass.radius = val; }, 2);
-bindSliderAndInput('#bloomThreshold', '#bloomThresholdInput', (val) => { bloomPass.threshold = val; }, 2);
+document.querySelector('#bloomToggle').addEventListener('change', (e) => {
+  bloomPass.enabled = e.target.checked;
+});
+bindSliderAndInput(
+  '#bloomStrength',
+  '#bloomStrengthInput',
+  (val) => {
+    bloomPass.strength = val;
+  },
+  2
+);
+bindSliderAndInput(
+  '#bloomRadius',
+  '#bloomRadiusInput',
+  (val) => {
+    bloomPass.radius = val;
+  },
+  2
+);
+bindSliderAndInput(
+  '#bloomThreshold',
+  '#bloomThresholdInput',
+  (val) => {
+    bloomPass.threshold = val;
+  },
+  2
+);
 
-document.querySelector('#aoToggle').addEventListener('change', (e) => { aoPass.enabled = e.target.checked; });
-bindSliderAndInput('#aoRadius', '#aoRadiusInput', (val) => { aoPass.kernelRadius = val; }, 2);
-bindSliderAndInput('#aoMinDistance', '#aoMinDistanceInput', (val) => { aoPass.minDistance = val; }, 3);
-bindSliderAndInput('#aoMaxDistance', '#aoMaxDistanceInput', (val) => { aoPass.maxDistance = val; }, 2);
+document.querySelector('#aoToggle').addEventListener('change', (e) => {
+  aoPass.enabled = e.target.checked;
+});
+bindSliderAndInput(
+  '#aoRadius',
+  '#aoRadiusInput',
+  (val) => {
+    aoPass.kernelRadius = val;
+  },
+  2
+);
+bindSliderAndInput(
+  '#aoMinDistance',
+  '#aoMinDistanceInput',
+  (val) => {
+    aoPass.minDistance = val;
+  },
+  3
+);
+bindSliderAndInput(
+  '#aoMaxDistance',
+  '#aoMaxDistanceInput',
+  (val) => {
+    aoPass.maxDistance = val;
+  },
+  2
+);
 
 document.querySelector('#toneMappingSelect').addEventListener('change', (e) => {
   switch (e.target.value) {
-    case 'Linear': renderer.toneMapping = THREE.LinearToneMapping; break;
-    case 'Reinhard': renderer.toneMapping = THREE.ReinhardToneMapping; break;
-    case 'Cineon': renderer.toneMapping = THREE.CineonToneMapping; break;
-    default: renderer.toneMapping = THREE.ACESFilmicToneMapping; break;
+    case 'Linear':
+      renderer.toneMapping = THREE.LinearToneMapping;
+      break;
+    case 'Reinhard':
+      renderer.toneMapping = THREE.ReinhardToneMapping;
+      break;
+    case 'Cineon':
+      renderer.toneMapping = THREE.CineonToneMapping;
+      break;
+    default:
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      break;
   }
 });
 
-bindSliderAndInput('#exposureRange', '#exposureInput', (val) => { renderer.toneMappingExposure = val; }, 2);
-bindSliderAndInput('#contrastRange', '#contrastInput', (val) => { postShaderPass.uniforms.contrast.value = val; }, 2);
-bindSliderAndInput('#saturationRange', '#saturationInput', (val) => { postShaderPass.uniforms.saturation.value = val; }, 2);
+bindSliderAndInput(
+  '#exposureRange',
+  '#exposureInput',
+  (val) => {
+    renderer.toneMappingExposure = val;
+  },
+  2
+);
+bindSliderAndInput(
+  '#contrastRange',
+  '#contrastInput',
+  (val) => {
+    postShaderPass.uniforms.contrast.value = val;
+  },
+  2
+);
+bindSliderAndInput(
+  '#saturationRange',
+  '#saturationInput',
+  (val) => {
+    postShaderPass.uniforms.saturation.value = val;
+  },
+  2
+);
 
 // Model Control UI Bindings
 const syncModelScale = (val) => {
@@ -311,42 +413,74 @@ const syncModelScale = (val) => {
 const modelScale = document.querySelector('#modelScale');
 const modelScaleInput = document.querySelector('#modelScaleInput');
 if (modelScale) modelScale.addEventListener('input', (e) => syncModelScale(e.target.value));
-if (modelScaleInput) modelScaleInput.addEventListener('input', (e) => syncModelScale(e.target.value));
+if (modelScaleInput)
+  modelScaleInput.addEventListener('input', (e) => syncModelScale(e.target.value));
 
 const emissionColorElem = document.querySelector('#emissionColor');
 if (emissionColorElem) {
-  initializeColorPicker(emissionColorElem, emissionColorElem.dataset.value, (color) => buttonEmissionColor.set(color));
+  initializeColorPicker(emissionColorElem, emissionColorElem.dataset.value, (color) =>
+    buttonEmissionColor.set(color)
+  );
 }
 
-bindSliderAndInput('#trailOffset', '#trailOffsetInput', (val) => {
-  trailManager.setOffsetY(val);
-  trailManager.syncTarget(modelManager.leftStick3DGroup);
-}, 2);
+bindSliderAndInput(
+  '#trailOffset',
+  '#trailOffsetInput',
+  (val) => {
+    trailManager.setOffsetY(val);
+    trailManager.syncTarget(modelManager.leftStick3DGroup);
+  },
+  2
+);
 
-bindSliderAndInput('#trailRadius', '#trailRadiusInput', (val) => {
-  trailManager.setRadius(val);
-}, 2);
+bindSliderAndInput(
+  '#trailRadius',
+  '#trailRadiusInput',
+  (val) => {
+    trailManager.setRadius(val);
+  },
+  2
+);
 
-bindSliderAndInput('#trailIntensity', '#trailIntensityInput', (val) => {
-  trailManager.setIntensity(val);
-}, 2);
+bindSliderAndInput(
+  '#trailIntensity',
+  '#trailIntensityInput',
+  (val) => {
+    trailManager.setIntensity(val);
+  },
+  2
+);
 
-bindSliderAndInput('#trailWidth', '#trailWidthInput', (val) => {
-  trailManager.setWidth(val);
-}, 3);
+bindSliderAndInput(
+  '#trailWidth',
+  '#trailWidthInput',
+  (val) => {
+    trailManager.setWidth(val);
+  },
+  3
+);
 
-bindSliderAndInput('#trailLength', '#trailLengthInput', (val) => {
-  trailManager.setLength(val);
-}, 2);
+bindSliderAndInput(
+  '#trailLength',
+  '#trailLengthInput',
+  (val) => {
+    trailManager.setLength(val);
+  },
+  2
+);
 
 const trailColorStart = document.querySelector('#trailColorStart');
 if (trailColorStart) {
-  initializeColorPicker(trailColorStart, trailColorStart.dataset.value, (color) => trailManager.setColorStart(color));
+  initializeColorPicker(trailColorStart, trailColorStart.dataset.value, (color) =>
+    trailManager.setColorStart(color)
+  );
 }
 
 const trailColorEnd = document.querySelector('#trailColorEnd');
 if (trailColorEnd) {
-  initializeColorPicker(trailColorEnd, trailColorEnd.dataset.value, (color) => trailManager.setColorEnd(color));
+  initializeColorPicker(trailColorEnd, trailColorEnd.dataset.value, (color) =>
+    trailManager.setColorEnd(color)
+  );
 }
 
 const trailEnabled = document.querySelector('#trailEnabled');
@@ -356,9 +490,14 @@ if (trailEnabled) {
   });
 }
 
-bindSliderAndInput('#emissionIntensity', '#emissionIntensityInput', (val) => {
-  buttonEmissionMultiplier = val;
-}, 2);
+bindSliderAndInput(
+  '#emissionIntensity',
+  '#emissionIntensityInput',
+  (val) => {
+    buttonEmissionMultiplier = val;
+  },
+  2
+);
 
 const boneVisibilityToggle = document.querySelector('#boneVisibilityToggle');
 if (boneVisibilityToggle) {
@@ -393,7 +532,7 @@ async function wireButtonLabelUI() {
       if (response.ok) {
         fontsData = await response.json();
         fontSelect.innerHTML = '';
-        fontsData.forEach(font => {
+        fontsData.forEach((font) => {
           const option = document.createElement('option');
           option.value = font.value;
           option.textContent = font.label;
@@ -410,7 +549,7 @@ async function wireButtonLabelUI() {
       fontSelect.value = config0.fontFamily;
     }
     fontSelect.addEventListener('change', (e) => {
-      const selectedFont = fontsData.find(f => f.value === e.target.value);
+      const selectedFont = fontsData.find((f) => f.value === e.target.value);
       if (selectedFont?.url) {
         loadGoogleFont(selectedFont.url);
       }
@@ -418,17 +557,29 @@ async function wireButtonLabelUI() {
     });
   }
 
-  bindSliderAndInput('#buttonLabelOffsetY', '#buttonLabelOffsetYInput', (val) => {
-    buttonLabelManager.setGlobalConfig({ offset: { y: val } });
-  }, 2);
+  bindSliderAndInput(
+    '#buttonLabelOffsetY',
+    '#buttonLabelOffsetYInput',
+    (val) => {
+      buttonLabelManager.setGlobalConfig({ offset: { y: val } });
+    },
+    2
+  );
 
-  bindSliderAndInput('#buttonLabelFontSize', '#buttonLabelFontSizeInput', (val) => {
-    buttonLabelManager.setGlobalConfig({ fontSize: val });
-  }, 0);
+  bindSliderAndInput(
+    '#buttonLabelFontSize',
+    '#buttonLabelFontSizeInput',
+    (val) => {
+      buttonLabelManager.setGlobalConfig({ fontSize: val });
+    },
+    0
+  );
 
   const labelColorEl = document.querySelector('#buttonLabelColor');
   if (labelColorEl) {
-    initializeColorPicker(labelColorEl, labelColorEl.dataset.value, (color) => buttonLabelManager.setGlobalConfig({ color }));
+    initializeColorPicker(labelColorEl, labelColorEl.dataset.value, (color) =>
+      buttonLabelManager.setGlobalConfig({ color })
+    );
   }
 
   // Populate label list with editable inputs
@@ -459,11 +610,11 @@ function populateButtonLabelList() {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;min-height:24px;';
     row.dataset.index = i;
-    
+
     const hasSvg = config.svg && config.svg.trim() !== '';
-    const inputValue = hasSvg ? '' : (config.text || '');
+    const inputValue = hasSvg ? '' : config.text || '';
     const inputPlaceholder = hasSvg ? '✕ SVG active — type to replace' : '';
-    
+
     row.innerHTML = `
       <input type="checkbox" data-index="${i}" ${config.visible ? 'checked' : ''} style="width:14px;height:14px;flex-shrink:0;cursor:pointer;">
       <span class="btn-name" data-index="${i}" style="width:110px;color:#aaa;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;">${BUTTON_NAMES[i]}</span>
@@ -503,7 +654,7 @@ function populateButtonLabelList() {
       }
       refreshButtonLabelRow(idx);
     });
-    
+
     // SVG dropdown button
     const svgBtn = row.querySelector('.svg-dropdown-btn');
     svgBtn.addEventListener('click', (e) => {
@@ -517,21 +668,19 @@ function populateButtonLabelList() {
 
 function showSvgGlyphMenu(button, index) {
   // Remove any existing menu
-  document.querySelectorAll('.svg-glyph-menu').forEach(m => m.remove());
+  document.querySelectorAll('.svg-glyph-menu').forEach((m) => m.remove());
 
   // Get glyphs from ButtonLabelManager
   const glyphs = buttonLabelManager?.getGlyphs?.() || [];
-  
-  const glyphOptions = [
-    { label: 'None (text only)', svg: null, filename: null }
-  ];
+
+  const glyphOptions = [{ label: 'None (text only)', svg: null, filename: null }];
 
   // Add glyphs from glyphs.json with their friendly names
   for (const glyph of glyphs) {
     glyphOptions.push({
       label: glyph.friendlyName,
       svg: null, // Will be loaded on selection
-      filename: glyph.filename
+      filename: glyph.filename,
     });
   }
 
@@ -544,18 +693,19 @@ function showSvgGlyphMenu(button, index) {
     font-size:11px;font-family:inherit;
   `;
 
-  glyphOptions.forEach(opt => {
+  glyphOptions.forEach((opt) => {
     const item = document.createElement('div');
     item.style.cssText = `
       display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;border-radius:3px;
       color:#e0e0e0;white-space:nowrap;
     `;
-    
+
     if (opt.svg) {
       // Preview SVG (for presets, if any)
       const preview = document.createElement('span');
       preview.innerHTML = opt.svg;
-      preview.style.cssText = 'width:18px;height:18px;display:flex;align-items:center;justify-content:center;color:#ccc;flex-shrink:0;';
+      preview.style.cssText =
+        'width:18px;height:18px;display:flex;align-items:center;justify-content:center;color:#ccc;flex-shrink:0;';
       item.appendChild(preview);
     }
 
@@ -606,13 +756,13 @@ function showSvgGlyphMenu(button, index) {
 function refreshButtonLabelRow(index) {
   const row = document.querySelector(`#buttonLabelList [data-index="${index}"]`);
   if (!row) return;
-  
+
   const config = buttonLabelManager.getConfig(index);
   if (!config) return;
 
   const input = row.querySelector('input[type="text"]');
   const hasSvg = config.svg && config.svg.trim() !== '';
-  
+
   if (hasSvg) {
     input.value = '';
     input.placeholder = '✕ SVG active — type to replace';
@@ -659,7 +809,7 @@ if (openPickerBtn) {
     try {
       const [handle] = await window.showOpenFilePicker({
         types: [{ description: '3D Models', accept: { 'model/gltf-binary': ['.glb'] } }],
-        multiple: false
+        multiple: false,
       });
 
       if (!handle) return;
@@ -713,9 +863,9 @@ if (importSettingsInput) {
 /* ================================================================= Gamepad & Diagnostics Integration ================================================================= */
 const padSelect = document.querySelector('#padSelect');
 if (padSelect) {
-  padSelect.addEventListener('change', (e) => { 
-    gamepadManager.selectPad(Number(e.target.value)); 
-    diagnosticsPanel.resetSnapshot(); 
+  padSelect.addEventListener('change', (e) => {
+    gamepadManager.selectPad(Number(e.target.value));
+    diagnosticsPanel.resetSnapshot();
   });
 }
 
@@ -728,7 +878,11 @@ if (rumbleBtn) {
     const pad = gamepadManager.getSelectedPad();
     if (!pad?.vibrationActuator) return;
     try {
-      await pad.vibrationActuator.playEffect('dual-rumble', { duration: 180, strongMagnitude: 0.65, weakMagnitude: 0.35 });
+      await pad.vibrationActuator.playEffect('dual-rumble', {
+        duration: 180,
+        strongMagnitude: 0.65,
+        weakMagnitude: 0.35,
+      });
     } catch (err) {
       console.warn('Rumble failed:', err);
     }
@@ -740,7 +894,7 @@ function refreshPads() {
   const sel = document.querySelector('#padSelect');
   const old = gamepadManager.activePadIndex;
   if (!sel) return;
-  
+
   sel.innerHTML = '';
   if (!pads.length) {
     sel.innerHTML = '<option>No controller detected</option>';
@@ -748,10 +902,10 @@ function refreshPads() {
     diagnosticsPanel.setStatus(false);
     return;
   }
-  
+
   pads.forEach((pad) => {
     const option = document.createElement('option');
-    option.value = pad.index; 
+    option.value = pad.index;
     option.textContent = `#${pad.index} — ${pad.id}`;
     sel.appendChild(option);
   });
@@ -781,7 +935,10 @@ function normalizeColor(color) {
 
   let hex = cleaned;
   if (hex.length === 3) {
-    hex = hex.split('').map((ch) => ch + ch).join('');
+    hex = hex
+      .split('')
+      .map((ch) => ch + ch)
+      .join('');
   }
 
   if (hex.length > 6) {
@@ -796,13 +953,15 @@ function normalizeColor(color) {
 }
 
 function getSettingsState() {
-  const trailConfig = trailManager.getTrailConfig ? trailManager.getTrailConfig() : {
-    colorStart: 0xaa0022,
-    colorEnd: 0x00aaaa,
-    intensity: 1.25,
-    width: 0.05,
-    length: 10
-  };
+  const trailConfig = trailManager.getTrailConfig
+    ? trailManager.getTrailConfig()
+    : {
+        colorStart: 0xaa0022,
+        colorEnd: 0x00aaaa,
+        intensity: 1.25,
+        width: 0.05,
+        length: 10,
+      };
   return {
     camera: getCameraState(),
     model: {
@@ -810,7 +969,7 @@ function getSettingsState() {
       emissionIntensity: parseFloat(document.querySelector('#emissionIntensity').value),
       trailOffsetY: trailManager.getOffsetY(),
       emissionColor: getColorPickerValue(document.querySelector('#emissionColor')),
-      syncLeftStickDpad: document.querySelector('#syncLeftStickDpadToggle')?.checked ?? false
+      syncLeftStickDpad: document.querySelector('#syncLeftStickDpadToggle')?.checked ?? false,
     },
     trail: {
       enabled: document.querySelector('#trailEnabled')?.checked ?? true,
@@ -819,7 +978,7 @@ function getSettingsState() {
       intensity: trailConfig.intensity,
       width: trailConfig.width,
       length: trailConfig.length,
-      radius: trailConfig.radius
+      radius: trailConfig.radius,
     },
     postProcessing: {
       aaEnabled: document.querySelector('#aaToggle').checked,
@@ -829,24 +988,24 @@ function getSettingsState() {
         enabled: document.querySelector('#bloomToggle').checked,
         strength: parseFloat(document.querySelector('#bloomStrength').value),
         radius: parseFloat(document.querySelector('#bloomRadius').value),
-        threshold: parseFloat(document.querySelector('#bloomThreshold').value)
+        threshold: parseFloat(document.querySelector('#bloomThreshold').value),
       },
       ambientOcclusion: {
         enabled: document.querySelector('#aoToggle').checked,
         radius: parseFloat(document.querySelector('#aoRadius').value),
         minDistance: parseFloat(document.querySelector('#aoMinDistance').value),
-        maxDistance: parseFloat(document.querySelector('#aoMaxDistance').value)
+        maxDistance: parseFloat(document.querySelector('#aoMaxDistance').value),
       },
       color: {
         toneMapping: document.querySelector('#toneMappingSelect').value,
         exposure: parseFloat(document.querySelector('#exposureRange').value),
         contrast: parseFloat(document.querySelector('#contrastRange').value),
-        saturation: parseFloat(document.querySelector('#saturationRange').value)
-      }
+        saturation: parseFloat(document.querySelector('#saturationRange').value),
+      },
     },
     lighting: lightingManager.getLightingState(),
     ibl: { ...iblState },
-    buttonLabels: buttonLabelManager ? buttonLabelManager.toJSON() : {}
+    buttonLabels: buttonLabelManager ? buttonLabelManager.toJSON() : {},
   };
 }
 
@@ -856,14 +1015,15 @@ function applySettingsState(state) {
   if (state.ibl) applyIBLStateToUI(iblState, state.ibl, updateIBL);
   if (state.camera) applyCameraState(state.camera);
 
-if (state.model) {
+  if (state.model) {
     if (state.model.scale !== undefined) syncModelScale(state.model.scale);
     if (state.model.emissionIntensity !== undefined) {
       buttonEmissionMultiplier = state.model.emissionIntensity;
       const emissionIntensity = document.querySelector('#emissionIntensity');
       const emissionIntensityInput = document.querySelector('#emissionIntensityInput');
       if (emissionIntensity) emissionIntensity.value = buttonEmissionMultiplier;
-      if (emissionIntensityInput) emissionIntensityInput.value = buttonEmissionMultiplier.toFixed(2);
+      if (emissionIntensityInput)
+        emissionIntensityInput.value = buttonEmissionMultiplier.toFixed(2);
     }
     if (state.model.trailOffsetY !== undefined) {
       trailManager.setOffsetY(state.model.trailOffsetY);
@@ -1179,7 +1339,7 @@ const appApi = {
   updateCameraFromBridge: cameraApi.updateCameraFromBridge,
   updateLightFromBridge(data) {
     lightingManager.updateLightFromBridge(data);
-  }
+  },
 };
 
 exposeAppApi(appApi);

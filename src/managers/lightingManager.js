@@ -26,22 +26,27 @@ export class LightingManager {
         light = new THREE.DirectionalLight(col, config.intensity);
         break;
       case 'PointLight':
-        light = new THREE.PointLight(col, config.intensity, config.distance ?? 0, config.decay ?? 2);
+        light = new THREE.PointLight(
+          col,
+          config.intensity,
+          config.distance ?? 0,
+          config.decay ?? 2
+        );
         break;
       case 'SpotLight':
         light = new THREE.SpotLight(
-          col, 
-          config.intensity, 
-          config.distance ?? 0, 
-          config.angle ?? Math.PI / 3, 
-          config.penumbra ?? 0, 
+          col,
+          config.intensity,
+          config.distance ?? 0,
+          config.angle ?? Math.PI / 3,
+          config.penumbra ?? 0,
           config.decay ?? 2
         );
         break;
       default:
         light = new THREE.HemisphereLight(
-          col, 
-          new THREE.Color(config.groundColor || 0x080b12), 
+          col,
+          new THREE.Color(config.groundColor || 0x080b12),
           config.intensity
         );
         break;
@@ -76,9 +81,11 @@ export class LightingManager {
   }
 
   setActiveLight(id) {
-    this.activeLightId = (this.activeLightId === id && id !== null) ? null : id;
+    this.activeLightId = this.activeLightId === id && id !== null ? null : id;
 
-    document.querySelectorAll('.light-card').forEach((c) => c.classList.remove('active-light-target'));
+    document
+      .querySelectorAll('.light-card')
+      .forEach((c) => c.classList.remove('active-light-target'));
     if (this.activeLightId) {
       const card = document.querySelector(`#light-card-${this.activeLightId}`);
       if (card) card.classList.add('active-light-target');
@@ -175,14 +182,20 @@ export class LightingManager {
           <div id="${cfg.id}-color" class="custom-color-picker" data-value="${cfg.color}"></div>
         </div>
 
-        ${isHemisphere ? `
+        ${
+          isHemisphere
+            ? `
         <div class="control-row">
           <label>Ground Color</label>
           <div id="${cfg.id}-ground-color" class="custom-color-picker" data-value="${cfg.groundColor || '#080b12'}"></div>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${!isHemisphere ? `
+        ${
+          !isHemisphere
+            ? `
         <div class="control-row">
           <label>Pos (X,Y,Z)</label>
           <div class="pos-inputs">
@@ -191,9 +204,13 @@ export class LightingManager {
             <input type="number" id="${cfg.id}-pos-z" value="${cfg.pos[2]}" step="0.5">
           </div>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${cfg.type === 'DirectionalLight' || isSpot ? `
+        ${
+          cfg.type === 'DirectionalLight' || isSpot
+            ? `
         <div class="control-row">
           <label>Target (X,Y,Z)</label>
           <div class="pos-inputs">
@@ -202,23 +219,31 @@ export class LightingManager {
             <input type="number" id="${cfg.id}-target-z" value="${cfg.target?.[2] ?? 0}" step="0.5">
           </div>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${isPoint || isSpot ? `
+        ${
+          isPoint || isSpot
+            ? `
         <div class="control-row">
           <label>Distance</label>
           <input type="number" id="${cfg.id}-distance" value="${cfg.distance ?? 0}" min="0" step="1">
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${isSpot ? `
+        ${
+          isSpot
+            ? `
         <div class="slider-row">
           <div class="row">
             <div class="label-with-icon"><span>Angle (°)</span></div>
-            <input type="number" id="${cfg.id}-angle-input" class="drag-input" min="1" max="90" step="1" value="${Math.round((cfg.angle ?? Math.PI / 3) * 180 / Math.PI)}">
+            <input type="number" id="${cfg.id}-angle-input" class="drag-input" min="1" max="90" step="1" value="${Math.round(((cfg.angle ?? Math.PI / 3) * 180) / Math.PI)}">
           </div>
           <div class="slider-controls">
-            <input type="range" id="${cfg.id}-angle" min="1" max="90" step="1" value="${Math.round((cfg.angle ?? Math.PI / 3) * 180 / Math.PI)}">
+            <input type="range" id="${cfg.id}-angle" min="1" max="90" step="1" value="${Math.round(((cfg.angle ?? Math.PI / 3) * 180) / Math.PI)}">
           </div>
         </div>
         <div class="slider-row">
@@ -230,9 +255,13 @@ export class LightingManager {
             <input type="range" id="${cfg.id}-penumbra" min="0" max="1" step="0.05" value="${cfg.penumbra ?? 0}">
           </div>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
-        ${supportsShadow ? `
+        ${
+          supportsShadow
+            ? `
         <div class="control-row" style="margin-top:4px; border-top: 1px solid #222226; padding-top:8px;">
           <label>Shadows</label>
           <input type="checkbox" id="${cfg.id}-shadow" ${cfg.castShadow ? 'checked' : ''}>
@@ -241,15 +270,21 @@ export class LightingManager {
           <label>Soft Shadows</label>
           <input type="checkbox" id="${cfg.id}-soft-shadow" ${cfg.softShadow ? 'checked' : ''} ${!cfg.castShadow ? 'disabled' : ''}>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
       </div></div>
       `;
 
       container.appendChild(card);
 
       // Event Bindings
-      card.querySelector('.panel-header').addEventListener('click', () => this.setActiveLight(cfg.id));
-      card.querySelector(`#${cfg.id}-toggle`).addEventListener('change', (e) => { entry.instance.visible = e.target.checked; });
+      card
+        .querySelector('.panel-header')
+        .addEventListener('click', () => this.setActiveLight(cfg.id));
+      card.querySelector(`#${cfg.id}-toggle`).addEventListener('change', (e) => {
+        entry.instance.visible = e.target.checked;
+      });
 
       const intRange = card.querySelector(`#${cfg.id}-intensity`);
       const intInput = card.querySelector(`#${cfg.id}-intensity-input`);
@@ -279,7 +314,8 @@ export class LightingManager {
         });
       }
 
-        if (window.CustomDropdown) window.CustomDropdown.bindSelect(card.querySelector(`#${cfg.id}-type`));
+      if (window.CustomDropdown)
+        window.CustomDropdown.bindSelect(card.querySelector(`#${cfg.id}-type`));
 
       card.querySelector(`#${cfg.id}-type`).addEventListener('change', (e) => {
         cfg.type = e.target.value;
@@ -289,19 +325,27 @@ export class LightingManager {
 
       if (!isHemisphere) {
         const updatePos = () => {
-          cfg.pos = ['x', 'y', 'z'].map(axis => parseFloat(card.querySelector(`#${cfg.id}-pos-${axis}`).value) || 0);
+          cfg.pos = ['x', 'y', 'z'].map(
+            (axis) => parseFloat(card.querySelector(`#${cfg.id}-pos-${axis}`).value) || 0
+          );
           entry.instance.position.set(...cfg.pos);
         };
-        ['x', 'y', 'z'].forEach((axis) => card.querySelector(`#${cfg.id}-pos-${axis}`).addEventListener('input', updatePos));
+        ['x', 'y', 'z'].forEach((axis) =>
+          card.querySelector(`#${cfg.id}-pos-${axis}`).addEventListener('input', updatePos)
+        );
       }
 
       if (cfg.type === 'DirectionalLight' || isSpot) {
         const updateTarget = () => {
-          cfg.target = ['x', 'y', 'z'].map(axis => parseFloat(card.querySelector(`#${cfg.id}-target-${axis}`).value) || 0);
+          cfg.target = ['x', 'y', 'z'].map(
+            (axis) => parseFloat(card.querySelector(`#${cfg.id}-target-${axis}`).value) || 0
+          );
           entry.instance.target.position.set(...cfg.target);
           entry.instance.target.updateMatrixWorld();
         };
-        ['x', 'y', 'z'].forEach((axis) => card.querySelector(`#${cfg.id}-target-${axis}`).addEventListener('input', updateTarget));
+        ['x', 'y', 'z'].forEach((axis) =>
+          card.querySelector(`#${cfg.id}-target-${axis}`).addEventListener('input', updateTarget)
+        );
       }
 
       if (isPoint || isSpot) {
@@ -317,7 +361,7 @@ export class LightingManager {
         const angleInput = card.querySelector(`#${cfg.id}-angle-input`);
         const updateAngle = (val) => {
           const deg = Math.max(1, Math.min(90, val));
-          const rad = deg * Math.PI / 180;
+          const rad = (deg * Math.PI) / 180;
           cfg.angle = rad;
           entry.instance.angle = rad;
           angleRange.value = deg;
@@ -336,7 +380,9 @@ export class LightingManager {
           penumbraInput.value = clamped.toFixed(2);
         };
         penumbraRange.addEventListener('input', (e) => updatePenumbra(parseFloat(e.target.value)));
-        penumbraInput.addEventListener('input', (e) => updatePenumbra(parseFloat(e.target.value) || 0));
+        penumbraInput.addEventListener('input', (e) =>
+          updatePenumbra(parseFloat(e.target.value) || 0)
+        );
       }
 
       if (supportsShadow) {
@@ -373,7 +419,7 @@ export class LightingManager {
       angle: cfg.angle,
       penumbra: cfg.penumbra,
       castShadow: cfg.castShadow,
-      softShadow: cfg.softShadow
+      softShadow: cfg.softShadow,
     }));
   }
 

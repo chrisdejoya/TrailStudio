@@ -31,7 +31,7 @@ export class IBLEditor {
       sun2Position: { value: new THREE.Vector3() },
       sun2Size: { value: 1.25 },
       sun2Intensity: { value: 0 },
-      sun2Atmosphere: { value: 0.5 }
+      sun2Atmosphere: { value: 0.5 },
     };
 
     const material = new THREE.ShaderMaterial({
@@ -105,12 +105,13 @@ export class IBLEditor {
           color += rectLight(direction, sun2Position, sun2Color, sun2Size, sun2Intensity);
 
           gl_FragColor = vec4(color, 1.0);
-        }`
+        }`,
     });
 
     this.environmentScene.add(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), material));
 
-    this.proceduralSkyMesh = this.environmentScene.children[this.environmentScene.children.length - 1];
+    this.proceduralSkyMesh =
+      this.environmentScene.children[this.environmentScene.children.length - 1];
 
     // Scaled down to fit properly inside the unit sphere (radius 1)
     this.ringGeometry = new THREE.TorusGeometry(0.5, 0.02, 16, 64);
@@ -135,7 +136,7 @@ export class IBLEditor {
 
   getTextureOptions() {
     if (!this.textureIndex) return [{ id: 'procedural', name: 'Procedural Sky' }];
-    return this.textureIndex.textures.map(t => ({ id: t.id, name: t.name }));
+    return this.textureIndex.textures.map((t) => ({ id: t.id, name: t.name }));
   }
 
   async loadTexture(textureId) {
@@ -145,21 +146,26 @@ export class IBLEditor {
       return this.loadedTextures.get(textureId);
     }
 
-    const textureInfo = this.textureIndex?.textures?.find(t => t.id === textureId);
+    const textureInfo = this.textureIndex?.textures?.find((t) => t.id === textureId);
     if (!textureInfo || !textureInfo.file) return null;
 
     return new Promise((resolve, reject) => {
       const loader = new THREE.TextureLoader();
       loader.setPath('/textures/ibl/');
-      loader.load(textureInfo.file, (texture) => {
-        texture.mapping = THREE.EquirectangularReflectionMapping;
-        texture.colorSpace = THREE.SRGBColorSpace;
-        this.loadedTextures.set(textureId, texture);
-        resolve(texture);
-      }, undefined, (err) => {
-        console.error(`Failed to load IBL texture ${textureInfo.file}:`, err);
-        reject(err);
-      });
+      loader.load(
+        textureInfo.file,
+        (texture) => {
+          texture.mapping = THREE.EquirectangularReflectionMapping;
+          texture.colorSpace = THREE.SRGBColorSpace;
+          this.loadedTextures.set(textureId, texture);
+          resolve(texture);
+        },
+        undefined,
+        (err) => {
+          console.error(`Failed to load IBL texture ${textureInfo.file}:`, err);
+          reject(err);
+        }
+      );
     });
   }
 
@@ -177,7 +183,7 @@ export class IBLEditor {
     const material = new THREE.MeshBasicMaterial({
       map: texture,
       side: THREE.BackSide,
-      depthWrite: false
+      depthWrite: false,
     });
 
     this.textureMesh = new THREE.Mesh(geometry, material);
@@ -220,8 +226,8 @@ export class IBLEditor {
       if (state.mode === 'texture' && state.textureId !== 'procedural') {
         // Texture mode: hide procedural sky, show texture
         if (this.proceduralSkyMesh) this.proceduralSkyMesh.visible = false;
-        
-        this.loadTexture(state.textureId).then(texture => {
+
+        this.loadTexture(state.textureId).then((texture) => {
           if (texture) {
             // Update or create texture mesh
             if (this.textureMesh) {
@@ -247,7 +253,7 @@ export class IBLEditor {
       } else {
         // Procedural mode: show procedural sky, hide texture
         if (this.proceduralSkyMesh) this.proceduralSkyMesh.visible = true;
-        
+
         if (this.textureMesh) {
           this.environmentScene.remove(this.textureMesh);
           this.textureMesh.geometry.dispose();
@@ -306,7 +312,7 @@ export class IBLEditor {
       ctx.shadowBlur = 8;
       ctx.beginPath();
       if (isRect) {
-        ctx.fillRect(x - (size * 4), y - (size * 2), size * 8, size * 4);
+        ctx.fillRect(x - size * 4, y - size * 2, size * 8, size * 4);
       } else {
         ctx.arc(x, y, size * 3, 0, Math.PI * 2);
         ctx.fill();
@@ -314,8 +320,10 @@ export class IBLEditor {
       ctx.restore();
     };
 
-    if (state.sun1Visible) drawLightPreview(state.sun1Azimuth, state.sun1Color, state.sun1Size, false);
-    if (state.sun2Visible) drawLightPreview(state.sun2Azimuth, state.sun2Color, state.sun2Size, true);
+    if (state.sun1Visible)
+      drawLightPreview(state.sun1Azimuth, state.sun1Color, state.sun1Size, false);
+    if (state.sun2Visible)
+      drawLightPreview(state.sun2Azimuth, state.sun2Color, state.sun2Size, true);
   }
 
   dispose() {
@@ -323,7 +331,7 @@ export class IBLEditor {
     this.pmremGenerator.dispose();
     this.ringGeometry.dispose();
     this.ringMaterial.dispose();
-    this.loadedTextures.forEach(t => t.dispose());
+    this.loadedTextures.forEach((t) => t.dispose());
     this.loadedTextures.clear();
     if (this.textureMesh) {
       this.textureMesh.geometry.dispose();

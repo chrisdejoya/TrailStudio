@@ -11,7 +11,7 @@ const ContrastSaturationShader = {
   uniforms: {
     tDiffuse: { value: null },
     contrast: { value: 1.0 },
-    saturation: { value: 1.0 }
+    saturation: { value: 1.0 },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -42,7 +42,7 @@ const ContrastSaturationShader = {
       color = clamp(color, 0.0, 1.0);
 
       gl_FragColor = vec4(color, col.a);
-    }`
+    }`,
 };
 
 function createMainRenderTarget(width, height, samples = 2) {
@@ -52,7 +52,7 @@ function createMainRenderTarget(width, height, samples = 2) {
   return new THREE.WebGLRenderTarget(width, height, {
     type: THREE.HalfFloatType,
     format: THREE.RGBAFormat,
-    samples: maxSamples
+    samples: maxSamples,
   });
 }
 
@@ -107,7 +107,10 @@ export function createPostProcessing(renderer, scene, camera) {
   // 6. FXAA Pass (Runs on final sRGB buffer) - Using fixed shader to avoid compiler warnings
   const fxaaPass = new ShaderPass(FXAAShaderFixed);
   const pixelRatio = renderer.getPixelRatio();
-  fxaaPass.material.uniforms.resolution.value.set(1 / (width * pixelRatio), 1 / (height * pixelRatio));
+  fxaaPass.material.uniforms.resolution.value.set(
+    1 / (width * pixelRatio),
+    1 / (height * pixelRatio)
+  );
   composer.addPass(fxaaPass);
 
   function updateAntiAliasing() {
@@ -118,7 +121,11 @@ export function createPostProcessing(renderer, scene, camera) {
     const targetWidth = currentTarget?.width ?? 0;
     const targetHeight = currentTarget?.height ?? 0;
     const targetSamples = currentTarget?.samples ?? 0;
-    const needsReset = !currentTarget || targetWidth !== window.innerWidth || targetHeight !== window.innerHeight || targetSamples !== samples;
+    const needsReset =
+      !currentTarget ||
+      targetWidth !== window.innerWidth ||
+      targetHeight !== window.innerHeight ||
+      targetSamples !== samples;
 
     if (needsReset) {
       const oldTarget = currentTarget;
@@ -142,6 +149,6 @@ export function createPostProcessing(renderer, scene, camera) {
     fxaaPass,
     outputPass,
     updateAntiAliasing,
-    resize
+    resize,
   };
 }

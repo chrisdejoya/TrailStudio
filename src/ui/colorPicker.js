@@ -103,10 +103,11 @@ if (!document.getElementById('custom-color-picker-styles')) {
 
 export class CustomColorPicker {
   constructor(containerElement, initialColor = '#ffffff', onChange = () => {}) {
-    this.container = typeof containerElement === 'string' 
-      ? document.querySelector(containerElement) 
-      : containerElement;
-    
+    this.container =
+      typeof containerElement === 'string'
+        ? document.querySelector(containerElement)
+        : containerElement;
+
     if (!this.container) return;
 
     this.container._customColorPicker = this;
@@ -231,7 +232,7 @@ export class CustomColorPicker {
     const y = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
 
     const s = x / rect.width;
-    const v = 1 - (y / rect.height);
+    const v = 1 - y / rect.height;
 
     this.cursor.style.left = `${x}px`;
     this.cursor.style.top = `${y}px`;
@@ -253,13 +254,13 @@ export class CustomColorPicker {
   updateFromSliders() {
     const hue = parseFloat(this.hueSlider.value);
     this.satBox.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
-    
+
     const rect = this.satBox.getBoundingClientRect();
     const left = parseFloat(this.cursor.style.left) || 0;
     const top = parseFloat(this.cursor.style.top) || 0;
-    
+
     const s = rect.width ? left / rect.width : 0;
-    const v = rect.height ? 1 - (top / rect.height) : 1;
+    const v = rect.height ? 1 - top / rect.height : 1;
 
     const rgb = this.hsvToRgb(hue, s, v);
     const hex = this.rgbToHex(rgb.r, rgb.g, rgb.b);
@@ -305,13 +306,18 @@ export class CustomColorPicker {
   }
 
   rgbToHex(r, g, b) {
-    return "#" + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+    return '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('');
   }
 
   rgbToHsv(r, g, b) {
-    r /= 255; g /= 255; b /= 255;
-    let max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h, s, v = max;
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    let max = Math.max(r, g, b),
+      min = Math.min(r, g, b);
+    let h,
+      s,
+      v = max;
     let d = max - min;
     s = max === 0 ? 0 : d / max;
 
@@ -319,9 +325,15 @@ export class CustomColorPicker {
       h = 0;
     } else {
       switch (max) {
-        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-        case g: h = (b - r) / d + 2; break;
-        case b: h = (r - g) / d + 4; break;
+        case r:
+          h = (g - b) / d + (g < b ? 6 : 0);
+          break;
+        case g:
+          h = (b - r) / d + 2;
+          break;
+        case b:
+          h = (r - g) / d + 4;
+          break;
       }
       h /= 6;
     }
@@ -337,12 +349,24 @@ export class CustomColorPicker {
     let t = v * (1 - (1 - f) * s);
 
     switch (i % 6) {
-      case 0: r = v, g = t, b = p; break;
-      case 1: r = q, g = v, b = p; break;
-      case 2: r = p, g = v, b = t; break;
-      case 3: r = p, g = q, b = v; break;
-      case 4: r = t, g = p, b = v; break;
-      case 5: r = v, g = p, b = q; break;
+      case 0:
+        ((r = v), (g = t), (b = p));
+        break;
+      case 1:
+        ((r = q), (g = v), (b = p));
+        break;
+      case 2:
+        ((r = p), (g = v), (b = t));
+        break;
+      case 3:
+        ((r = p), (g = q), (b = v));
+        break;
+      case 4:
+        ((r = t), (g = p), (b = v));
+        break;
+      case 5:
+        ((r = v), (g = p), (b = q));
+        break;
     }
     return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
   }

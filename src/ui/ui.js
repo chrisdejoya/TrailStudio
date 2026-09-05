@@ -36,15 +36,19 @@ export function initPanelDimming() {
     const group = activePanel?.closest('.inspector-group.active');
     if (!group) return;
 
-    getDimmableElements(group).forEach(p => {
+    getDimmableElements(group).forEach((p) => {
       if (p !== activePanel) p.classList.add('dimmed');
     });
   });
 
   document.addEventListener('mouseup', () => {
-    document.querySelectorAll('.inspector-group.active .panel.dimmed, .inspector-group.active .light-card.dimmed').forEach(p => {
-      p.classList.remove('dimmed');
-    });
+    document
+      .querySelectorAll(
+        '.inspector-group.active .panel.dimmed, .inspector-group.active .light-card.dimmed'
+      )
+      .forEach((p) => {
+        p.classList.remove('dimmed');
+      });
   });
 }
 
@@ -61,7 +65,7 @@ export function initCanvasDragDimming() {
     if (e.target.closest('.inspector-shell, #hud')) return;
     // Ensure it's the canvas (Three.js adds it to #app)
     if (!e.target.closest('canvas')) return;
-    
+
     isCanvasDrag = true;
     document.body.classList.add('canvas-dragging');
   });
@@ -81,18 +85,23 @@ export function initCanvasDragDimming() {
   });
 
   // Mouse wheel scrolling on canvas - dim UI while scrolling
-  app.addEventListener('wheel', (e) => {
-    if (e.target.closest('.inspector-shell, #hud')) return;
-    if (!e.target.closest('canvas')) return;
-    
-    document.body.classList.add('canvas-dragging');
-    clearTimeout(wheelTimer);
-    wheelTimer = setTimeout(() => {
-      if (!isCanvasDrag) { // Don't remove if actively dragging
-        document.body.classList.remove('canvas-dragging');
-      }
-    }, 150); // Keep dimmed for 150ms after last wheel event
-  }, { passive: true });
+  app.addEventListener(
+    'wheel',
+    (e) => {
+      if (e.target.closest('.inspector-shell, #hud')) return;
+      if (!e.target.closest('canvas')) return;
+
+      document.body.classList.add('canvas-dragging');
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => {
+        if (!isCanvasDrag) {
+          // Don't remove if actively dragging
+          document.body.classList.remove('canvas-dragging');
+        }
+      }, 150); // Keep dimmed for 150ms after last wheel event
+    },
+    { passive: true }
+  );
 }
 
 // Auto-hide UI after inactivity
@@ -122,7 +131,7 @@ export function initAutoHideUI() {
   }
 
   // Track any mouse activity on the document
-  ['mousemove', 'mousedown', 'wheel', 'keydown', 'touchstart'].forEach(evt => {
+  ['mousemove', 'mousedown', 'wheel', 'keydown', 'touchstart'].forEach((evt) => {
     document.addEventListener(evt, resetHideTimer, { passive: true });
   });
 
@@ -138,7 +147,8 @@ export function initDockScaling() {
       dockItems.forEach((other, i) => {
         const distance = Math.abs(i - index);
         if (distance === 0) return; // hovered item handled by CSS
-        other.style.transition = 'transform 0.15s cubic-bezier(0.15, 1, 0.25, 1), filter 0.15s ease';
+        other.style.transition =
+          'transform 0.15s cubic-bezier(0.15, 1, 0.25, 1), filter 0.15s ease';
         if (distance === 1) {
           other.style.transform = 'scale(1.15)';
           other.style.zIndex = '5';
@@ -154,7 +164,8 @@ export function initDockScaling() {
     });
     item.addEventListener('mouseleave', () => {
       dockItems.forEach((other) => {
-        other.style.transition = 'transform 0.15s cubic-bezier(0.15, 1, 0.25, 1), filter 0.15s ease';
+        other.style.transition =
+          'transform 0.15s cubic-bezier(0.15, 1, 0.25, 1), filter 0.15s ease';
         other.style.transform = '';
         other.style.zIndex = '';
         const img = other.querySelector('img');

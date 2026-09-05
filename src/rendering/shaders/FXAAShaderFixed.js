@@ -4,7 +4,7 @@ import { Vector2 } from 'three';
  * Fixed FXAA Shader - addresses compiler warnings:
  * 1. X3595: gradient instruction used in loop with varying iteration (texture() in data-dependent loops)
  * 2. X4000: use of potentially uninitialized variable (f_ApplyFXAA)
- * 
+ *
  * Fixes:
  * - Replaced data-dependent loops with fixed-iteration loops using explicit break conditions
  * - Ensured all variables are initialized before use
@@ -15,18 +15,18 @@ const FXAAShaderFixed = {
   name: 'FXAAShaderFixed',
 
   uniforms: {
-    'tDiffuse': { value: null },
-    'resolution': { value: new Vector2(1 / 1024, 1 / 512) }
+    tDiffuse: { value: null },
+    resolution: { value: new Vector2(1 / 1024, 1 / 512) },
   },
 
-  vertexShader: /* glsl */`
+  vertexShader: /* glsl */ `
     varying vec2 vUv;
     void main() {
       vUv = uv;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }`,
 
-  fragmentShader: /* glsl */`
+  fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
     uniform vec2 resolution;
     varying vec2 vUv;
@@ -237,7 +237,7 @@ const FXAAShaderFixed = {
 
     void main() {
       gl_FragColor = ApplyFXAA(tDiffuse, resolution.xy, vUv);
-    }`
+    }`,
 };
 
 export { FXAAShaderFixed };

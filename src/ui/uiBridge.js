@@ -21,7 +21,7 @@ export function bindSliderAndInput(sliderSel, inputSel, callback, decimals = 2) 
 export function exposeAppApi(api) {
   window.TrailStudioApp = {
     ...window.TrailStudioApp,
-    ...api
+    ...api,
   };
 }
 

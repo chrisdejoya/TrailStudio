@@ -19,7 +19,9 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
     element.addEventListener(type === 'boolean' ? 'change' : 'input', () => {
       const val = type === 'boolean' ? element.checked : parseFloat(element.value);
       iblState[key] = val;
-      if (inputElement) inputElement.value = type === 'integer' ? String(val) : val.toFixed(type === 'float' ? 2 : 1);
+      if (inputElement)
+        inputElement.value =
+          type === 'integer' ? String(val) : val.toFixed(type === 'float' ? 2 : 1);
       onUpdate();
     });
   }
@@ -50,99 +52,189 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
     ['iblRingVisible', 'ringVisible', 'boolean'],
     ['iblRingColor', 'ringColor', 'color'],
     ['iblRingHeight', 'ringHeight'],
-    ['iblRingIntensity', 'ringIntensity']
+    ['iblRingIntensity', 'ringIntensity'],
   ].forEach(([id, key, type]) => bindIBLControl(id, key, type));
 
-  bindSliderAndInput('#iblIntensity', '#iblIntensityInput', (value) => {
-    iblState.intensity = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblIntensity',
+    '#iblIntensityInput',
+    (value) => {
+      iblState.intensity = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblSkyLevel', '#iblSkyLevelInput', (value) => {
-    iblState.skyLevel = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblSkyLevel',
+    '#iblSkyLevelInput',
+    (value) => {
+      iblState.skyLevel = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblHorizonLevel', '#iblHorizonLevelInput', (value) => {
-    iblState.horizonLevel = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblHorizonLevel',
+    '#iblHorizonLevelInput',
+    (value) => {
+      iblState.horizonLevel = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblGroundLevel', '#iblGroundLevelInput', (value) => {
-    iblState.groundLevel = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblGroundLevel',
+    '#iblGroundLevelInput',
+    (value) => {
+      iblState.groundLevel = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblSun1Elevation', '#iblSun1ElevationInput', (value) => {
-    iblState.sun1Elevation = value;
-    onUpdate();
-  }, 0);
+  bindSliderAndInput(
+    '#iblSun1Elevation',
+    '#iblSun1ElevationInput',
+    (value) => {
+      iblState.sun1Elevation = value;
+      onUpdate();
+    },
+    0
+  );
 
-  bindSliderAndInput('#iblSun1Azimuth', '#iblSun1AzimuthInput', (value) => {
-    iblState.sun1Azimuth = value;
-    onUpdate();
-  }, 0);
+  bindSliderAndInput(
+    '#iblSun1Azimuth',
+    '#iblSun1AzimuthInput',
+    (value) => {
+      iblState.sun1Azimuth = value;
+      onUpdate();
+    },
+    0
+  );
 
-  bindSliderAndInput('#iblSun1Size', '#iblSun1SizeInput', (value) => {
-    iblState.sun1Size = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblSun1Size',
+    '#iblSun1SizeInput',
+    (value) => {
+      iblState.sun1Size = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblSun1Intensity', '#iblSun1IntensityInput', (value) => {
-    iblState.sun1Intensity = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblSun1Intensity',
+    '#iblSun1IntensityInput',
+    (value) => {
+      iblState.sun1Intensity = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblSun1Atmosphere', '#iblSun1AtmosphereInput', (value) => {
-    iblState.sun1Atmosphere = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblSun1Atmosphere',
+    '#iblSun1AtmosphereInput',
+    (value) => {
+      iblState.sun1Atmosphere = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblSun2Elevation', '#iblSun2ElevationInput', (value) => {
-    iblState.sun2Elevation = value;
-    onUpdate();
-  }, 0);
+  bindSliderAndInput(
+    '#iblSun2Elevation',
+    '#iblSun2ElevationInput',
+    (value) => {
+      iblState.sun2Elevation = value;
+      onUpdate();
+    },
+    0
+  );
 
-  bindSliderAndInput('#iblSun2Azimuth', '#iblSun2AzimuthInput', (value) => {
-    iblState.sun2Azimuth = value;
-    onUpdate();
-  }, 0);
+  bindSliderAndInput(
+    '#iblSun2Azimuth',
+    '#iblSun2AzimuthInput',
+    (value) => {
+      iblState.sun2Azimuth = value;
+      onUpdate();
+    },
+    0
+  );
 
-  bindSliderAndInput('#iblSun2Size', '#iblSun2SizeInput', (value) => {
-    iblState.sun2Size = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblSun2Size',
+    '#iblSun2SizeInput',
+    (value) => {
+      iblState.sun2Size = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblSun2Intensity', '#iblSun2IntensityInput', (value) => {
-    iblState.sun2Intensity = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblSun2Intensity',
+    '#iblSun2IntensityInput',
+    (value) => {
+      iblState.sun2Intensity = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblSun2Atmosphere', '#iblSun2AtmosphereInput', (value) => {
-    iblState.sun2Atmosphere = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblSun2Atmosphere',
+    '#iblSun2AtmosphereInput',
+    (value) => {
+      iblState.sun2Atmosphere = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblRingHeight', '#iblRingHeightInput', (value) => {
-    iblState.ringHeight = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblRingHeight',
+    '#iblRingHeightInput',
+    (value) => {
+      iblState.ringHeight = value;
+      onUpdate();
+    },
+    2
+  );
 
-  bindSliderAndInput('#iblRingIntensity', '#iblRingIntensityInput', (value) => {
-    iblState.ringIntensity = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblRingIntensity',
+    '#iblRingIntensityInput',
+    (value) => {
+      iblState.ringIntensity = value;
+      onUpdate();
+    },
+    2
+  );
 
   // Texture mode controls
-  bindSliderAndInput('#iblTextureRotation', '#iblTextureRotationInput', (value) => {
-    iblState.textureRotation = value;
-    onUpdate();
-  }, 3);
+  bindSliderAndInput(
+    '#iblTextureRotation',
+    '#iblTextureRotationInput',
+    (value) => {
+      iblState.textureRotation = value;
+      onUpdate();
+    },
+    3
+  );
 
-  bindSliderAndInput('#iblTextureScale', '#iblTextureScaleInput', (value) => {
-    iblState.textureScale = value;
-    onUpdate();
-  }, 2);
+  bindSliderAndInput(
+    '#iblTextureScale',
+    '#iblTextureScaleInput',
+    (value) => {
+      iblState.textureScale = value;
+      onUpdate();
+    },
+    2
+  );
 
   // Texture selection dropdown
   textureSelect = document.querySelector('#iblTextureSelect');
@@ -151,7 +243,7 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
       const options = iblEditor.getTextureOptions();
       const currentValue = textureSelect.value;
       textureSelect.innerHTML = '';
-      options.forEach(opt => {
+      options.forEach((opt) => {
         const option = document.createElement('option');
         option.value = opt.id;
         option.textContent = opt.name;
@@ -178,11 +270,12 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
 
   // Mode toggle (procedural vs texture)
   const modeRadios = document.querySelectorAll('input[name="iblMode"]');
-  modeRadios.forEach(radio => {
+  modeRadios.forEach((radio) => {
     radio.addEventListener('change', () => {
       if (radio.checked) {
         iblState.mode = radio.value;
-        iblState.textureId = radio.value === 'procedural' ? 'procedural' : (textureSelect?.value || 'studio');
+        iblState.textureId =
+          radio.value === 'procedural' ? 'procedural' : textureSelect?.value || 'studio';
         if (textureSelect) textureSelect.value = iblState.textureId;
         updateControlStates();
         onUpdate();
@@ -202,23 +295,42 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
 
     if (proceduralContainer) proceduralContainer.style.display = isProcedural ? '' : 'none';
     if (textureContainer) textureContainer.style.display = isTexture ? '' : 'none';
-    if (textureTransformContainer) textureTransformContainer.style.display = isTexture ? '' : 'none';
+    if (textureTransformContainer)
+      textureTransformContainer.style.display = isTexture ? '' : 'none';
     if (textureScaleContainer) textureScaleContainer.style.display = isTexture ? '' : 'none';
 
     // Procedural controls
     const proceduralIds = [
-      'iblSkyColor', 'iblSkyLevel', 'iblHorizonColor', 'iblHorizonLevel',
-      'iblGroundColor', 'iblGroundLevel', 'iblSun1Visible', 'iblSun1Color',
-      'iblSun1Elevation', 'iblSun1Azimuth', 'iblSun1Size', 'iblSun1Intensity',
-      'iblSun1Atmosphere', 'iblSun2Visible', 'iblSun2Color', 'iblSun2Elevation',
-      'iblSun2Azimuth', 'iblSun2Size', 'iblSun2Intensity', 'iblSun2Atmosphere',
-      'iblRingVisible', 'iblRingColor', 'iblRingHeight', 'iblRingIntensity'
+      'iblSkyColor',
+      'iblSkyLevel',
+      'iblHorizonColor',
+      'iblHorizonLevel',
+      'iblGroundColor',
+      'iblGroundLevel',
+      'iblSun1Visible',
+      'iblSun1Color',
+      'iblSun1Elevation',
+      'iblSun1Azimuth',
+      'iblSun1Size',
+      'iblSun1Intensity',
+      'iblSun1Atmosphere',
+      'iblSun2Visible',
+      'iblSun2Color',
+      'iblSun2Elevation',
+      'iblSun2Azimuth',
+      'iblSun2Size',
+      'iblSun2Intensity',
+      'iblSun2Atmosphere',
+      'iblRingVisible',
+      'iblRingColor',
+      'iblRingHeight',
+      'iblRingIntensity',
     ];
 
     // Texture controls
     const textureIds = ['iblTextureSelect', 'iblTextureRotation', 'iblTextureScale'];
 
-    proceduralIds.forEach(id => {
+    proceduralIds.forEach((id) => {
       const el = document.querySelector(`#${id}`);
       const inputEl = document.querySelector(`#${id}Input`);
       const labelEl = document.querySelector(`label[for="${id}"]`);
@@ -233,7 +345,7 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
       if (labelEl) labelEl.style.opacity = isProcedural ? '1' : '0.5';
     });
 
-    textureIds.forEach(id => {
+    textureIds.forEach((id) => {
       const el = document.querySelector(`#${id}`);
       const inputEl = document.querySelector(`#${id}Input`);
       const labelEl = document.querySelector(`label[for="${id}"]`);
@@ -249,7 +361,7 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
     });
 
     // Update radio buttons
-    modeRadios.forEach(radio => {
+    modeRadios.forEach((radio) => {
       radio.checked = radio.value === iblState.mode;
     });
   }
@@ -292,7 +404,7 @@ export function applyIBLStateToUI(iblState, state, onUpdate) {
       ringVisible: 'iblRingVisible',
       ringColor: 'iblRingColor',
       ringHeight: 'iblRingHeight',
-      ringIntensity: 'iblRingIntensity'
+      ringIntensity: 'iblRingIntensity',
     };
     const elementId = elementMap[key];
     if (!elementId) return;
@@ -301,7 +413,8 @@ export function applyIBLStateToUI(iblState, state, onUpdate) {
     if (element) {
       if (element.type === 'checkbox') element.checked = value;
       else if (element.type === 'radio') element.checked = element.value === value;
-      else if (element.classList.contains('custom-color-picker')) setColorPickerValue(element, value);
+      else if (element.classList.contains('custom-color-picker'))
+        setColorPickerValue(element, value);
       else if (element.tagName === 'SELECT') element.value = value;
       else element.value = value;
     }

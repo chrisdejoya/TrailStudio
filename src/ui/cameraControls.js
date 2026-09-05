@@ -3,7 +3,12 @@ import * as THREE from 'three';
 // -----------------------------------------------------------------------------
 // CAMERA SETUP & STATE
 // -----------------------------------------------------------------------------
-export const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+export const camera = new THREE.PerspectiveCamera(
+  50,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  100
+);
 export const cameraTarget = new THREE.Vector3(0, 0, 0);
 
 let radius = 6.5;
@@ -25,7 +30,7 @@ export function setFpsLimitState(enabled, fps) {
 export function getFpsLimitState() {
   return {
     enabled: fpsLimitEnabled,
-    fps: targetFps
+    fps: targetFps,
   };
 }
 
@@ -41,7 +46,7 @@ const panForward = new THREE.Vector3();
 
 // Snap thresholds stored in radians for high-performance drag checks
 const DEG2RAD = Math.PI / 180;
-export let rotationSnapThresholdY = 1.0 * DEG2RAD; 
+export let rotationSnapThresholdY = 1.0 * DEG2RAD;
 export let rotationSnapThresholdX = 1.0 * DEG2RAD;
 
 export function setRotationSnapThresholds(yThresholdDeg, xThresholdDeg) {
@@ -75,7 +80,7 @@ function cacheDomElements() {
     camFov: document.querySelector('#camFov'),
     camFovInput: document.querySelector('#camFovInput'),
     fpsToggle: document.querySelector('#fpsToggle'),
-    fpsSelect: document.querySelector('#fpsSelect')
+    fpsSelect: document.querySelector('#fpsSelect'),
   };
 }
 
@@ -103,9 +108,12 @@ export function updateCameraPosition(skipRotationUpdate = false) {
       requestAnimationFrame(() => {
         if (!isUpdatingRotUI && targetModelGroup) {
           isUpdatingRotUI = true;
-          if (domElements.camRotX) domElements.camRotX.value = (targetModelGroup.rotation.x / DEG2RAD).toFixed(1);
-          if (domElements.camRotY) domElements.camRotY.value = (targetModelGroup.rotation.y / DEG2RAD).toFixed(1);
-          if (domElements.camRotZ) domElements.camRotZ.value = (targetModelGroup.rotation.z / DEG2RAD).toFixed(1);
+          if (domElements.camRotX)
+            domElements.camRotX.value = (targetModelGroup.rotation.x / DEG2RAD).toFixed(1);
+          if (domElements.camRotY)
+            domElements.camRotY.value = (targetModelGroup.rotation.y / DEG2RAD).toFixed(1);
+          if (domElements.camRotZ)
+            domElements.camRotZ.value = (targetModelGroup.rotation.z / DEG2RAD).toFixed(1);
           isUpdatingRotUI = false;
         }
         uiUpdateScheduled = false;
@@ -119,8 +127,8 @@ export const syncFov = (val, compensate = true) => {
   const fovVal = Math.max(1, Math.min(170, parseFloat(val) || 50));
 
   if (compensate && oldFov !== fovVal) {
-    const oldHalfFovRad = (oldFov * 0.5) * DEG2RAD;
-    const newHalfFovRad = (fovVal * 0.5) * DEG2RAD;
+    const oldHalfFovRad = oldFov * 0.5 * DEG2RAD;
+    const newHalfFovRad = fovVal * 0.5 * DEG2RAD;
     radius = radius * (Math.tan(oldHalfFovRad) / Math.tan(newHalfFovRad));
     radius = Math.max(0.5, Math.min(50, radius));
     if (!domElements.camRadius) cacheDomElements();
@@ -166,11 +174,15 @@ export const updateCamTarget = () => {
 export function setupCameraInputs(onSaveCallback) {
   cacheDomElements();
 
-  if (domElements.camFov) domElements.camFov.addEventListener('input', (e) => syncFov(e.target.value));
-  if (domElements.camFovInput) domElements.camFovInput.addEventListener('input', (e) => syncFov(e.target.value));
+  if (domElements.camFov)
+    domElements.camFov.addEventListener('input', (e) => syncFov(e.target.value));
+  if (domElements.camFovInput)
+    domElements.camFovInput.addEventListener('input', (e) => syncFov(e.target.value));
 
-  if (domElements.camRadius) domElements.camRadius.addEventListener('input', (e) => syncZoom(e.target.value));
-  if (domElements.camRadiusInput) domElements.camRadiusInput.addEventListener('input', (e) => syncZoom(e.target.value));
+  if (domElements.camRadius)
+    domElements.camRadius.addEventListener('input', (e) => syncZoom(e.target.value));
+  if (domElements.camRadiusInput)
+    domElements.camRadiusInput.addEventListener('input', (e) => syncZoom(e.target.value));
 
   if (domElements.fpsToggle) {
     domElements.fpsToggle.addEventListener('change', (e) => {
@@ -300,8 +312,10 @@ export function getCameraState() {
     fov: camera.fov,
     radius,
     target: [cameraTarget.x, cameraTarget.y, cameraTarget.z],
-    rotation: targetModelGroup ? [targetModelGroup.rotation.x, targetModelGroup.rotation.y, targetModelGroup.rotation.z] : [0, 0, 0],
-    fpsLimit: getFpsLimitState()
+    rotation: targetModelGroup
+      ? [targetModelGroup.rotation.x, targetModelGroup.rotation.y, targetModelGroup.rotation.z]
+      : [0, 0, 0],
+    fpsLimit: getFpsLimitState(),
   };
 }
 
@@ -340,5 +354,5 @@ export const cameraApi = {
       if (data.control === 'camera-fov') syncFov(data.value);
       if (data.control === 'camera-zoom') syncZoom(data.value);
     }
-  }
+  },
 };

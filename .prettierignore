@@ -1,0 +1,9 @@
+node_modules/
+dist/
+models/
+textures/
+assets/glyphs/
+assets/ibl/
+svg/glyphs/
+ibl/
+trailstudio.html

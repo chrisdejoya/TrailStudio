@@ -4,7 +4,8 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 const DEFAULT_LABEL_CONFIG = {
   text: '',
   visible: true,
-  fontFamily: 'Rubik, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  fontFamily:
+    'Rubik, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   fontSize: 20,
   fontWeight: 600,
   fontStyle: 'normal',
@@ -17,20 +18,33 @@ const DEFAULT_LABEL_CONFIG = {
     glow: { enabled: true, blur: 4, color: '#ffffff', layers: 1 },
     scale: 1.1,
     colorShift: false,
-    transition: '0.05s ease-out'
+    transition: '0.05s ease-out',
   },
   hover: {
     enabled: true,
     glow: { enabled: true, blur: 6, color: '#ffffff', layers: 1 },
-    transition: '0.1s ease-out'
-  }
+    transition: '0.1s ease-out',
+  },
 };
 
 const BUTTON_NAMES = [
-  'South / A / Cross', 'East / B / Circle', 'West / X / Square', 'North / Y / Triangle',
-  'L1 / LB', 'R1 / RB', 'L2 / LT', 'R2 / RT',
-  'Select / Back', 'Start', 'L3', 'R3',
-  'D-Pad Up', 'D-Pad Down', 'D-Pad Left', 'D-Pad Right', 'Home / Guide'
+  'South / A / Cross',
+  'East / B / Circle',
+  'West / X / Square',
+  'North / Y / Triangle',
+  'L1 / LB',
+  'R1 / RB',
+  'L2 / LT',
+  'R2 / RT',
+  'Select / Back',
+  'Start',
+  'L3',
+  'R3',
+  'D-Pad Up',
+  'D-Pad Down',
+  'D-Pad Left',
+  'D-Pad Right',
+  'Home / Guide',
 ];
 
 const PS_SYMBOLS = {
@@ -43,14 +57,14 @@ const PS_SYMBOLS = {
   'L2 / LT': 'L2',
   'R2 / RT': 'R2',
   'Select / Back': '⬚',
-  'Start': '≡',
-  'L3': 'L3',
-  'R3': 'R3',
+  Start: '≡',
+  L3: 'L3',
+  R3: 'R3',
   'D-Pad Up': '▲',
   'D-Pad Down': '▼',
   'D-Pad Left': '◀',
   'D-Pad Right': '▶',
-  'Home / Guide': '⬤'
+  'Home / Guide': '⬤',
 };
 
 const XBOX_SYMBOLS = {
@@ -63,14 +77,14 @@ const XBOX_SYMBOLS = {
   'L2 / LT': 'LT',
   'R2 / RT': 'RT',
   'Select / Back': '⬚',
-  'Start': '≡',
-  'L3': 'L3',
-  'R3': 'R3',
+  Start: '≡',
+  L3: 'L3',
+  R3: 'R3',
   'D-Pad Up': '▲',
   'D-Pad Down': '▼',
   'D-Pad Left': '◀',
   'D-Pad Right': '▶',
-  'Home / Guide': '⬤'
+  'Home / Guide': '⬤',
 };
 
 const DEFAULT_SYMBOLS = {
@@ -83,93 +97,153 @@ const DEFAULT_SYMBOLS = {
   'L2 / LT': 'L2',
   'R2 / RT': 'R2',
   'Select / Back': '◼',
-  'Start': '▶',
-  'L3': 'L3',
-  'R3': 'R3',
+  Start: '▶',
+  L3: 'L3',
+  R3: 'R3',
   'D-Pad Up': '▲',
   'D-Pad Down': '▼',
   'D-Pad Left': '◀',
   'D-Pad Right': '▶',
-  'Home / Guide': '◆'
+  'Home / Guide': '◆',
 };
 
 const SVG_PRESETS = {
   playstation: {
-    'South / A / Cross': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L10 14.17 7.41 11.59 6 13l6 6 12-12-1.41-1.41z"/></svg>',
-    'East / B / Circle': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/></svg>',
-    'West / X / Square': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>',
-    'North / Y / Triangle': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M12 2L2 22h20L12 2z"/></svg>',
-    'L1 / LB': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L1</text></svg>',
-    'R1 / RB': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R1</text></svg>',
-    'L2 / LT': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L2</text></svg>',
-    'R2 / RT': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R2</text></svg>',
-    'Select / Back': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
-    'Start': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M4 8h4v8H4V8zm6 0h4v8h-4V8zm6 0h4v8h-4V8z"/></svg>',
-    'L3': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L3</text></svg>',
-    'R3': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R3</text></svg>',
-    'D-Pad Up': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 14l5-5 5 5H7z"/></svg>',
-    'D-Pad Down': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 10l5 5 5-5H7z"/></svg>',
-    'D-Pad Left': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M14 7l-5 5 5 5V7z"/></svg>',
-    'D-Pad Right': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M10 7l5 5-5 5V7z"/></svg>',
-    'Home / Guide': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>'
+    'South / A / Cross':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 13.59L10 14.17 7.41 11.59 6 13l6 6 12-12-1.41-1.41z"/></svg>',
+    'East / B / Circle':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/></svg>',
+    'West / X / Square':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>',
+    'North / Y / Triangle':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M12 2L2 22h20L12 2z"/></svg>',
+    'L1 / LB':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L1</text></svg>',
+    'R1 / RB':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R1</text></svg>',
+    'L2 / LT':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L2</text></svg>',
+    'R2 / RT':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R2</text></svg>',
+    'Select / Back':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    Start:
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M4 8h4v8H4V8zm6 0h4v8h-4V8zm6 0h4v8h-4V8z"/></svg>',
+    L3: '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L3</text></svg>',
+    R3: '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R3</text></svg>',
+    'D-Pad Up':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 14l5-5 5 5H7z"/></svg>',
+    'D-Pad Down':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 10l5 5 5-5H7z"/></svg>',
+    'D-Pad Left':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M14 7l-5 5 5 5V7z"/></svg>',
+    'D-Pad Right':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M10 7l5 5-5 5V7z"/></svg>',
+    'Home / Guide':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>',
   },
   xbox: {
-    'South / A / Cross': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">A</text></svg>',
-    'East / B / Circle': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">B</text></svg>',
-    'West / X / Square': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">X</text></svg>',
-    'North / Y / Triangle': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">Y</text></svg>',
-    'L1 / LB': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">LB</text></svg>',
-    'R1 / RB': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">RB</text></svg>',
-    'L2 / LT': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">LT</text></svg>',
-    'R2 / RT': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">RT</text></svg>',
-    'Select / Back': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M4 8h4v8H4V8zm6 0h4v8h-4V8zm6 0h4v8h-4V8z"/></svg>',
-    'Start': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M4 12h16v2H4v-2z"/></svg>',
-    'L3': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">L3</text></svg>',
-    'R3': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">R3</text></svg>',
-    'D-Pad Up': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 14l5-5 5 5H7z"/></svg>',
-    'D-Pad Down': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 10l5 5 5-5H7z"/></svg>',
-    'D-Pad Left': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M14 7l-5 5 5 5V7z"/></svg>',
-    'D-Pad Right': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M10 7l5 5-5 5V7z"/></svg>',
-    'Home / Guide': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="2" fill="none"/></svg>'
+    'South / A / Cross':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">A</text></svg>',
+    'East / B / Circle':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">B</text></svg>',
+    'West / X / Square':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">X</text></svg>',
+    'North / Y / Triangle':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">Y</text></svg>',
+    'L1 / LB':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">LB</text></svg>',
+    'R1 / RB':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">RB</text></svg>',
+    'L2 / LT':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">LT</text></svg>',
+    'R2 / RT':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">RT</text></svg>',
+    'Select / Back':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M4 8h4v8H4V8zm6 0h4v8h-4V8zm6 0h4v8h-4V8z"/></svg>',
+    Start:
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M4 12h16v2H4v-2z"/></svg>',
+    L3: '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">L3</text></svg>',
+    R3: '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">R3</text></svg>',
+    'D-Pad Up':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 14l5-5 5 5H7z"/></svg>',
+    'D-Pad Down':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 10l5 5 5-5H7z"/></svg>',
+    'D-Pad Left':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M14 7l-5 5 5 5V7z"/></svg>',
+    'D-Pad Right':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M10 7l5 5-5 5V7z"/></svg>',
+    'Home / Guide':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M6 12h12" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
   },
   nintendo: {
-    'South / A / Cross': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">A</text></svg>',
-    'East / B / Circle': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">B</text></svg>',
-    'West / X / Square': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">X</text></svg>',
-    'North / Y / Triangle': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">Y</text></svg>',
-    'L1 / LB': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">L</text></svg>',
-    'R1 / RB': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">R</text></svg>',
-    'L2 / LT': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">ZL</text></svg>',
-    'R2 / RT': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">ZR</text></svg>',
-    'Select / Back': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M5 12h14v2H5v-2z"/></svg>',
-    'Start': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
-    'L3': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">L3</text></svg>',
-    'R3': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">R3</text></svg>',
-    'D-Pad Up': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 14l5-5 5 5H7z"/></svg>',
-    'D-Pad Down': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 10l5 5 5-5H7z"/></svg>',
-    'D-Pad Left': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M14 7l-5 5 5 5V7z"/></svg>',
-    'D-Pad Right': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M10 7l5 5-5 5V7z"/></svg>',
-    'Home / Guide': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/></svg>'
+    'South / A / Cross':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">A</text></svg>',
+    'East / B / Circle':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">B</text></svg>',
+    'West / X / Square':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">X</text></svg>',
+    'North / Y / Triangle':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="14" font-weight="bold">Y</text></svg>',
+    'L1 / LB':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">L</text></svg>',
+    'R1 / RB':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">R</text></svg>',
+    'L2 / LT':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">ZL</text></svg>',
+    'R2 / RT':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">ZR</text></svg>',
+    'Select / Back':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M5 12h14v2H5v-2z"/></svg>',
+    Start:
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
+    L3: '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">L3</text></svg>',
+    R3: '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="9" font-weight="bold">R3</text></svg>',
+    'D-Pad Up':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 14l5-5 5 5H7z"/></svg>',
+    'D-Pad Down':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 10l5 5 5-5H7z"/></svg>',
+    'D-Pad Left':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M14 7l-5 5 5 5V7z"/></svg>',
+    'D-Pad Right':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M10 7l5 5-5 5V7z"/></svg>',
+    'Home / Guide':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/></svg>',
   },
   generic: {
-    'South / A / Cross': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/></svg>',
-    'East / B / Circle': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/></svg>',
-    'West / X / Square': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>',
-    'North / Y / Triangle': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M12 2L2 22h20L12 2z"/></svg>',
-    'L1 / LB': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L1</text></svg>',
-    'R1 / RB': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R1</text></svg>',
-    'L2 / LT': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L2</text></svg>',
-    'R2 / RT': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R2</text></svg>',
-    'Select / Back': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
-    'Start': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M4 8h4v8H4V8zm6 0h4v8h-4V8zm6 0h4v8h-4V8z"/></svg>',
-    'L3': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L3</text></svg>',
-    'R3': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R3</text></svg>',
-    'D-Pad Up': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 14l5-5 5 5H7z"/></svg>',
-    'D-Pad Down': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 10l5 5 5-5H7z"/></svg>',
-    'D-Pad Left': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M14 7l-5 5 5 5V7z"/></svg>',
-    'D-Pad Right': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M10 7l5 5-5 5V7z"/></svg>',
-    'Home / Guide': '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/></svg>'
-  }
+    'South / A / Cross':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/></svg>',
+    'East / B / Circle':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/></svg>',
+    'West / X / Square':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>',
+    'North / Y / Triangle':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M12 2L2 22h20L12 2z"/></svg>',
+    'L1 / LB':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L1</text></svg>',
+    'R1 / RB':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R1</text></svg>',
+    'L2 / LT':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L2</text></svg>',
+    'R2 / RT':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R2</text></svg>',
+    'Select / Back':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    Start:
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M4 8h4v8H4V8zm6 0h4v8h-4V8zm6 0h4v8h-4V8z"/></svg>',
+    L3: '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">L3</text></svg>',
+    R3: '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-size="10" font-weight="bold">R3</text></svg>',
+    'D-Pad Up':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 14l5-5 5 5H7z"/></svg>',
+    'D-Pad Down':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M7 10l5 5 5-5H7z"/></svg>',
+    'D-Pad Left':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M14 7l-5 5 5 5V7z"/></svg>',
+    'D-Pad Right':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><path d="M10 7l5 5-5 5V7z"/></svg>',
+    'Home / Guide':
+      '<svg viewBox="0 0 24 24" fill="currentColor" width="1em" height="1em"><circle cx="12" cy="12" r="10"/></svg>',
+  },
 };
 
 export class ButtonLabelManager {
@@ -234,9 +308,9 @@ export class ButtonLabelManager {
   }
 
   async getGlyphSvg(filename) {
-    const glyph = this.glyphs.find(g => g.filename === filename);
+    const glyph = this.glyphs.find((g) => g.filename === filename);
     if (!glyph) return null;
-    
+
     try {
       const response = await fetch(`/svg/glyphs/${filename}`);
       if (response.ok) {
@@ -320,7 +394,7 @@ export class ButtonLabelManager {
       label.center.set(0.5, 0.5);
       this.labels.set(index, label);
       this.labelGroup.add(label);
-      
+
       // Store reference to inner content element for updates
       label.userData.contentElement = div;
       label.userData.isHovered = false;
@@ -363,7 +437,10 @@ export class ButtonLabelManager {
       const ds = config.dropShadow;
       filters.push(`drop-shadow(${ds.x}px ${ds.y}px ${ds.blur}px ${ds.color})`);
     }
-    if ((isPressed && config.activation.glow?.enabled) || (isHovered && config.hover.glow?.enabled)) {
+    if (
+      (isPressed && config.activation.glow?.enabled) ||
+      (isHovered && config.hover.glow?.enabled)
+    ) {
       const glow = isPressed ? config.activation.glow : config.hover.glow;
       const blur = glow.blur ?? 4;
       const color = glow.color ?? config.color;
@@ -450,7 +527,11 @@ export class ButtonLabelManager {
     const contentEl = label.userData.contentElement;
     if (contentEl) {
       this.setContentElement(contentEl, config);
-      contentEl.style.cssText = this.buildStyle(config, isPressed, label.userData.isHovered || false);
+      contentEl.style.cssText = this.buildStyle(
+        config,
+        isPressed,
+        label.userData.isHovered || false
+      );
     }
   }
 
@@ -557,9 +638,8 @@ export class ButtonLabelManager {
   }
 
   applyPreset(preset) {
-    const symbols = preset === 'playstation' ? PS_SYMBOLS :
-                   preset === 'xbox' ? XBOX_SYMBOLS :
-                   DEFAULT_SYMBOLS;
+    const symbols =
+      preset === 'playstation' ? PS_SYMBOLS : preset === 'xbox' ? XBOX_SYMBOLS : DEFAULT_SYMBOLS;
 
     for (let i = 0; i < 17; i++) {
       const name = BUTTON_NAMES[i];
@@ -593,7 +673,7 @@ export class ButtonLabelManager {
     }
     return {
       enabled: this.enabled,
-      configs
+      configs,
     };
   }
 

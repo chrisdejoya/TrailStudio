@@ -8,18 +8,18 @@
 
 /**
  * Closes all open custom dropdown menus except for the optionally specified one.
- * 
+ *
  * @param {HTMLElement} [exceptWrapper] - Optional wrapper element to keep open.
  */
 function closeAllMenus(exceptWrapper) {
   document.querySelectorAll('.custom-select.open').forEach((wrapper) => {
     if (wrapper === exceptWrapper) return;
-    
+
     wrapper.classList.remove('open');
-    
+
     const trigger = wrapper.querySelector('.custom-select-trigger');
     const menu = wrapper.customDropdownMenu;
-    
+
     if (trigger) {
       trigger.setAttribute('aria-expanded', 'false');
     }
@@ -31,7 +31,7 @@ function closeAllMenus(exceptWrapper) {
 
 /**
  * Binds custom dropdown behavior to a native select element.
- * 
+ *
  * @param {HTMLSelectElement} select - The native select element to enhance.
  */
 export function bindSelect(select) {
@@ -78,7 +78,7 @@ export function bindSelect(select) {
   function syncDisplay() {
     const selectedOption = select.options[select.selectedIndex];
     trigger.textContent = selectedOption ? selectedOption.textContent : '';
-    
+
     menu.querySelectorAll('.custom-select-option').forEach((option) => {
       option.classList.toggle('selected', option.dataset.value === select.value);
     });
@@ -94,15 +94,15 @@ export function bindSelect(select) {
 
     menuOption.addEventListener('click', (event) => {
       event.stopPropagation();
-      
+
       select.value = option.value;
-      
+
       if (typeof select.onchange === 'function') {
         select.onchange.call(select, { target: select, currentTarget: select });
       } else {
         select.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      
+
       syncDisplay();
       wrapper.classList.remove('open');
       menu.classList.remove('is-open');
@@ -116,16 +116,16 @@ export function bindSelect(select) {
   trigger.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    
+
     closeAllMenus(wrapper);
 
     const isOpen = wrapper.classList.toggle('open');
     menu.classList.toggle('is-open', isOpen);
-    
+
     if (isOpen) {
       positionMenu();
     }
-    
+
     trigger.setAttribute('aria-expanded', String(isOpen));
   });
 
@@ -134,13 +134,13 @@ export function bindSelect(select) {
 
   select.addEventListener('change', syncDisplay);
   select.dataset.customDropdownBound = 'true';
-  
+
   syncDisplay();
 }
 
 /**
  * Binds all native select elements within a given root context.
- * 
+ *
  * @param {ParentNode} [root=document] - The root container to query for select elements.
  */
 export function bindAll(root = document) {
