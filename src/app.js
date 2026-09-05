@@ -1,8 +1,15 @@
 import * as THREE from 'three';
 import { TrailManager } from './managers/trailManager.js';
 import { DEFAULT_IBL_STATE } from './core/state.js';
-import { normalizeColor, normalizeSettingsState, SETTINGS_VERSION } from './core/settings.js';
+import { normalizeSettingsState } from './core/settings.js';
 import { createSettingsPersistence } from './core/settingsPersistence.js';
+import { createSettingsStateReader } from './core/settingsState.js';
+import {
+  applyModelSettings,
+  applySceneSettings,
+  applyTrailSettings,
+} from './core/settingsAppliers.js';
+import { applyPostProcessingSettings } from './core/postProcessingSettings.js';
 import { bindSliderAndInput, exposeAppApi, registerParentMessageBridge } from './ui/uiBridge.js';
 import { ProceduralIBLEditor } from './rendering/ibl.js';
 import { setupIBLControls, applyIBLStateToUI } from './ui/iblControls.js';
@@ -13,11 +20,7 @@ import { DiagnosticsManager } from './managers/diagnosticsManager.js';
 import { ModelManager } from './managers/modelManager.js';
 import { ButtonLabelManager, SVG_PRESETS } from './managers/buttonLabelManager.js';
 import { CompositionManager } from './managers/compositionManager.js';
-import {
-  getColorPickerValue,
-  initializeColorPicker,
-  setColorPickerValue,
-} from './ui/colorPicker.js';
+import { initializeColorPicker } from './ui/colorPicker.js';
 import {
   clearStoredModel,
   getStoredBinaryModel,
@@ -853,63 +856,13 @@ function refreshPads() {
 }
 
 /* ================================================================= State Serialization & Persistence ================================================================= */
-function getSettingsState() {
-  const trailConfig = trailManager.getTrailConfig
-    ? trailManager.getTrailConfig()
-    : {
-        colorStart: 0xaa0022,
-        colorEnd: 0x00aaaa,
-        intensity: 1.25,
-        width: 0.05,
-        length: 10,
-      };
-  return {
-    version: SETTINGS_VERSION,
-    camera: getCameraState(),
-    model: {
-      scale: parseFloat(document.querySelector('#modelScale').value),
-      emissionIntensity: parseFloat(document.querySelector('#emissionIntensity').value),
-      trailOffsetY: trailManager.getOffsetY(),
-      emissionColor: getColorPickerValue(document.querySelector('#emissionColor')),
-      syncLeftStickDpad: document.querySelector('#syncLeftStickDpadToggle')?.checked ?? false,
-    },
-    trail: {
-      enabled: document.querySelector('#trailEnabled')?.checked ?? true,
-      colorStart: normalizeColor(trailConfig.colorStart),
-      colorEnd: normalizeColor(trailConfig.colorEnd),
-      intensity: trailConfig.intensity,
-      width: trailConfig.width,
-      length: trailConfig.length,
-      radius: trailConfig.radius,
-    },
-    postProcessing: {
-      aaEnabled: document.querySelector('#aaToggle').checked,
-      aaQuality: document.querySelector('#aaQualitySelect').value,
-      shadowQuality: document.querySelector('#shadowQualitySelect').value,
-      bloom: {
-        enabled: document.querySelector('#bloomToggle').checked,
-        strength: parseFloat(document.querySelector('#bloomStrength').value),
-        radius: parseFloat(document.querySelector('#bloomRadius').value),
-        threshold: parseFloat(document.querySelector('#bloomThreshold').value),
-      },
-      ambientOcclusion: {
-        enabled: document.querySelector('#aoToggle').checked,
-        radius: parseFloat(document.querySelector('#aoRadius').value),
-        minDistance: parseFloat(document.querySelector('#aoMinDistance').value),
-        maxDistance: parseFloat(document.querySelector('#aoMaxDistance').value),
-      },
-      color: {
-        toneMapping: document.querySelector('#toneMappingSelect').value,
-        exposure: parseFloat(document.querySelector('#exposureRange').value),
-        contrast: parseFloat(document.querySelector('#contrastRange').value),
-        saturation: parseFloat(document.querySelector('#saturationRange').value),
-      },
-    },
-    lighting: lightingManager.getLightingState(),
-    ibl: { ...iblState },
-    buttonLabels: buttonLabelManager ? buttonLabelManager.toJSON() : {},
-  };
-}
+const getSettingsState = createSettingsStateReader({
+  getCameraState,
+  trailManager,
+  lightingManager,
+  iblState,
+  getButtonLabelManager: () => buttonLabelManager,
+});
 
 function applySettingsState(state) {
   state = normalizeSettingsState(state);
@@ -919,188 +872,36 @@ function applySettingsState(state) {
   if (state.camera) applyCameraState(state.camera);
 
   if (state.model) {
-    if (state.model.scale !== undefined) syncModelScale(state.model.scale);
-    if (state.model.emissionIntensity !== undefined) {
-      buttonEmissionMultiplier = state.model.emissionIntensity;
-      const emissionIntensity = document.querySelector('#emissionIntensity');
-      const emissionIntensityInput = document.querySelector('#emissionIntensityInput');
-      if (emissionIntensity) emissionIntensity.value = buttonEmissionMultiplier;
-      if (emissionIntensityInput)
-        emissionIntensityInput.value = buttonEmissionMultiplier.toFixed(2);
-    }
-    if (state.model.trailOffsetY !== undefined) {
-      trailManager.setOffsetY(state.model.trailOffsetY);
-      const trailOffset = document.querySelector('#trailOffset');
-      const trailOffsetInput = document.querySelector('#trailOffsetInput');
-      if (trailOffset) trailOffset.value = state.model.trailOffsetY;
-      if (trailOffsetInput) trailOffsetInput.value = state.model.trailOffsetY.toFixed(2);
-    }
-    if (state.model.emissionColor) {
-      const normalizedEmission = normalizeColor(state.model.emissionColor);
-      const emissionColorInput = document.querySelector('#emissionColor');
-      if (emissionColorInput) setColorPickerValue(emissionColorInput, normalizedEmission);
-      buttonEmissionColor.set(normalizedEmission);
-    }
-    if (state.model.syncLeftStickDpad !== undefined) {
-      const toggle = document.querySelector('#syncLeftStickDpadToggle');
-      if (toggle) toggle.checked = state.model.syncLeftStickDpad;
-      modelManager.setSyncLeftStickDpad(state.model.syncLeftStickDpad);
-    }
+    applyModelSettings(state.model, {
+      modelManager,
+      trailManager,
+      syncModelScale,
+      setEmissionMultiplier: (value) => {
+        buttonEmissionMultiplier = value;
+      },
+      emissionColor: buttonEmissionColor,
+    });
   }
 
   if (state.trail) {
-    const t = state.trail;
-    const trailEnabled = document.querySelector('#trailEnabled');
-    if (trailEnabled) trailEnabled.checked = t.enabled;
-    trailManager.setEnabled(t.enabled);
-
-    if (t.colorStart) {
-      const normalizedStart = normalizeColor(t.colorStart);
-      trailManager.setColorStart(normalizedStart);
-      const trailColorStart = document.querySelector('#trailColorStart');
-      if (trailColorStart) setColorPickerValue(trailColorStart, normalizedStart);
-    }
-    if (t.colorEnd) {
-      const normalizedEnd = normalizeColor(t.colorEnd);
-      trailManager.setColorEnd(normalizedEnd);
-      const trailColorEnd = document.querySelector('#trailColorEnd');
-      if (trailColorEnd) setColorPickerValue(trailColorEnd, normalizedEnd);
-    }
-    if (t.intensity !== undefined) {
-      trailManager.setIntensity(t.intensity);
-      const trailIntensity = document.querySelector('#trailIntensity');
-      const trailIntensityInput = document.querySelector('#trailIntensityInput');
-      if (trailIntensity) trailIntensity.value = t.intensity;
-      if (trailIntensityInput) trailIntensityInput.value = t.intensity.toFixed(2);
-    }
-    if (t.width !== undefined) {
-      trailManager.setWidth(t.width);
-      const trailWidth = document.querySelector('#trailWidth');
-      const trailWidthInput = document.querySelector('#trailWidthInput');
-      if (trailWidth) trailWidth.value = t.width;
-      if (trailWidthInput) trailWidthInput.value = t.width.toFixed(3);
-    }
-    if (t.length !== undefined) {
-      trailManager.setLength(t.length);
-      const trailLength = document.querySelector('#trailLength');
-      const trailLengthInput = document.querySelector('#trailLengthInput');
-      if (trailLength) trailLength.value = t.length;
-      if (trailLengthInput) trailLengthInput.value = t.length.toFixed(1);
-    }
-    if (t.radius !== undefined) {
-      trailManager.setRadius(t.radius);
-      const trailRadius = document.querySelector('#trailRadius');
-      const trailRadiusInput = document.querySelector('#trailRadiusInput');
-      if (trailRadius) trailRadius.value = t.radius;
-      if (trailRadiusInput) trailRadiusInput.value = t.radius.toFixed(2);
-    }
+    applyTrailSettings(state.trail, trailManager);
   }
 
   if (state.postProcessing) {
-    const pp = state.postProcessing;
-    if (pp.aaEnabled !== undefined) {
-      const aaToggle = document.querySelector('#aaToggle');
-      if (aaToggle) aaToggle.checked = pp.aaEnabled;
-    }
-    if (pp.aaQuality) {
-      const aaQualitySelect = document.querySelector('#aaQualitySelect');
-      if (aaQualitySelect) aaQualitySelect.value = pp.aaQuality;
-    }
-    updateAntiAliasing();
-
-    if (pp.shadowQuality) {
-      const sel = document.querySelector('#shadowQualitySelect');
-      if (sel) {
-        sel.value = pp.shadowQuality;
-        sel.dispatchEvent(new Event('change'));
-      }
-    }
-
-    if (pp.bloom) {
-      const bloomToggle = document.querySelector('#bloomToggle');
-      if (bloomToggle) bloomToggle.checked = pp.bloom.enabled;
-      bloomPass.enabled = pp.bloom.enabled;
-      bloomPass.strength = pp.bloom.strength;
-      bloomPass.radius = pp.bloom.radius;
-      bloomPass.threshold = pp.bloom.threshold;
-
-      const bloomStrength = document.querySelector('#bloomStrength');
-      const bloomStrengthInput = document.querySelector('#bloomStrengthInput');
-      if (bloomStrength) bloomStrength.value = pp.bloom.strength;
-      if (bloomStrengthInput) bloomStrengthInput.value = pp.bloom.strength.toFixed(2);
-
-      const bloomRadius = document.querySelector('#bloomRadius');
-      const bloomRadiusInput = document.querySelector('#bloomRadiusInput');
-      if (bloomRadius) bloomRadius.value = pp.bloom.radius;
-      if (bloomRadiusInput) bloomRadiusInput.value = pp.bloom.radius.toFixed(2);
-
-      const bloomThreshold = document.querySelector('#bloomThreshold');
-      const bloomThresholdInput = document.querySelector('#bloomThresholdInput');
-      if (bloomThreshold) bloomThreshold.value = pp.bloom.threshold;
-      if (bloomThresholdInput) bloomThresholdInput.value = pp.bloom.threshold.toFixed(2);
-    }
-
-    if (pp.ambientOcclusion) {
-      const ao = pp.ambientOcclusion;
-      const aoToggle = document.querySelector('#aoToggle');
-      if (aoToggle) aoToggle.checked = ao.enabled;
-      aoPass.enabled = ao.enabled;
-      aoPass.kernelRadius = ao.radius;
-      aoPass.minDistance = ao.minDistance;
-      aoPass.maxDistance = ao.maxDistance;
-
-      const aoRadius = document.querySelector('#aoRadius');
-      const aoRadiusInput = document.querySelector('#aoRadiusInput');
-      if (aoRadius) aoRadius.value = ao.radius;
-      if (aoRadiusInput) aoRadiusInput.value = ao.radius.toFixed(2);
-
-      const aoMinDistance = document.querySelector('#aoMinDistance');
-      const aoMinDistanceInput = document.querySelector('#aoMinDistanceInput');
-      if (aoMinDistance) aoMinDistance.value = ao.minDistance;
-      if (aoMinDistanceInput) aoMinDistanceInput.value = ao.minDistance.toFixed(3);
-
-      const aoMaxDistance = document.querySelector('#aoMaxDistance');
-      const aoMaxDistanceInput = document.querySelector('#aoMaxDistanceInput');
-      if (aoMaxDistance) aoMaxDistance.value = ao.maxDistance;
-      if (aoMaxDistanceInput) aoMaxDistanceInput.value = ao.maxDistance.toFixed(2);
-    }
-
-    if (pp.color) {
-      const toneMappingSelect = document.querySelector('#toneMappingSelect');
-      if (toneMappingSelect) {
-        toneMappingSelect.value = pp.color.toneMapping;
-        toneMappingSelect.dispatchEvent(new Event('change'));
-      }
-
-      const exposureRange = document.querySelector('#exposureRange');
-      const exposureInput = document.querySelector('#exposureInput');
-      if (exposureRange) exposureRange.value = pp.color.exposure;
-      if (exposureInput) exposureInput.value = pp.color.exposure.toFixed(2);
-      renderer.toneMappingExposure = pp.color.exposure;
-
-      const contrastRange = document.querySelector('#contrastRange');
-      const contrastInput = document.querySelector('#contrastInput');
-      if (contrastRange) contrastRange.value = pp.color.contrast;
-      if (contrastInput) contrastInput.value = pp.color.contrast.toFixed(2);
-      postShaderPass.uniforms.contrast.value = pp.color.contrast;
-
-      const saturationRange = document.querySelector('#saturationRange');
-      const saturationInput = document.querySelector('#saturationInput');
-      if (saturationRange) saturationRange.value = pp.color.saturation;
-      if (saturationInput) saturationInput.value = pp.color.saturation.toFixed(2);
-      postShaderPass.uniforms.saturation.value = pp.color.saturation;
-    }
+    applyPostProcessingSettings(state.postProcessing, {
+      updateAntiAliasing,
+      bloomPass,
+      aoPass,
+      renderer,
+      postShaderPass,
+    });
   }
 
-  if (state.lighting) {
-    lightingManager.applyLightingState(state.lighting);
-  }
-
-  if (state.buttonLabels && buttonLabelManager) {
-    buttonLabelManager.fromJSON(state.buttonLabels);
-    // Re-populate the label list after loading
-    populateButtonLabelList();
-  }
+  applySceneSettings(state, {
+    lightingManager,
+    getButtonLabelManager: () => buttonLabelManager,
+    refreshButtonLabels: populateButtonLabelList,
+  });
 
   updateCameraPosition();
 }

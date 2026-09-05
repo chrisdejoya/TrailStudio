@@ -1,6 +1,10 @@
 import { LOCAL_STORAGE_KEY } from './state.js';
 
-export function createSettingsPersistence({ getState, applyState, storage = localStorage }) {
+export function createSettingsPersistence({
+  getState,
+  applyState,
+  storage = globalThis.localStorage,
+}) {
   let saveTimer = null;
 
   function save() {

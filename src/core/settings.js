@@ -63,6 +63,15 @@ function normalizeNumber(target, key, limitKey, fallback) {
   target[key] = clampNumber(target[key], LIMITS[limitKey], fallback);
 }
 
+function normalizeBoolean(target, key) {
+  if (target?.[key] !== undefined) target[key] = Boolean(target[key]);
+}
+
+function normalizeEnum(target, key, values, fallback) {
+  if (target?.[key] === undefined) return;
+  if (!values.includes(target[key])) target[key] = fallback;
+}
+
 export function normalizeSettingsState(input) {
   const state = cloneState(input);
   if (!state || typeof state !== 'object' || Array.isArray(state)) return null;
@@ -76,9 +85,11 @@ export function normalizeSettingsState(input) {
     if (state.model.emissionColor !== undefined) {
       state.model.emissionColor = normalizeColor(state.model.emissionColor);
     }
+    normalizeBoolean(state.model, 'syncLeftStickDpad');
   }
 
   if (state.trail) {
+    normalizeBoolean(state.trail, 'enabled');
     normalizeNumber(state.trail, 'intensity', 'trailIntensity', 1.25);
     normalizeNumber(state.trail, 'width', 'trailWidth', 0.05);
     normalizeNumber(state.trail, 'length', 'trailLength', 10);
@@ -89,6 +100,12 @@ export function normalizeSettingsState(input) {
 
   const colorState = state.postProcessing?.color;
   if (colorState) {
+    normalizeEnum(
+      colorState,
+      'toneMapping',
+      ['ACESFilmic', 'Linear', 'Reinhard', 'Cineon'],
+      'ACESFilmic'
+    );
     normalizeNumber(colorState, 'exposure', 'exposure', 1.1);
     normalizeNumber(colorState, 'contrast', 'contrast', 1);
     normalizeNumber(colorState, 'saturation', 'saturation', 1);
@@ -96,6 +113,7 @@ export function normalizeSettingsState(input) {
 
   const bloom = state.postProcessing?.bloom;
   if (bloom) {
+    normalizeBoolean(bloom, 'enabled');
     normalizeNumber(bloom, 'strength', 'bloomStrength', 1);
     normalizeNumber(bloom, 'radius', 'bloomRadius', 0.75);
     normalizeNumber(bloom, 'threshold', 'bloomThreshold', 0.9);
@@ -103,6 +121,7 @@ export function normalizeSettingsState(input) {
 
   const ambientOcclusion = state.postProcessing?.ambientOcclusion;
   if (ambientOcclusion) {
+    normalizeBoolean(ambientOcclusion, 'enabled');
     normalizeNumber(ambientOcclusion, 'radius', 'aoRadius', 8);
     normalizeNumber(ambientOcclusion, 'minDistance', 'aoMinDistance', 0.001);
     normalizeNumber(ambientOcclusion, 'maxDistance', 'aoMaxDistance', 0.1);

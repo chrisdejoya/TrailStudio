@@ -24,6 +24,22 @@ test('clamps imported settings and adds a version', () => {
   assert.equal(normalized.postProcessing.bloom.threshold, 1);
 });
 
+test('normalizes booleans and rejects unsupported enum values', () => {
+  const normalized = normalizeSettingsState({
+    model: { syncLeftStickDpad: 1 },
+    trail: { enabled: 0 },
+    postProcessing: {
+      bloom: { enabled: 'yes' },
+      color: { toneMapping: 'Unknown' },
+    },
+  });
+
+  assert.equal(normalized.model.syncLeftStickDpad, true);
+  assert.equal(normalized.trail.enabled, false);
+  assert.equal(normalized.postProcessing.bloom.enabled, true);
+  assert.equal(normalized.postProcessing.color.toneMapping, 'ACESFilmic');
+});
+
 test('rejects non-object settings', () => {
   assert.equal(normalizeSettingsState(null), null);
   assert.equal(normalizeSettingsState('settings'), null);
