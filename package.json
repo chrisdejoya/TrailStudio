@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild js/entry.js --bundle --sourcemap --format=iife --target=es2018 --outfile=js/app.bundle.js",
+    "build": "node esbuild.config.mjs",
+    "check": "npm run build",
     "update-three": "npm install three@latest --save-dev && npm run build"
   },
   "devDependencies": {

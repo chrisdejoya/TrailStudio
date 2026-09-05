@@ -12,6 +12,14 @@ import { ModelManager } from './managers/modelManager.js';
 import { ButtonLabelManager, SVG_PRESETS } from './managers/buttonLabelManager.js';
 import { CompositionManager } from './managers/compositionManager.js';
 import { getColorPickerValue, initializeColorPicker, setColorPickerValue } from './ui/colorPicker.js';
+import {
+  clearStoredModel,
+  getStoredBinaryModel,
+  getStoredFileHandle,
+  saveBinaryModel,
+  saveFileHandle,
+  verifyFilePermission
+} from './core/modelStorage.js';
 
 function loadGoogleFont(url) {
   if (document.querySelector(`link[href="${url}"]`)) return;
@@ -47,110 +55,6 @@ const BUTTON_NAMES = [
   'Select / Back', 'Start', 'L3', 'R3',
   'D-Pad Up', 'D-Pad Down', 'D-Pad Left', 'D-Pad Right', 'Home / Guide'
 ];
-
-/* ================================================================= IndexedDB Storage ================================================================= */
-const DB_NAME = 'TrailStudio';
-const DB_VERSION = 1;
-const STORE_NAME = 'models';
-const MODEL_KEY = 'current_glb';
-const HANDLE_KEY = 'current_file_handle';
-
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function saveBinaryModel(buffer, name) {
-  try {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).put({ buffer, name }, MODEL_KEY);
-  } catch (err) {
-    console.error('Failed to save model to IndexedDB:', err);
-  }
-}
-
-async function getStoredBinaryModel() {
-  try {
-    const db = await openDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const req = tx.objectStore(STORE_NAME).get(MODEL_KEY);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => resolve(null);
-    });
-  } catch (err) {
-    return null;
-  }
-}
-
-async function saveFileHandle(handle) {
-  try {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).put(handle, HANDLE_KEY);
-  } catch (err) {
-    console.error('Failed to save handle to IndexedDB:', err);
-  }
-}
-
-async function getStoredFileHandle() {
-  try {
-    const db = await openDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const req = tx.objectStore(STORE_NAME).get(HANDLE_KEY);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => resolve(null);
-    });
-  } catch (err) {
-    return null;
-  }
-}
-
-async function clearStoredModel() {
-  try {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).delete(MODEL_KEY);
-    tx.objectStore(STORE_NAME).delete(HANDLE_KEY);
-  } catch (err) {
-    console.error('Failed to clear model from IndexedDB:', err);
-  }
-}
-
-async function verifyPermission(fileHandle) {
-  if (!fileHandle || typeof fileHandle.queryPermission !== 'function') return false;
-
-  const options = { mode: 'read' };
-
-  try {
-    if ((await fileHandle.queryPermission(options)) === 'granted') return true;
-  } catch (err) {
-    return false;
-  }
-
-  const hasUserActivation = navigator.userActivation && navigator.userActivation.isActive;
-  if (!hasUserActivation) return false;
-
-  try {
-    return (await fileHandle.requestPermission(options)) === 'granted';
-  } catch (err) {
-    if (err && err.name === 'SecurityError') {
-      console.warn('File permission request requires a user gesture.');
-    }
-    return false;
-  }
-}
 
 /* ================================================================= Three.js Scene & Engine Setup ================================================================= */
 const app = document.querySelector('#app');
@@ -1165,7 +1069,7 @@ async function initModelPersistence() {
   const handle = await getStoredFileHandle();
   if (handle) {
     try {
-      if (await verifyPermission(handle)) {
+      if (await verifyFilePermission(handle)) {
         const file = await handle.getFile();
         const buffer = await file.arrayBuffer();
         modelManager.parseAndLoadGLTF(buffer);
