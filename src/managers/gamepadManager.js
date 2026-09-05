@@ -20,6 +20,32 @@ export const STANDARD_BUTTONS = [
   'Vendor',
 ];
 
+export const DPAD_DIAGONAL_BUTTONS = [
+  { index: 19, name: 'D-Pad Up-Left', vertical: 12, horizontal: 14 },
+  { index: 20, name: 'D-Pad Up-Right', vertical: 12, horizontal: 15 },
+  { index: 21, name: 'D-Pad Down-Left', vertical: 13, horizontal: 14 },
+  { index: 22, name: 'D-Pad Down-Right', vertical: 13, horizontal: 15 },
+];
+
+export function getDpadDiagonalStates(buttons) {
+  return DPAD_DIAGONAL_BUTTONS.map(({ index, name, vertical, horizontal }) => {
+    const verticalButton = buttons[vertical] || { pressed: false, value: 0 };
+    const horizontalButton = buttons[horizontal] || { pressed: false, value: 0 };
+    const verticalValue = verticalButton.value || (verticalButton.pressed ? 1 : 0);
+    const horizontalValue = horizontalButton.value || (horizontalButton.pressed ? 1 : 0);
+    const value = Math.min(verticalValue, horizontalValue);
+
+    return {
+      index,
+      name,
+      pressed:
+        (verticalButton.pressed || verticalValue > 0.1) &&
+        (horizontalButton.pressed || horizontalValue > 0.1),
+      value,
+    };
+  });
+}
+
 export class GamepadManager {
   constructor(options = {}) {
     this.hudUI = options.hudUI || null;
@@ -131,9 +157,22 @@ export class GamepadManager {
       }
     });
 
+    // Diagonals are virtual buttons derived from two cardinal D-pad inputs.
+    getDpadDiagonalStates(pad.buttons).forEach((button) => {
+      const prev = this.previousState.buttons[button.index] || { pressed: false, value: 0 };
+      if (button.pressed !== prev.pressed || button.value !== prev.value) {
+        this.onButtonChange(button);
+      }
+    });
+
     // Cache current state
+    const buttonState = pad.buttons.map((b) => ({ pressed: b.pressed, value: b.value }));
+    getDpadDiagonalStates(pad.buttons).forEach(({ index, pressed, value }) => {
+      buttonState[index] = { pressed, value };
+    });
+
     this.previousState = {
-      buttons: pad.buttons.map((b) => ({ pressed: b.pressed, value: b.value })),
+      buttons: buttonState,
       axes: [...pad.axes],
     };
   }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { getDpadDiagonalStates } from './gamepadManager.js';
 
 const MESH_MAPPINGS = {
   Btn_South: 0,
@@ -25,6 +26,10 @@ const MESH_MAPPINGS = {
   Btn_Home: 16,
   Washer_Left: 17,
   Washer_Right: 18,
+  DPad_Up_Left: 19,
+  Dpad_Up_Right: 20,
+  DPad_Down_Left: 21,
+  DPad_Down_Right: 22,
 };
 
 const baseBtnMat = new THREE.MeshPhysicalMaterial({
@@ -126,7 +131,15 @@ export class ModelManager {
     const ly = ax[1] || 0;
     const stickThreshold = 0.3;
 
-    pad.buttons.forEach((button, i) => {
+    const buttonStates = pad.buttons.map((button) => ({
+      pressed: button.pressed,
+      value: button.value,
+    }));
+    getDpadDiagonalStates(pad.buttons).forEach(({ index, pressed, value }) => {
+      buttonStates[index] = { pressed, value };
+    });
+
+    buttonStates.forEach((button, i) => {
       const entry = this.buttons3D[i];
       if (!entry) return;
 
