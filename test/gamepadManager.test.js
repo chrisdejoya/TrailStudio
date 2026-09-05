@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getDpadDiagonalStates } from '../src/managers/gamepadManager.js';
+import {
+  getDpadDiagonalStates,
+  getDpadDirectionalStates,
+} from '../src/managers/gamepadManager.js';
 
 function buttonsFor(...pressedIndices) {
   const buttons = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }));
@@ -34,4 +37,26 @@ test('uses the weaker cardinal value as diagonal pressure', () => {
   buttons[15].value = 0.8;
 
   assert.equal(getDpadDiagonalStates(buttons)[1].value, 0.4);
+});
+
+test('derives diagonals from left-stick input when direction sync is enabled', () => {
+  const buttons = buttonsFor();
+  const states = getDpadDirectionalStates(buttons, [-0.8, -0.6], true);
+
+  assert.equal(states[0].pressed, true);
+  assert.equal(states[2].pressed, true);
+  assert.equal(states[3].pressed, false);
+  assert.equal(states[4].pressed, true);
+  assert.equal(states[4].value, 0.6);
+});
+
+test('treats value-only D-pad input as pressed', () => {
+  const buttons = buttonsFor();
+  buttons[12] = { pressed: false, value: 0.7 };
+  buttons[15] = { pressed: false, value: 0.5 };
+
+  const states = getDpadDirectionalStates(buttons);
+  assert.equal(states[0].pressed, true);
+  assert.equal(states[3].pressed, true);
+  assert.equal(states[5].pressed, true);
 });

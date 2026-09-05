@@ -29,6 +29,10 @@ export function applyModelSettings(
     query('#syncLeftStickDpadToggle').checked = state.syncLeftStickDpad;
     modelManager.setSyncLeftStickDpad(state.syncLeftStickDpad);
   }
+  if (state.dpadButtonVerticalMovement !== undefined) {
+    query('#dpadButtonVerticalMovementToggle').checked = state.dpadButtonVerticalMovement;
+    modelManager.setDpadButtonVerticalMovement(state.dpadButtonVerticalMovement);
+  }
 }
 
 export function applyTrailSettings(state, trailManager) {

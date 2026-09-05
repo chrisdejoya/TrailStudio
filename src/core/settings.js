@@ -86,6 +86,7 @@ export function normalizeSettingsState(input) {
       state.model.emissionColor = normalizeColor(state.model.emissionColor);
     }
     normalizeBoolean(state.model, 'syncLeftStickDpad');
+    normalizeBoolean(state.model, 'dpadButtonVerticalMovement');
   }
 
   if (state.trail) {

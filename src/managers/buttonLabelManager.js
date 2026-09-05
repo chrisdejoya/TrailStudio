@@ -557,6 +557,8 @@ export class ButtonLabelManager {
 
   setEnabled(enabled) {
     this.enabled = enabled;
+    this.labelGroup.visible = enabled;
+    this.cssRenderer.domElement.style.display = enabled ? '' : 'none';
     for (const [index, label] of this.labels) {
       const config = this.configs.get(index);
       label.visible = enabled && (config?.visible ?? true);

@@ -27,23 +27,62 @@ export const DPAD_DIAGONAL_BUTTONS = [
   { index: 22, name: 'D-Pad Down-Right', vertical: 13, horizontal: 15 },
 ];
 
-export function getDpadDiagonalStates(buttons) {
-  return DPAD_DIAGONAL_BUTTONS.map(({ index, name, vertical, horizontal }) => {
-    const verticalButton = buttons[vertical] || { pressed: false, value: 0 };
-    const horizontalButton = buttons[horizontal] || { pressed: false, value: 0 };
-    const verticalValue = verticalButton.value || (verticalButton.pressed ? 1 : 0);
-    const horizontalValue = horizontalButton.value || (horizontalButton.pressed ? 1 : 0);
-    const value = Math.min(verticalValue, horizontalValue);
+export function getDpadDirectionalStates(buttons, axes = [], includeStick = false) {
+  const stickThreshold = 0.3;
+  const stickX = axes[0] || 0;
+  const stickY = axes[1] || 0;
+  const getButtonState = (index) => {
+    const button = buttons[index] || { pressed: false, value: 0 };
+    const value = button.value || 0;
+    return { pressed: Boolean(button.pressed) || value > 0.1, value };
+  };
+  const states = [
+    { index: 12, name: 'D-Pad Up', ...getButtonState(12) },
+    { index: 13, name: 'D-Pad Down', ...getButtonState(13) },
+    { index: 14, name: 'D-Pad Left', ...getButtonState(14) },
+    { index: 15, name: 'D-Pad Right', ...getButtonState(15) },
+  ];
 
-    return {
+  if (includeStick) {
+    const stickMagnitude = Math.hypot(stickX, stickY);
+    if (stickMagnitude > stickThreshold) {
+      const angle = Math.atan2(stickY, stickX);
+      const octant = Math.round(angle / (Math.PI / 4));
+      const direction = ((octant % 8) + 8) % 8;
+      const selectedCardinals = {
+        0: [15],
+        1: [13, 15],
+        2: [13],
+        3: [13, 14],
+        4: [14],
+        5: [12, 14],
+        6: [12],
+        7: [12, 15],
+      }[direction];
+
+      selectedCardinals.forEach((index) => {
+        const state = states.find((candidate) => candidate.index === index);
+        const stickValue = index === 12 || index === 13 ? Math.abs(stickY) : Math.abs(stickX);
+        state.pressed = true;
+        state.value = Math.max(state.value, stickValue);
+      });
+    }
+  }
+
+  const stateByIndex = Object.fromEntries(states.map((state) => [state.index, state]));
+  return [
+    ...states,
+    ...DPAD_DIAGONAL_BUTTONS.map(({ index, name, vertical, horizontal }) => ({
       index,
       name,
-      pressed:
-        (verticalButton.pressed || verticalValue > 0.1) &&
-        (horizontalButton.pressed || horizontalValue > 0.1),
-      value,
-    };
-  });
+      pressed: Boolean(stateByIndex[vertical].pressed && stateByIndex[horizontal].pressed),
+      value: Math.min(stateByIndex[vertical].value, stateByIndex[horizontal].value),
+    })),
+  ];
+}
+
+export function getDpadDiagonalStates(buttons) {
+  return getDpadDirectionalStates(buttons).slice(4);
 }
 
 export class GamepadManager {

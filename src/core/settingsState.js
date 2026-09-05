@@ -30,6 +30,7 @@ export function createSettingsStateReader({
         trailOffsetY: trailManager.getOffsetY(),
         emissionColor: getColorPickerValue(query('#emissionColor')),
         syncLeftStickDpad: query('#syncLeftStickDpadToggle')?.checked ?? false,
+        dpadButtonVerticalMovement: query('#dpadButtonVerticalMovementToggle')?.checked ?? true,
       },
       trail: {
         enabled: query('#trailEnabled')?.checked ?? true,

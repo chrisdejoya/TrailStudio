@@ -441,6 +441,13 @@ if (syncLeftStickDpadToggle) {
   });
 }
 
+const dpadButtonVerticalMovementToggle = document.querySelector('#dpadButtonVerticalMovementToggle');
+if (dpadButtonVerticalMovementToggle) {
+  dpadButtonVerticalMovementToggle.addEventListener('change', (e) => {
+    modelManager.setDpadButtonVerticalMovement(e.target.checked);
+  });
+}
+
 // Button Labels UI Wiring
 async function wireButtonLabelUI() {
   if (!buttonLabelManager) return;
@@ -448,6 +455,7 @@ async function wireButtonLabelUI() {
 
   const enabledEl = document.querySelector('#buttonLabelsEnabled');
   if (enabledEl) {
+    buttonLabelManager.setEnabled(enabledEl.checked);
     enabledEl.addEventListener('change', (e) => buttonLabelManager.setEnabled(e.target.checked));
   }
 

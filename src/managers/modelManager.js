@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { getDpadDiagonalStates } from './gamepadManager.js';
+import { DPAD_DIAGONAL_BUTTONS, getDpadDirectionalStates } from './gamepadManager.js';
 
 const MESH_MAPPINGS = {
   Btn_South: 0,
@@ -27,6 +27,7 @@ const MESH_MAPPINGS = {
   Washer_Left: 17,
   Washer_Right: 18,
   DPad_Up_Left: 19,
+  DPad_Up_Right: 20,
   Dpad_Up_Right: 20,
   DPad_Down_Left: 21,
   DPad_Down_Right: 22,
@@ -60,6 +61,7 @@ export class ModelManager {
     this.boneHelpers = [];
     this.showBones = false;
     this.syncLeftStickDpad = false;
+    this.dpadButtonVerticalMovement = true;
   }
 
   onModelLoaded(listener) {
@@ -74,6 +76,10 @@ export class ModelManager {
 
   setSyncLeftStickDpad(enabled) {
     this.syncLeftStickDpad = enabled;
+  }
+
+  setDpadButtonVerticalMovement(enabled) {
+    this.dpadButtonVerticalMovement = enabled;
   }
 
   setBoneVisibility(visible) {
@@ -126,17 +132,27 @@ export class ModelManager {
   updateButtonStates(pad, buttonEmissionColor, buttonEmissionMultiplier = 1.0) {
     if (!pad) return;
 
-    const ax = pad.axes;
-    const lx = ax[0] || 0;
-    const ly = ax[1] || 0;
-    const stickThreshold = 0.3;
-
     const buttonStates = pad.buttons.map((button) => ({
       pressed: button.pressed,
       value: button.value,
     }));
-    getDpadDiagonalStates(pad.buttons).forEach(({ index, pressed, value }) => {
-      buttonStates[index] = { pressed, value };
+    const directionalStates = getDpadDirectionalStates(pad.buttons, pad.axes, this.syncLeftStickDpad);
+    const hasDiagonalButtons = DPAD_DIAGONAL_BUTTONS.some(({ index }) => this.buttons3D[index]);
+    const activeDiagonalDirections = new Set();
+
+    directionalStates.slice(4).forEach((diagonal) => {
+      if (!hasDiagonalButtons || !this.buttons3D[diagonal.index] || !diagonal.pressed) return;
+      const definition = DPAD_DIAGONAL_BUTTONS.find(({ index }) => index === diagonal.index);
+      activeDiagonalDirections.add(definition.vertical);
+      activeDiagonalDirections.add(definition.horizontal);
+    });
+
+    directionalStates.forEach(({ index, pressed, value }) => {
+      if (index < 16 && activeDiagonalDirections.has(index)) {
+        buttonStates[index] = { pressed: false, value: 0 };
+      } else {
+        buttonStates[index] = { pressed, value };
+      }
     });
 
     buttonStates.forEach((button, i) => {
@@ -150,22 +166,11 @@ export class ModelManager {
       let val = button.value;
       let isPressed = button.pressed || val > 0.1;
 
-      if (this.syncLeftStickDpad && i >= 12 && i <= 15) {
-        // DPad_Up: 12, DPad_Down: 13, DPad_Left: 14, DPad_Right: 15
-        let stickPressed = false;
-        if (i === 12 && ly < -stickThreshold) stickPressed = true; // Up
-        if (i === 13 && ly > stickThreshold) stickPressed = true; // Down
-        if (i === 14 && lx < -stickThreshold) stickPressed = true; // Left
-        if (i === 15 && lx > stickThreshold) stickPressed = true; // Right
-
-        if (stickPressed) {
-          isPressed = true;
-          val = Math.max(val, Math.abs(i <= 13 ? ly : lx));
-        }
-      }
+      const isDpadButton = (i >= 12 && i <= 15) || DPAD_DIAGONAL_BUTTONS.some(({ index }) => index === i);
 
       const maxTravel = isStick ? 0.04 : 0.03;
-      const pressDepth = isStick ? (isPressed ? maxTravel : 0) : val * maxTravel;
+      const pressDepth =
+        isStick || (isDpadButton && !this.dpadButtonVerticalMovement) ? 0 : val * maxTravel;
       if (basePos) node.position.y = basePos.y - pressDepth;
 
       emissiveMaterials.forEach((material) => {
