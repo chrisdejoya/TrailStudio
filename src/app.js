@@ -10,6 +10,7 @@ import {
   applyTrailSettings,
 } from './core/settingsAppliers.js';
 import { applyPostProcessingSettings } from './core/postProcessingSettings.js';
+import { createModelPersistenceController } from './core/modelPersistenceController.js';
 import { bindSliderAndInput, exposeAppApi, registerParentMessageBridge } from './ui/uiBridge.js';
 import { ProceduralIBLEditor } from './rendering/ibl.js';
 import { setupIBLControls, applyIBLStateToUI } from './ui/iblControls.js';
@@ -163,6 +164,16 @@ const gamepadManager = new GamepadManager({
   onPadChange: () => {
     diagnosticsPanel.resetSnapshot();
   },
+});
+
+const modelPersistence = createModelPersistenceController({
+  modelManager,
+  clearStoredModel,
+  getStoredFileHandle,
+  getStoredBinaryModel,
+  saveBinaryModel,
+  saveFileHandle,
+  verifyFilePermission,
 });
 
 setupNumberInputScrubbing();
@@ -718,22 +729,14 @@ function refreshButtonLabelRow(index) {
 // File I/O Actions
 const loadDefaultBtn = document.querySelector('#loadDefaultBtn');
 if (loadDefaultBtn) {
-  loadDefaultBtn.addEventListener('click', async () => {
-    await clearStoredModel();
-    modelManager.buildProceduralController();
-  });
+  loadDefaultBtn.addEventListener('click', modelPersistence.resetToProcedural);
 }
 
 const fileInput = document.querySelector('#glbFile');
 if (fileInput) {
   fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
     try {
-      const buffer = await file.arrayBuffer();
-      modelManager.parseAndLoadGLTF(buffer);
-      await saveBinaryModel(buffer, file.name);
+      await modelPersistence.loadSelectedFile(e.target.files[0]);
     } catch (error) {
       console.error('Failed to load model file:', error);
     }
@@ -742,26 +745,7 @@ if (fileInput) {
 
 const openPickerBtn = document.querySelector('#openPickerBtn');
 if (openPickerBtn) {
-  openPickerBtn.addEventListener('click', async () => {
-    if (!window.showOpenFilePicker) return;
-
-    try {
-      const [handle] = await window.showOpenFilePicker({
-        types: [{ description: '3D Models', accept: { 'model/gltf-binary': ['.glb'] } }],
-        multiple: false,
-      });
-
-      if (!handle) return;
-
-      const file = await handle.getFile();
-      const buffer = await file.arrayBuffer();
-      modelManager.parseAndLoadGLTF(buffer);
-      await saveBinaryModel(buffer, file.name);
-      await saveFileHandle(handle);
-    } catch (err) {
-      // Ignore user cancellation errors.
-    }
-  });
+  openPickerBtn.addEventListener('click', modelPersistence.pickFile);
 }
 
 const exportSettingsBtn = document.querySelector('#exportSettingsBtn');
@@ -927,32 +911,6 @@ const disposeSceneInteraction = setupSceneInteraction({
   getButtonLabelManager: () => buttonLabelManager,
 });
 
-async function initModelPersistence() {
-  const handle = await getStoredFileHandle();
-  if (handle) {
-    try {
-      if (await verifyFilePermission(handle)) {
-        const file = await handle.getFile();
-        const buffer = await file.arrayBuffer();
-        modelManager.parseAndLoadGLTF(buffer);
-        return;
-      }
-    } catch (err) {
-      if (err && err.name !== 'SecurityError') {
-        console.warn('File handle load error:', err);
-      }
-    }
-  }
-
-  const stored = await getStoredBinaryModel();
-  if (stored && stored.buffer) {
-    modelManager.parseAndLoadGLTF(stored.buffer);
-    return;
-  }
-
-  modelManager.buildProceduralController();
-}
-
 /* ================================================================= Main Execution Loop & App API ================================================================= */
 let lastFrameTime = performance.now();
 let animationFrameId = null;
@@ -1020,7 +978,7 @@ document.addEventListener('visibilitychange', () => {
 // Initializers Execution
 updateIBL();
 loadFromLocalStorage();
-initModelPersistence();
+modelPersistence.loadStoredModel();
 refreshPads();
 updateCameraPosition();
 loop();
