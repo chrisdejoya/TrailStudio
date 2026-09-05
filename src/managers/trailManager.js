@@ -315,6 +315,7 @@ export class TrailManager {
     this.trail = null;
     this.anchor = null;
     this.target = null;
+    this.targetHeight = 0;
     this.offsetY = 1.8;
     this.radius = 0;
     this.dragging = false;
@@ -337,9 +338,7 @@ export class TrailManager {
 
   setOffsetY(val) {
     this.offsetY = val;
-    if (this.anchor) {
-      this.anchor.position.y = this.offsetY;
-    }
+    this._updateAnchorPosition();
     if (this.trail && this.trail.mesh) {
       this._applyVisibility();
     }
@@ -414,8 +413,28 @@ export class TrailManager {
       this.target.add(this.anchor);
     }
 
-    this.anchor.position.set(this.radius, this.offsetY, 0);
+    this.targetHeight = this._getTargetHeight();
+    this._updateAnchorPosition();
     this._applyVisibility();
+  }
+
+  _getTargetHeight() {
+    if (!this.target) return 0;
+
+    this.target.updateWorldMatrix(true, true);
+    const bounds = new THREE.Box3().setFromObject(this.target);
+    const origin = new THREE.Vector3();
+    const top = new THREE.Vector3(origin.x, bounds.max.y, origin.z);
+    this.target.getWorldPosition(origin);
+    top.x = origin.x;
+    top.z = origin.z;
+    this.target.worldToLocal(top);
+    return Math.max(0, top.y);
+  }
+
+  _updateAnchorPosition() {
+    if (!this.anchor) return;
+    this.anchor.position.set(this.radius, this.targetHeight + this.offsetY, 0);
   }
 
   update() {

@@ -82,6 +82,10 @@ export class ModelManager {
     this.dpadButtonVerticalMovement = enabled;
   }
 
+  getLeftStickTrailTarget() {
+    return this.leftStick3DGroup;
+  }
+
   setBoneVisibility(visible) {
     this.showBones = visible;
     this.boneHelpers.forEach((helper) => {
@@ -462,7 +466,7 @@ export class ModelManager {
     this.registerMotionNode(this.rightStick3DGroup);
     this.register3DButton(10, lStick.cap, true);
     this.register3DButton(11, rStick.cap, true);
-    this.trailManager.syncTarget(this.leftStick3DGroup);
+    this.trailManager.syncTarget(this.getLeftStickTrailTarget());
 
     const dpadBasePos = new THREE.Vector3(-1.1, 0.32, 0.2);
     this.dpadRockerPivot = new THREE.Group();
@@ -569,7 +573,7 @@ export class ModelManager {
         this.currentModel = gltf.scene;
         this.controllerGroup.add(this.currentModel);
         this.processModelNode(this.currentModel);
-        this.trailManager.syncTarget(this.leftStick3DGroup);
+        this.trailManager.syncTarget(this.getLeftStickTrailTarget());
         this.modelLoadedListeners.forEach((listener) => listener());
       },
       (err) => {

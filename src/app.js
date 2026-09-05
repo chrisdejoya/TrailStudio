@@ -356,7 +356,7 @@ bindSliderAndInput(
   '#trailOffsetInput',
   (val) => {
     trailManager.setOffsetY(val);
-    trailManager.syncTarget(modelManager.leftStick3DGroup);
+    trailManager.syncTarget(modelManager.getLeftStickTrailTarget());
   },
   2
 );
