@@ -34,7 +34,13 @@
       "id": "workshop",
       "name": "Workshop",
       "file": "workshop.png",
-      "description": "Arcade stick workshop"
+      "description": "Arcade stick workshop 2"
+    },
+    {
+      "id": "workshop2",
+      "name": "Workshop2",
+      "file": "workshop2.png",
+      "description": "Arcade stick workshop 2"
     }
   ]
 }

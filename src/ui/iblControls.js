@@ -217,6 +217,16 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
 
   // Texture mode controls
   bindSliderAndInput(
+    '#iblTextureRotationX',
+    '#iblTextureRotationXInput',
+    (value) => {
+      iblState.textureRotationX = value;
+      onUpdate();
+    },
+    2
+  );
+
+  bindSliderAndInput(
     '#iblTextureRotation',
     '#iblTextureRotationInput',
     (value) => {
@@ -224,6 +234,16 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
       onUpdate();
     },
     3
+  );
+
+  bindSliderAndInput(
+    '#iblTextureRotationZ',
+    '#iblTextureRotationZInput',
+    (value) => {
+      iblState.textureRotationZ = value;
+      onUpdate();
+    },
+    2
   );
 
   bindSliderAndInput(
@@ -290,14 +310,9 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
     // Show/hide container divs
     const proceduralContainer = document.querySelector('#iblProceduralControls');
     const textureContainer = document.querySelector('#iblTextureControls');
-    const textureTransformContainer = document.querySelector('#iblTextureTransformControls');
-    const textureScaleContainer = document.querySelector('#iblTextureScaleControls');
 
     if (proceduralContainer) proceduralContainer.style.display = isProcedural ? '' : 'none';
     if (textureContainer) textureContainer.style.display = isTexture ? '' : 'none';
-    if (textureTransformContainer)
-      textureTransformContainer.style.display = isTexture ? '' : 'none';
-    if (textureScaleContainer) textureScaleContainer.style.display = isTexture ? '' : 'none';
 
     // Procedural controls
     const proceduralIds = [
@@ -328,7 +343,13 @@ export function setupIBLControls(iblState, onUpdate, iblEditor) {
     ];
 
     // Texture controls
-    const textureIds = ['iblTextureSelect', 'iblTextureRotation', 'iblTextureScale'];
+    const textureIds = [
+      'iblTextureSelect',
+      'iblTextureRotationX',
+      'iblTextureRotation',
+      'iblTextureRotationZ',
+      'iblTextureScale',
+    ];
 
     proceduralIds.forEach((id) => {
       const el = document.querySelector(`#${id}`);
@@ -379,7 +400,9 @@ export function applyIBLStateToUI(iblState, state, onUpdate) {
       intensity: 'iblIntensity',
       mode: 'iblMode',
       textureId: 'iblTextureSelect',
+      textureRotationX: 'iblTextureRotationX',
       textureRotation: 'iblTextureRotation',
+      textureRotationZ: 'iblTextureRotationZ',
       textureScale: 'iblTextureScale',
       skyColor: 'iblSkyColor',
       skyLevel: 'iblSkyLevel',

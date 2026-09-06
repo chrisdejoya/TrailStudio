@@ -6,7 +6,9 @@ export const DEFAULT_IBL_STATE = {
   // IBL Mode: 'procedural' or 'texture'
   mode: 'procedural',
   textureId: 'procedural',
+  textureRotationX: 0,
   textureRotation: 0,
+  textureRotationZ: 0,
   textureScale: 1.0,
 
   // Procedural Sky Settings (used when mode === 'procedural')

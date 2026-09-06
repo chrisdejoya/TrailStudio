@@ -169,7 +169,7 @@ export class IBLEditor {
     });
   }
 
-  createTextureMesh(texture, rotation = 0, scale = 1.0) {
+  createTextureMesh(texture, rotationX = 0, rotationY = 0, rotationZ = 0, scale = 1.0) {
     if (this.textureMesh) {
       this.environmentScene.remove(this.textureMesh);
       this.textureMesh.geometry.dispose();
@@ -177,8 +177,6 @@ export class IBLEditor {
     }
 
     const geometry = new THREE.SphereGeometry(1, 64, 32);
-    geometry.scale(scale, scale, scale);
-    geometry.rotateY(rotation);
 
     const material = new THREE.MeshBasicMaterial({
       map: texture,
@@ -187,6 +185,8 @@ export class IBLEditor {
     });
 
     this.textureMesh = new THREE.Mesh(geometry, material);
+  this.textureMesh.rotation.set(rotationX, rotationY, rotationZ);
+  this.textureMesh.scale.setScalar(scale);
     this.environmentScene.add(this.textureMesh);
   }
 
@@ -232,12 +232,22 @@ export class IBLEditor {
             // Update or create texture mesh
             if (this.textureMesh) {
               // Update existing mesh transform
-              this.textureMesh.rotation.y = state.textureRotation;
+              this.textureMesh.rotation.set(
+                state.textureRotationX,
+                state.textureRotation,
+                state.textureRotationZ
+              );
               this.textureMesh.scale.setScalar(state.textureScale);
               this.textureMesh.material.map = texture;
               this.textureMesh.material.needsUpdate = true;
             } else {
-              this.createTextureMesh(texture, state.textureRotation, state.textureScale);
+              this.createTextureMesh(
+                texture,
+                state.textureRotationX,
+                state.textureRotation,
+                state.textureRotationZ,
+                state.textureScale
+              );
             }
 
             const newTarget = this.pmremGenerator.fromScene(this.environmentScene);
