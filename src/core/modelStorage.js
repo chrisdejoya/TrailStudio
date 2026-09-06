@@ -4,6 +4,10 @@ const STORE_NAME = 'models';
 const MODEL_KEY = 'current_glb';
 const HANDLE_KEY = 'current_file_handle';
 
+function presetModelKey(presetId) {
+  return `preset_glb_${presetId}`;
+}
+
 function openDatabase() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -44,6 +48,28 @@ async function writeStoreValue(key, value, errorMessage) {
 
 export function saveBinaryModel(buffer, name) {
   return writeStoreValue(MODEL_KEY, { buffer, name }, 'Failed to save model to IndexedDB:');
+}
+
+export function savePresetBinaryModel(presetId, buffer, name) {
+  return writeStoreValue(
+    presetModelKey(presetId),
+    { buffer, name },
+    'Failed to save preset model to IndexedDB:'
+  );
+}
+
+export function getPresetBinaryModel(presetId) {
+  return readStoreValue(presetModelKey(presetId));
+}
+
+export async function clearPresetBinaryModel(presetId) {
+  try {
+    const database = await openDatabase();
+    const transaction = database.transaction(STORE_NAME, 'readwrite');
+    transaction.objectStore(STORE_NAME).delete(presetModelKey(presetId));
+  } catch (error) {
+    console.error('Failed to clear preset model from IndexedDB:', error);
+  }
 }
 
 export function getStoredBinaryModel() {

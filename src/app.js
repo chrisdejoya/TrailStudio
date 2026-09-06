@@ -27,11 +27,15 @@ import {
   getStoredBinaryModel,
   getStoredFileHandle,
   saveBinaryModel,
+  savePresetBinaryModel,
+  getPresetBinaryModel,
+  clearPresetBinaryModel,
   saveFileHandle,
   verifyFilePermission,
 } from './core/modelStorage.js';
 import { setupNumberInputScrubbing } from './ui/numberInputScrubber.js';
 import { setupSceneInteraction } from './ui/sceneInteraction.js';
+import { createScenePresetStore } from './core/scenePresets.js';
 
 function loadGoogleFont(url) {
   if (document.querySelector(`link[href="${url}"]`)) return;
@@ -172,6 +176,9 @@ const modelPersistence = createModelPersistenceController({
   getStoredFileHandle,
   getStoredBinaryModel,
   saveBinaryModel,
+  savePresetBinaryModel,
+  getPresetBinaryModel,
+  clearPresetBinaryModel,
   saveFileHandle,
   verifyFilePermission,
 });
@@ -221,7 +228,6 @@ function updateIBL() {
 setupIBLControls(iblState, updateIBL, proceduralIBLEditor);
 setupCameraInputs(saveToLocalStorage);
 lightingManager.renderLightingDock();
-if (window.CustomDropdown) window.CustomDropdown.bindAll();
 
 // Post-processing UI Bindings
 document.querySelector('#aaToggle').addEventListener('change', updateAntiAliasing);
@@ -441,7 +447,9 @@ if (syncLeftStickDpadToggle) {
   });
 }
 
-const dpadButtonVerticalMovementToggle = document.querySelector('#dpadButtonVerticalMovementToggle');
+const dpadButtonVerticalMovementToggle = document.querySelector(
+  '#dpadButtonVerticalMovementToggle'
+);
 if (dpadButtonVerticalMovementToggle) {
   dpadButtonVerticalMovementToggle.addEventListener('change', (e) => {
     modelManager.setDpadButtonVerticalMovement(e.target.checked);
@@ -904,6 +912,131 @@ const settingsPersistence = createSettingsPersistence({
 });
 const { save: saveToLocalStorage, scheduleSave, load: loadFromLocalStorage } = settingsPersistence;
 
+const presetTrigger = document.querySelector('#scenePresetTrigger');
+const presetMenu = document.querySelector('#scenePresetMenu');
+const presetPicker = document.querySelector('#scenePresetPicker');
+const addPresetButton = document.querySelector('#addScenePreset');
+const renamePresetButton = document.querySelector('#renameScenePreset');
+const updatePresetButton = document.querySelector('#updateScenePreset');
+const revertPresetButton = document.querySelector('#revertScenePreset');
+const deletePresetButton = document.querySelector('#deleteScenePreset');
+const exportPresetsButton = document.querySelector('#exportScenePresets');
+const importPresetsButton = document.querySelector('#importScenePresets');
+const importPresetsFile = document.querySelector('#scenePresetImportFile');
+const presetNameDialog = document.querySelector('#presetNameDialog');
+const presetNameForm = document.querySelector('#presetNameForm');
+const presetNameInput = document.querySelector('#presetNameInput');
+const cancelPresetName = document.querySelector('#cancelPresetName');
+let pendingPresetNameAction = null;
+
+function refreshPresetSelect({ presets, selectedId }) {
+  if (!presetTrigger || !presetMenu) return;
+  const selected = presets.find((preset) => preset.id === selectedId);
+  presetTrigger.textContent = selected?.name || 'Preset';
+  presetMenu.replaceChildren(
+    ...presets.map((preset) => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'scene-preset-option';
+      option.classList.toggle('selected', preset.id === selectedId);
+      option.textContent = preset.name;
+      option.setAttribute('role', 'option');
+      option.addEventListener('click', async () => {
+        closePresetMenu();
+        await scenePresetStore.select(preset.id);
+      });
+      return option;
+    })
+  );
+  if (deletePresetButton) deletePresetButton.disabled = presets.length <= 1;
+}
+
+function closePresetMenu() {
+  presetPicker?.classList.remove('open');
+  presetTrigger?.setAttribute('aria-expanded', 'false');
+}
+
+function openPresetNameDialog(action, value) {
+  pendingPresetNameAction = action;
+  presetNameInput.value = value;
+  presetNameDialog.hidden = false;
+  presetNameInput.focus();
+  presetNameInput.select();
+}
+
+function closePresetNameDialog() {
+  presetNameDialog.hidden = true;
+  pendingPresetNameAction = null;
+}
+
+const scenePresetStore = createScenePresetStore({
+  getState: getSettingsState,
+  applyState: applySettingsState,
+  getModel: modelPersistence.getCurrentModel,
+  getPresetModel: async (presetId, modelReference) =>
+    modelReference ? getPresetBinaryModel(presetId) : null,
+  savePresetModel: (presetId, model) =>
+    model?.buffer
+      ? savePresetBinaryModel(presetId, model.buffer, model.name)
+      : clearPresetBinaryModel(presetId),
+  loadPresetModel: modelPersistence.loadPresetModel,
+  deletePresetModel: clearPresetBinaryModel,
+  onChange: refreshPresetSelect,
+});
+
+presetTrigger?.addEventListener('click', (event) => {
+  event.stopPropagation();
+  const open = presetPicker.classList.toggle('open');
+  presetTrigger.setAttribute('aria-expanded', String(open));
+});
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('#scenePresetPicker')) closePresetMenu();
+});
+addPresetButton?.addEventListener('click', () => openPresetNameDialog('create', 'New preset'));
+renamePresetButton?.addEventListener('click', () => {
+  const current = scenePresetStore.getSelected();
+  openPresetNameDialog('rename', current?.name || 'Preset');
+});
+updatePresetButton?.addEventListener('click', async () => {
+  await scenePresetStore.update();
+  saveToLocalStorage();
+});
+revertPresetButton?.addEventListener('click', async () => scenePresetStore.revert());
+deletePresetButton?.addEventListener('click', async () => scenePresetStore.remove());
+cancelPresetName?.addEventListener('click', closePresetNameDialog);
+presetNameDialog?.addEventListener('click', (event) => {
+  if (event.target === presetNameDialog) closePresetNameDialog();
+});
+presetNameForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const name = presetNameInput.value.trim();
+  if (!name) return;
+  if (pendingPresetNameAction === 'create') await scenePresetStore.create(name);
+  else await scenePresetStore.rename(name);
+  closePresetNameDialog();
+});
+exportPresetsButton?.addEventListener('click', async () => {
+  const data = await scenePresetStore.exportData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `trailstudio-presets-${Date.now()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+});
+importPresetsButton?.addEventListener('click', () => importPresetsFile?.click());
+importPresetsFile?.addEventListener('change', async () => {
+  const file = importPresetsFile.files?.[0];
+  if (!file) return;
+  try {
+    await scenePresetStore.importData(JSON.parse(await file.text()));
+  } catch (error) {
+    console.warn('Could not import scene presets:', error);
+  }
+  importPresetsFile.value = '';
+});
+
 const disposeSceneInteraction = setupSceneInteraction({
   renderer,
   lightingManager,
@@ -984,12 +1117,18 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Initializers Execution
-updateIBL();
-loadFromLocalStorage();
-modelPersistence.loadStoredModel();
-refreshPads();
-updateCameraPosition();
-loop();
+async function initializeApp() {
+  updateIBL();
+  loadFromLocalStorage();
+  await modelPersistence.loadStoredModel();
+  await scenePresetStore.load();
+  if (window.CustomDropdown) window.CustomDropdown.bindAll();
+  refreshPads();
+  updateCameraPosition();
+  loop();
+}
+
+initializeApp();
 
 // Expose Application APIs
 const appApi = {

@@ -41,6 +41,152 @@ body {
   pointer-events: none;
   z-index: 0;
 }
+
+.scene-presets {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transform: translateX(-50%);
+  color: #f0f0f0;
+  font:
+    600 16px/1 'Rubik',
+    system-ui,
+    sans-serif;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: none;
+}
+.scene-presets-label {
+  margin-right: 4px;
+}
+.scene-presets button {
+  pointer-events: auto;
+  height: 30px;
+  border: 2px solid #bdbdbd;
+  border-radius: 16px;
+  background: #303030;
+  color: #f5f5f5;
+  box-shadow:
+    0 1px 2px #000,
+    inset 0 0 0 1px #111;
+  font:
+    600 14px/1 'Rubik',
+    system-ui,
+    sans-serif;
+}
+.scene-presets button {
+  width: 25px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #d3d3d3;
+  font-size: 22px;
+}
+.scene-preset-picker {
+  position: relative;
+  pointer-events: auto;
+}
+.scene-preset-trigger {
+  min-width: 200px;
+  padding: 3px 28px 3px 10px !important;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scene-preset-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  display: none;
+  min-width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid #777;
+  border-radius: 8px;
+  background: #202020;
+  box-shadow: 0 8px 24px #000b;
+}
+.scene-preset-picker.open .scene-preset-menu {
+  display: grid;
+  gap: 2px;
+}
+.scene-preset-option {
+  width: 100% !important;
+  height: 28px !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: left;
+  font-size: 12px !important;
+}
+.scene-preset-option:hover,
+.scene-preset-option.selected {
+  background: #3e5e84 !important;
+}
+.preset-name-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: #0008;
+}
+.preset-name-dialog[hidden] {
+  display: none;
+}
+.preset-name-panel {
+  display: grid;
+  gap: 10px;
+  width: min(320px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid #68778a;
+  border-radius: 8px;
+  background: #171b22;
+  box-shadow: 0 12px 36px #000c;
+  color: #fff;
+  font:
+    13px 'Rubik',
+    system-ui,
+    sans-serif;
+}
+.preset-name-panel input {
+  height: 32px;
+  padding: 5px 8px;
+  border: 1px solid #526274;
+  border-radius: 4px;
+  background: #0c1017;
+  color: #fff;
+}
+.preset-name-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.scene-presets button:hover:not(:disabled) {
+  color: #fff;
+}
+.scene-presets button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+@media (max-width: 520px) {
+  .scene-presets {
+    top: 8px;
+    font-size: 13px;
+  }
+  .scene-preset-trigger {
+    min-width: 150px;
+    max-width: 45vw;
+  }
+}
 canvas {
   display: block;
   position: relative;

@@ -4,11 +4,17 @@ export function createModelPersistenceController({
   getStoredFileHandle,
   getStoredBinaryModel,
   saveBinaryModel,
+  savePresetBinaryModel,
+  getPresetBinaryModel,
+  clearPresetBinaryModel,
   saveFileHandle,
   verifyFilePermission,
 }) {
+  let currentModel = null;
+
   async function loadBuffer(buffer, name) {
-    modelManager.parseAndLoadGLTF(buffer);
+    await modelManager.parseAndLoadGLTF(buffer);
+    currentModel = { buffer, name };
     await saveBinaryModel(buffer, name);
   }
 
@@ -30,10 +36,11 @@ export function createModelPersistenceController({
 
     const stored = await getStoredBinaryModel();
     if (stored?.buffer) {
-      modelManager.parseAndLoadGLTF(stored.buffer);
+      await loadBuffer(stored.buffer, stored.name);
       return true;
     }
 
+    currentModel = null;
     modelManager.buildProceduralController();
     return false;
   }
@@ -63,8 +70,29 @@ export function createModelPersistenceController({
 
   async function resetToProcedural() {
     await clearStoredModel();
+    currentModel = null;
     modelManager.buildProceduralController();
   }
 
-  return { loadStoredModel, loadSelectedFile, pickFile, resetToProcedural };
+  async function loadPresetModel(model) {
+    if (!model?.buffer) {
+      currentModel = null;
+      await clearStoredModel();
+      modelManager.buildProceduralController();
+      return;
+    }
+    await loadBuffer(model.buffer, model.name);
+  }
+
+  return {
+    loadStoredModel,
+    loadSelectedFile,
+    loadPresetModel,
+    savePresetBinaryModel,
+    getPresetBinaryModel,
+    clearPresetBinaryModel,
+    pickFile,
+    resetToProcedural,
+    getCurrentModel: () => currentModel,
+  };
 }

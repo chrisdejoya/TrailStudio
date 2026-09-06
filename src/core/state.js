@@ -57,6 +57,7 @@ export const LIGHT_CONFIGS = [
     rot: [0, 0, 0],
     castShadow: false,
     softShadow: true,
+    visible: true,
   },
 
   // 2. Key Light: Classic 45° studio key position (warm daylight, soft primary shadow)
@@ -70,6 +71,7 @@ export const LIGHT_CONFIGS = [
     rot: [0, 0, 0],
     castShadow: true,
     softShadow: true,
+    visible: true,
   },
 
   // 3. Rim / Hair Light: Rear kick light to separate the controller handles from dark backgrounds
@@ -83,6 +85,7 @@ export const LIGHT_CONFIGS = [
     rot: [0, 0, 0],
     castShadow: false,
     softShadow: true,
+    visible: true,
   },
 
   // 4. Front Fill: Low-intensity front light to illuminate recessed controller details / buttons
@@ -96,6 +99,7 @@ export const LIGHT_CONFIGS = [
     rot: [0, 0, 0],
     castShadow: false,
     softShadow: true,
+    visible: true,
   },
 ];
 

@@ -141,7 +141,11 @@ export class ModelManager {
       pressed: button.pressed,
       value: button.value,
     }));
-    const directionalStates = getDpadDirectionalStates(pad.buttons, pad.axes, this.syncLeftStickDpad);
+    const directionalStates = getDpadDirectionalStates(
+      pad.buttons,
+      pad.axes,
+      this.syncLeftStickDpad
+    );
     const hasDiagonalButtons = DPAD_DIAGONAL_BUTTONS.some(({ index }) => this.buttons3D[index]);
     const activeDiagonalDirections = new Set();
 
@@ -171,7 +175,8 @@ export class ModelManager {
       let val = button.value;
       let isPressed = button.pressed || val > 0.1;
 
-      const isDpadButton = (i >= 12 && i <= 15) || DPAD_DIAGONAL_BUTTONS.some(({ index }) => index === i);
+      const isDpadButton =
+        (i >= 12 && i <= 15) || DPAD_DIAGONAL_BUTTONS.some(({ index }) => index === i);
 
       const maxTravel = isStick ? 0.04 : 0.03;
       const pressDepth =
@@ -566,21 +571,25 @@ export class ModelManager {
   }
 
   parseAndLoadGLTF(buffer) {
-    const loader = new GLTFLoader();
-    loader.parse(
-      buffer,
-      '',
-      (gltf) => {
-        this.clearController3D();
-        this.currentModel = gltf.scene;
-        this.controllerGroup.add(this.currentModel);
-        this.processModelNode(this.currentModel);
-        this.trailManager.syncTarget(this.getLeftStickTrailTarget());
-        this.modelLoadedListeners.forEach((listener) => listener());
-      },
-      (err) => {
-        console.error('Error parsing GLB:', err);
-      }
-    );
+    return new Promise((resolve, reject) => {
+      const loader = new GLTFLoader();
+      loader.parse(
+        buffer,
+        '',
+        async (gltf) => {
+          this.clearController3D();
+          this.currentModel = gltf.scene;
+          this.controllerGroup.add(this.currentModel);
+          this.processModelNode(this.currentModel);
+          this.trailManager.syncTarget(this.getLeftStickTrailTarget());
+          await Promise.all([...this.modelLoadedListeners].map((listener) => listener()));
+          resolve();
+        },
+        (err) => {
+          console.error('Error parsing GLB:', err);
+          reject(err);
+        }
+      );
+    });
   }
 }

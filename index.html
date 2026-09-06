@@ -26,6 +26,80 @@
     <!-- Root Application Container -->
     <div id="app"></div>
 
+    <div class="scene-presets" id="scenePresets" aria-label="Scene presets">
+      <span class="scene-presets-label">Presets</span>
+      <div class="scene-preset-picker" id="scenePresetPicker">
+        <button
+          id="scenePresetTrigger"
+          class="scene-preset-trigger"
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+        >
+          Default
+        </button>
+        <div id="scenePresetMenu" class="scene-preset-menu" role="listbox"></div>
+      </div>
+      <button id="addScenePreset" type="button" aria-label="Add preset" title="Add preset">
+        +
+      </button>
+      <button id="renameScenePreset" type="button" aria-label="Rename preset" title="Rename preset">
+        ✎
+      </button>
+      <button
+        id="updateScenePreset"
+        type="button"
+        aria-label="Update selected preset"
+        title="Update preset"
+      >
+        ↻
+      </button>
+      <button
+        id="revertScenePreset"
+        type="button"
+        aria-label="Revert selected preset"
+        title="Revert preset"
+      >
+        ↶
+      </button>
+      <button
+        id="deleteScenePreset"
+        type="button"
+        aria-label="Delete selected preset"
+        title="Delete preset"
+      >
+        ×
+      </button>
+      <button
+        id="exportScenePresets"
+        type="button"
+        aria-label="Export presets"
+        title="Export presets"
+      >
+        ⇩
+      </button>
+      <button
+        id="importScenePresets"
+        type="button"
+        aria-label="Import presets"
+        title="Import presets"
+      >
+        ⇧
+      </button>
+      <input id="scenePresetImportFile" type="file" accept="application/json,.json" hidden />
+    </div>
+
+    <div id="presetNameDialog" class="preset-name-dialog" hidden>
+      <form id="presetNameForm" class="preset-name-panel">
+        <label for="presetNameInput">Preset name</label>
+        <input id="presetNameInput" type="text" maxlength="80" autocomplete="off" />
+        <div class="preset-name-actions">
+          <button id="cancelPresetName" type="button">Cancel</button>
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+
     <!-- Diagnostics HUD Panel (Upper Right, Toggled via Backtick) -->
     <aside id="hud" aria-label="Gamepad Diagnostics">
       <section id="left" class="panel">
@@ -187,7 +261,9 @@
                 </div>
                 <div class="checkbox-row">
                   <input type="checkbox" id="dpadButtonVerticalMovementToggle" checked />
-                  <label for="dpadButtonVerticalMovementToggle">D-Pad Button Vertical Movement</label>
+                  <label for="dpadButtonVerticalMovementToggle"
+                    >D-Pad Button Vertical Movement</label
+                  >
                 </div>
               </div>
             </div>
@@ -638,7 +714,12 @@
                 <div class="slider-row">
                   <div class="row">
                     <div class="label-with-icon"><span>Rotate X</span></div>
-                    <input type="text" class="drag-input" value="0.00" id="iblTextureRotationXInput" />
+                    <input
+                      type="text"
+                      class="drag-input"
+                      value="0.00"
+                      id="iblTextureRotationXInput"
+                    />
                   </div>
                   <div class="slider-controls">
                     <input
@@ -655,7 +736,12 @@
                 <div class="slider-row">
                   <div class="row">
                     <div class="label-with-icon"><span>Rotate Y</span></div>
-                    <input type="text" class="drag-input" value="0.00" id="iblTextureRotationInput" />
+                    <input
+                      type="text"
+                      class="drag-input"
+                      value="0.00"
+                      id="iblTextureRotationInput"
+                    />
                   </div>
                   <div class="slider-controls">
                     <input
@@ -672,7 +758,12 @@
                 <div class="slider-row">
                   <div class="row">
                     <div class="label-with-icon"><span>Rotate Z</span></div>
-                    <input type="text" class="drag-input" value="0.00" id="iblTextureRotationZInput" />
+                    <input
+                      type="text"
+                      class="drag-input"
+                      value="0.00"
+                      id="iblTextureRotationZInput"
+                    />
                   </div>
                   <div class="slider-controls">
                     <input

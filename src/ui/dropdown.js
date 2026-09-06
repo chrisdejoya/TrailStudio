@@ -138,6 +138,32 @@ export function bindSelect(select) {
   syncDisplay();
 }
 
+export function refreshSelect(select) {
+  const wrapper = select?.parentElement;
+  const menu = wrapper?.customDropdownMenu;
+  const trigger = wrapper?.querySelector('.custom-select-trigger');
+  if (!select || !menu) return;
+  const selectedOption = select.options[select.selectedIndex];
+  if (trigger) trigger.textContent = selectedOption?.textContent || '';
+  menu.replaceChildren(
+    ...Array.from(select.options).map((option) => {
+      const menuOption = document.createElement('div');
+      menuOption.className = 'custom-select-option';
+      menuOption.classList.toggle('selected', option.value === select.value);
+      menuOption.textContent = option.textContent;
+      menuOption.dataset.value = option.value;
+      menuOption.setAttribute('role', 'option');
+      menuOption.addEventListener('click', () => {
+        select.value = option.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        wrapper.classList.remove('open');
+        menu.classList.remove('is-open');
+      });
+      return menuOption;
+    })
+  );
+}
+
 /**
  * Binds all native select elements within a given root context.
  *
@@ -156,5 +182,6 @@ document.addEventListener('click', (event) => {
 
 export const CustomDropdown = {
   bindSelect,
+  refreshSelect,
   bindAll,
 };

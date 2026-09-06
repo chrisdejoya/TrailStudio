@@ -55,6 +55,7 @@ export class LightingManager {
     if (config.type !== 'HemisphereLight') {
       light.position.set(...config.pos);
     }
+    light.visible = config.visible !== false;
 
     if (config.type === 'DirectionalLight' || config.type === 'SpotLight') {
       const targetPos = config.target || [0, 0, 0];
@@ -157,7 +158,7 @@ export class LightingManager {
       card.innerHTML = `
         <div class="panel-header" onclick="togglePanel(this)">
           <div class="panel-header-left">
-            <input type="checkbox" id="${cfg.id}-toggle" checked onclick="event.stopPropagation()">
+            <input type="checkbox" id="${cfg.id}-toggle" ${cfg.visible !== false ? 'checked' : ''} onclick="event.stopPropagation()">
             <label for="${cfg.id}-toggle" onclick="event.stopPropagation()">${cfg.name}</label>
           </div>
           <svg class="caret" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12,8 20,16 4,16"/></svg>
@@ -288,6 +289,7 @@ export class LightingManager {
         .querySelector('.panel-header')
         .addEventListener('click', () => this.setActiveLight(cfg.id));
       card.querySelector(`#${cfg.id}-toggle`).addEventListener('change', (e) => {
+        cfg.visible = e.target.checked;
         entry.instance.visible = e.target.checked;
       });
 
@@ -425,6 +427,7 @@ export class LightingManager {
       penumbra: cfg.penumbra,
       castShadow: cfg.castShadow,
       softShadow: cfg.softShadow,
+      visible: cfg.visible !== false,
     }));
   }
 
@@ -435,6 +438,7 @@ export class LightingManager {
       const match = this.lightConfigs.find((cfg) => cfg.id === savedCfg.id);
       if (match) {
         Object.assign(match, savedCfg);
+        match.visible = savedCfg.visible !== false;
         const entry = this.lightsMap.get(match.id);
         if (entry) {
           this.replaceLightInstance(match);
