@@ -4,7 +4,7 @@ bl_info = {
     "version": (1, 0),
     "blender": (3, 0, 0),
     "location": "View3D > Sidebar > Trailpad",
-    "description": "Tag controller meshes with standard names for WebGL auto-binding.",
+    "description": "Tag controller meshes with custom properties for WebGL auto-binding.",
     "category": "3D View",
 }
 
@@ -54,9 +54,8 @@ class OBJECT_OT_tag_trailpad_part(bpy.types.Operator):
             self.report({'WARNING'}, "No active object selected.")
             return {'CANCELLED'}
 
-        old_name = obj.name
-        obj.name = self.part_name
-        self.report({'INFO'}, f"Renamed '{old_name}' to '{self.part_name}'")
+        obj["trailpad_element"] = self.part_name
+        self.report({'INFO'}, f"Assigned trailpad_element='{self.part_name}' to '{obj.name}'")
         return {'FINISHED'}
 
 
@@ -77,7 +76,7 @@ class VIEW3D_PT_trailpad_panel(bpy.types.Panel):
             layout.label(text="Select a Mesh Object", icon='INFO')
 
         layout.separator()
-        layout.label(text="Assign Naming Label:")
+        layout.label(text="Assign Controller Element:")
 
         col = layout.column(align=True)
         for name_key, label_text, tooltip in BUTTON_MAPPINGS:

@@ -32,6 +32,7 @@ const MESH_MAPPINGS = {
   DPad_Down_Left: 21,
   DPad_Down_Right: 22,
 };
+const TRAILPAD_ELEMENT_PROPERTY = 'trailpad_element';
 
 const baseBtnMat = new THREE.MeshPhysicalMaterial({
   color: 0x333333,
@@ -528,7 +529,8 @@ export class ModelManager {
     if (node.isSkinnedMesh) this.addBoneHelper(node);
 
     if (node.isMesh || node.isBone || node.isGroup) {
-      const buttonIndex = MESH_MAPPINGS[node.name];
+      const element = node.userData?.[TRAILPAD_ELEMENT_PROPERTY];
+      const buttonIndex = MESH_MAPPINGS[element];
       if (buttonIndex !== undefined) {
         const isStick = buttonIndex === 10 || buttonIndex === 11;
         const emissiveTargets = node.isBone
@@ -537,22 +539,22 @@ export class ModelManager {
         this.register3DButton(buttonIndex, node, isStick, emissiveTargets);
       }
 
-      if (node.name === 'Stick_Left') {
+      if (element === 'Stick_Left') {
         this.leftStick3DGroup = node;
         this.registerMotionNode(node);
       }
-      if (node.name === 'Stick_Right') {
+      if (element === 'Stick_Right') {
         this.rightStick3DGroup = node;
         this.registerMotionNode(node);
       }
-      if (node.name === 'DPad_Rocker') {
+      if (element === 'DPad_Rocker') {
         this.dpadRockerPivot = node;
         this.registerMotionNode(node);
       }
-      if (node.name === 'Washer_Left') {
+      if (element === 'Washer_Left') {
         this.washerLeft3D = node;
       }
-      if (node.name === 'Washer_Right') {
+      if (element === 'Washer_Right') {
         this.washerRight3D = node;
       }
     }
