@@ -59,6 +59,34 @@ class OBJECT_OT_tag_trailpad_part(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class OBJECT_OT_export_trailpad_glb(bpy.types.Operator):
+    """Export the scene as a GLB with TrailStudio metadata preserved"""
+    bl_idname = "object.export_trailpad_glb"
+    bl_label = "Export GLB"
+    bl_options = {'REGISTER'}
+
+    filepath: bpy.props.StringProperty(subtype='FILE_PATH')
+
+    def invoke(self, context, event):
+        if not self.filepath:
+            self.filepath = bpy.path.ensure_ext(
+                bpy.data.filepath or "//trailstudio_export.glb", ".glb"
+            )
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        filepath = bpy.path.ensure_ext(self.filepath, ".glb")
+        bpy.ops.export_scene.gltf(
+            filepath=filepath,
+            export_format='GLB',
+            export_extras=True,
+            export_apply=True,
+        )
+        self.report({'INFO'}, f"Exported GLB to '{filepath}'")
+        return {'FINISHED'}
+
+
 class VIEW3D_PT_trailpad_panel(bpy.types.Panel):
     bl_label = "Trailpad GLB Setup"
     bl_idname = "VIEW3D_PT_trailpad_panel"
@@ -70,10 +98,13 @@ class VIEW3D_PT_trailpad_panel(bpy.types.Panel):
         layout = self.layout
         obj = context.active_object
 
+        selected_box = layout.box()
         if obj:
-            layout.label(text=f"Selected: {obj.name}", icon='OBJECT_DATA')
+            selected_box.label(text=f"Selected: {obj.name}", icon='OBJECT_DATA')
+            element = obj.get("trailpad_element")
+            selected_box.label(text=f"trailpad_element: {element or '(not assigned)'}")
         else:
-            layout.label(text="Select a Mesh Object", icon='INFO')
+            selected_box.label(text="Select a Mesh Object", icon='INFO')
 
         layout.separator()
         layout.label(text="Assign Controller Element:")
@@ -83,13 +114,18 @@ class VIEW3D_PT_trailpad_panel(bpy.types.Panel):
             op = col.operator("object.tag_trailpad_part", text=label_text)
             op.part_name = name_key
 
+        layout.separator()
+        layout.operator("object.export_trailpad_glb", icon='EXPORT')
+
 
 def register():
     bpy.utils.register_class(OBJECT_OT_tag_trailpad_part)
+    bpy.utils.register_class(OBJECT_OT_export_trailpad_glb)
     bpy.utils.register_class(VIEW3D_PT_trailpad_panel)
 
 def unregister():
     bpy.utils.unregister_class(OBJECT_OT_tag_trailpad_part)
+    bpy.utils.unregister_class(OBJECT_OT_export_trailpad_glb)
     bpy.utils.unregister_class(VIEW3D_PT_trailpad_panel)
 
 if __name__ == "__main__":
