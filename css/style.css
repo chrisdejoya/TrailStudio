@@ -26,8 +26,25 @@ body {
   position: fixed;
   inset: 0;
 }
+#app::before {
+  content: '';
+  position: fixed;
+  top: -60px;
+  left: 20px;
+  width: 250px;
+  height: 250px;
+  background-image: url('../textures/logo/logo.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
 canvas {
   display: block;
+  position: relative;
+  z-index: 1;
 }
 
 /* --- DIAGNOSTICS PANEL (upper right, toggled with backtick) --- */
